@@ -5,11 +5,11 @@ echo -e "\n> Begin to execute install-zsh."
 
 cd /tmp
 
-echo "> Installing zsh ..."
-
 if [ $(uname) == "Linux" ] && [ ! -f /usr/bin/zsh ]; then
+    echo "> Installing zsh(apt) ..."
     sudo apt install zsh
 elif [ $(uname) == "Darwin" ] && [ ! -f /bin/zsh ]; then
+    echo "> Installing zsh(brew) ..."
     brew install zsh
 fi
 
