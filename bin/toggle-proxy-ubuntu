@@ -3,10 +3,10 @@ set -euo pipefail
 
 if [[ $# -eq 1 && $1 = "home" ]]; then
     echo "> set proxy in home environment"
-    export HTTP_RPOXY="http://192.168.0.102:7890/"
-    export ALL_RPOXY="socks://192.168.0.102:7891/"
+    export HTTP_RPOXY=http://192.168.0.102:7890/
+    export ALL_RPOXY=socks://192.168.0.102:7891/
 else
     echo "> set proxy in company environment"
-    export HTTP_RPOXY="http://172.18.2.22:7890/"
-    export ALL_RPOXY="socks://172.18.2.22:7891/"
+    export HTTP_RPOXY=http://172.18.2.22:7890/
+    export ALL_RPOXY=socks://172.18.2.22:7891/
 fi

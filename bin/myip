@@ -1,8 +1,6 @@
 #!/usr/bin/env zsh
 # Echos your local or WAN IP
 
-source $GCLRC_SHELL/utils
-
 if [[ $# -eq 1 && $1 == -w ]]; then
   wan=1
   shift
