@@ -1,0 +1,22 @@
+# ======================== V alias ========================
+
+alias vinfo='echo "=== alias v ==="
+echo ""
+echo "-- vt, vite, 脚手架"
+echo ""
+echo "   vica       = yarn crate @vitejs/app"
+echo "   viat       = yarn add -D tailwindcss..., 增加 tailwind 支持"
+echo "------------------------------------------------------------"
+echo ""
+echo "-- vb, vue build, 相关"
+echo ""
+echo "   vbdcjs     = shl/vue-cli.sh dev cjs <name> 开发模式"
+echo "   vbpcjs     = shl/vue-cli.sh pro cjs <name> 生产模式"
+echo ""
+'
+
+alias vslrc="vim $GCLRC_HOME/macos/.sunlightrc"
+alias vica="yarn create @vitejs/app"
+alias viat="yarn add -D tailwindcss@latest postcss@latest autoprefixer@latest && \
+npx tailwindcss init -p
+"

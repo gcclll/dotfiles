@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "\n> Begin to execute install-tools.sh."
+
+# node #########################################################################
+color_info "> Installing npm..."
+curl -qL https://www.npmjs.com/install.sh | sh
+color_info "> Installing yarn, opencc..."
+npm -g install yarn opencc js-beautify indium tree-sitter-cli \
+    editorconfig jest vmd tsun indium ba64
+
+# brew ########################################################################
+color_info "> Brew install..."
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install fd fzf ripgrep rg m-cli autojump stardict sdcv jq pngpaste \
+    gnuplot pipx rust-analyzer pandoc glslang graphviz bcal \
+    pkg-config poppler automake clang-format texmacs texlab \
+    mu isync offlineimap aspell xdotool
+brew install --cask gifcapture mpv basictex
+# mactex, large 4gb download
+# brew install --cask mactex
+brew link fd
+# xdotool
+defaults write org.x.X11 enable_test_extensions -boolean true
+
+color_sub "\t> brew install done.\n"
+
+# mac cli #####################################################################
+color_info "> Installing mac-cli..."
+cd /tmp
+/bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/guarinogabriel/mac-cli/master/mac-cli/tools/install)"
+
+# others ######################################################################
+# To install useful key bindings and fuzzy completion:
+color_info "> Installing fzf..."
+$(brew --prefix)/opt/fzf/install
+
+# slate, 窗口管理 #############################################################
+color_info "> Installing Slate, window management tool."
+cd /Applications && curl http://www.ninjamonkeysoftware.com/slate/versions/slate-latest.tar.gz | tar -xz
+
+color_info "> ------ install-tools.sh DONE ------\n"

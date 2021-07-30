@@ -1,0 +1,62 @@
+# ======================== G alias ========================
+
+# mine
+alias gccll="$GCLRC_BIN/awesome.sh"
+
+# cd
+alias gp400="g400 && gpush"
+alias gpdvs="gdvs && gpush"
+
+alias gblog="cd $BLOG_HOME"
+alias gpblog="gblog && gpush"
+
+alias gbeven="cd $BLOG_HOME/themes/even"
+alias gpeven="gbeven && gpush"
+
+alias gdot="cd $GCLRC_HOME"
+alias gpdot="gdot && gpush"
+
+alias gdoom="cd $HOME/.doom.d"
+alias gpdoom="gdoom && gpush"
+
+alias gemacs="cd $HOME/.emacs.d"
+alias gweb="cd /Library/WebServer/Documents"
+alias gtmp="cd $HOME/ccc/tmp"
+alias grime="cd $HOME/Library/Rime"
+alias gprime="grime && gpush"
+
+alias gbooks=" cd $HOME/github/aliyun/books"
+alias gpbooks="gbooks && gpush"
+
+alias gpublish="cd $HOME/ccc/tmp/epg_publish_dir"
+alias gssh="cd $HOME/.ssh"
+alias ggopath="cd $GOPATH"
+
+alias ga="git add"
+alias gc="git checkout"
+alias gf="git fetch"
+alias gl="git pull"
+alias gm="git commit -m"
+alias gs="git status"
+
+# alias git-ignore-logs="rm -rf .log && git rm -r .log && git commit -m 'clear logs' && git push"
+alias gcb="git checkout -b"
+alias gdc="git rm --cached"
+alias gdf="git diff"
+alias gdo="git push origin --delete"
+alias gma="git submodule add"
+alias gmu="git submodule update --init --recursive"
+alias gall="git clone --recurse-submodules"
+alias gpusho="git push origin"
+alias greset="git reset HEAD"
+alias gpop="git stash pop"
+alias gstage="git ls-files --stage"
+alias gunset="git config --global --unset http.https://github.com.proxy && git config --global --unset https.https://github.com.proxy"
+
+alias gbrew="HOMEBREW_NO_AUTO_UPDATE=1 brew"
+alias gpg-create="gpg --homedir ~/.emacs.d/elpa/gnupg --receive-keys 066DAFCB81E42C40"
+alias gpg-expire="gpg --homedir ~/.emacs.d/elpa/gnupg --quick-set-expire 474F05837FBDEF9B 100y"
+
+# grep, grep [options] pattern [file]
+alias grepn="grep -n"           # 显示行号
+alias grepv="grep -nv"          # 输出事匹配的行

@@ -1,0 +1,11 @@
+# ======================== L alias ========================
+
+alias linfo='echo -e "=== alias l ===
+-- life, 我的生活
+
+   1. lifefruit     记录我能吃和不能吃的水果
+
+
+"'
+
+alias lifefruit="$GCLRC_BIN/glife fruit"

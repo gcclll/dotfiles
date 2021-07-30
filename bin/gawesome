@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "
+# 服务器 ######################################################################
+"
+color_purple ':
+
+  1. 三丰云：https://www.sanfengyun.com/
+
+    \033[0;33m 三十天的免费，到期直接续费使用，记得设置闹钟哦~~。 \033[0m
+'

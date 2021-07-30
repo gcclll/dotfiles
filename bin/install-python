@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_green "> 开始执行 install-python.sh 脚本"
+
+# python, pip #################################################################
+color_info "> python & pip & pipx 安装工具..."
+brew_install python3
+brew_install pipx
+pipx_install pipenv ensurepath
+link_s_bin_full pipenv "$HOME/.local/pipx/venvs/pipenv"
+
+pip install -U pytest sshx buku grip
+sudo easy_install nose
+link_s_bin_full "grip" "$(which grip)"
+
+color_info "> ------ install-python DONE ------\n"

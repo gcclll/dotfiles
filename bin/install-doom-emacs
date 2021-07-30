@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+cd $HOME
+
+color_info "\n> Begin to execute install-doom-emacs.sh."
+
+EMACS="$HOME/.emacs.d"
+test_dir_rm $EMACS
+
+color_info "> git cloning doom-emacs..."
+git clone --depth 1 https://github.com/hlissner/doom-emacs $EMACS
+
+DOOM="$HOME/.doom.d"
+color_info "> git cloning my private doom configuration..."
+test_dir_rm "$DOOM"
+# [[https://git-scm.com/book/zh/v2/Git-%E5%B7%A5%E5%85%B7-%E5%AD%90%E6%A8%A1%E5%9D%97][Git - 子模块]]
+git clone git@github.com:gcclll/.doom.d.git $DOOM --recurse-submodules
+cd $DOOM
+pwd
+
+color_info "> ✅ Donwload my private doom configuration finished."
+color_info "> Start to compile packages native"
+color_warn "> ⌛ Maybe, It will cost 6h upon, please waiting for a :tea: ."
+
+$EMACS/bin/doom -y install
+ln -s $EMACS/bin/doom /usr/local/bin/doom
+if [ -d "$EMACS/.local/etc" ]; then
+    cp $DOOM/plantuml.jar $EMACS/.local/etc/plantuml.jar
+fi
+$EMACS/bin/doom -y sync
+$EMACS/bin/doom env -o $DOOM/env
+color_info "> Doom Emacs Installed."
+
+color_info "> ------ install-doom-emacs.sh DONE ------\n"

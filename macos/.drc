@@ -1,0 +1,39 @@
+# ======================== D alias ========================
+
+alias dinfo='echo "=== alias d ==="
+echo "-- da, dart, Dart 开发语言 CLI"
+echo "   das    = dart analysis, Dart 分析"
+echo "------------------------------------------------------------"
+
+echo ""
+echo "-- dm, doom, doom emacs CLI"
+echo "   dmsync     = doom sync, 同步配置"
+echo "   dmdoc      = doom doctor"
+echo "   dmupg      = doom upgrade"
+echo "   dmenv      = doom env"
+echo "   dmake      = $HOME/.doom.d/make, 编译"
+echo "------------------------------------------------------------"
+echo ""
+'
+
+# dart language
+alias das="dart $DART_BIN/snapshots/analysis_server.dart.snapshot --lsp | echo \"dart analysis server running...\""
+
+# doom
+alias doom="cd $HOME/.emacs.d && bin/doom"
+alias dmsync="doom sync"
+alias dmdoctor="doom doctor"
+alias dmclean="doom clean"
+alias dmsdoc="dmsync && dmdoctor"
+alias dmreset="rm -rf $HOME/.emacs.d/.local && dmsync"
+alias dmcsync="doom clean && dm sync"
+alias dmupgrade="doom upgrade"
+alias dmenv="doom env"
+alias dmake="cd $HOME/.doom.d && $HOME/.doom.d/make"
+
+# df
+alias dfh="df -h"       # 大小用易读形式显示
+
+# du
+alias duc="du -ch"      # 显示所有已列出文件总的大小
+alias dus="du -chs"     # 显示每个输出参数的总计

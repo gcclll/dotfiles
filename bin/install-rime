@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "> 开始执行 install-rime.sh 脚本"
+LIBRARY="$HOME/Library"
+DOOM="$HOME/.doom.d"
+DYLIB="/Library/Input Methods/Squirrel.app/Contents/Frameworks/librime.1.dylib"
+
+if [[ ! -e ${DYLIB} ]]; then
+    color_info "> Rime 没有安装, 准备安装 Rime 输入法 https://rime.im/download/"
+    color_info "> 如果下載速度太慢，建議通過網站下載安裝：https://rime.im/download/"
+    color_info "> -------- F4 呼出配置，可進行简体和繁体切换 --------"
+    brew install --cask squirrel
+    color_info "> rime installed, link lib into /usr/local/lib"
+    sudo cp "${DYLIB}" /usr/local/lib
+    color_info "> -------- Rime 安装完成 --------\n"
+else
+    color_warn "> Rime 已经存在，无需重复安装。"
+fi
+
+# echo "> -------- 开始安装 rime-install 命令 --------"
+PLUM="$LIBRARY/plum"
+color_info "> 安装 rime-install..."
+test_dir_rm "$PLUM"
+
+git submodule add --depth 1 https://github.com/rime/plum.git
+cd $PLUM
+bash rime-install
+color_info "> 安装 Rime 插件"
+bash rime-install wubi pinyin-simp
+
+# cd $PLUM
+# bash rime-install :preset
+# echo "> -------- rime-install 安装完成 --------"
+# echo ""
+
+# echo "> -------- 开始安装 Rime 五笔 --------"
+# bash rime-install wubi pinyin-simp
+# echo "> -------- Rime 五笔安装完成 --------"
+# echo ""
+
+color_info "> -------- 下載 Rime 個人配置 --------"
+RIME_CONFIG="$LIBRARY/Rime"
+color_warn "> 刪除已有配置..."
+test_dir_rm "$RIME_CONFIG"
+
+color_info "> 正在下載個人配置..."
+cd $LIBRARY
+git clone git@code.aliyun.com:gccll/my-rime-config.git $RIME_CONFIG
+color_info "> -------- 下載完成 --------\n"
+
+# echo "> -------- 开始构建 librime.so --------"
+# echo "> 编译时间有点长，请耐心等待"
+# echo "> 1. installing cmake & git dependencies..."
+# brew install cmake git
+
+# LIB="$DOOM/extensions/librime"
+# if [ ! -d $LIB ]; then
+#     echo "> clone librime -> $LIB"
+#     cd $DOOM
+#     # [[https://rime.im/download/][下載及安裝 | RIME | 中州韻輸入法引擎]]
+#     git submodule add --depth=1 https://github.com/rime/librime.git extensions/librime
+# fi
+
+# echo "> export RIME_PATH=$LIB"
+# export RIME_PATH="$LIB"
+# echo $RIME_PATH
+
+# cd $LIB
+# echo "> 2. begin make -> xcode/thirdparty/boost"
+# make xcode/thirdparty/boost
+
+# echo "> export BOOST_ROOT=$(pwd)/thirdparty/src/boost_1_75_0"
+# export BOOST_ROOT="$(pwd)/thirdparty/src/boost_1_75_0"
+
+# echo "> 3. building 3rd parth libraries..."
+# git submodule update --init
+# make xcode/thirdparty
+
+# echo "> 4. building librime ..."
+
+# make xcode
+# make xcode/debug
+
+# echo "> done."
+# echo "> 5. running unit tests..."
+# make xcode/test
+
+# echo "> 6. try it ..."
+
+# cd debug/bin
+# echo "congmingdeRime{space}shurufa" | Debug/rime_api_console
+
+color_info "> ------ install-rime.sh DONE ------\n"

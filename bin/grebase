@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$1" ]; then
+    git init
+    git add .
+    git commit -m 'init new depo'
+    git branch -M main
+    git remote add origin $1 # git@....
+    # git pull --rebase origin $3
+    git push -u origin main # github 现在默认是 main 分支
+    git status
+fi

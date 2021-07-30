@@ -1,0 +1,54 @@
+# ======================== A alias ========================
+
+alias cinfo='echo "=== alias c ==="
+echo "-- ce, /opt/local/bin/emacs"
+echo ""
+echo "------------------------------------------------------------"
+echo " -- chm, chmod"
+echo ""
+echo "    chmshl        = cd shl/ && chmod +x <sh-file>"
+echo "------------------------------------------------------------"
+echo ""
+echo "-- cp, copy file"
+echo "   cpvr       = ~/.gclrc/bin/gstart vue-reactivity"
+echo "   cpvc       = ~/.gclrc/bin/gstart vue vue-compiler-core"
+echo "   cpvd       = ~/.gclrc/bin/gstart vue vue-compiler-dom"
+echo "   cpvs       = ~/.gclrc/bin/gstart vue vue-compiler-sfc"
+echo "   cpvt       = ~/.gclrc/bin/gstart vue vue-runtime-test"
+echo "   cpvD       = ~/.gclrc/bin/gstart vue vue-runtime-dom"
+echo "   cpvca      = cpvc append"
+echo "   cpvda      = cpvd append"
+echo "   cpvsa      = cpvs append"
+echo ""
+echo "-- cl, clean"
+echo "   clsm       = xcrun simctl delete unavailable, 删除xcode无用模拟器"
+echo ""
+echo "------------------------------------------------------------"
+'
+
+# emacs
+alias ce="/opt/local/bin/emacs"
+
+# vue
+alias cpvr="~/.gclrc/bin/gstart vue-reactivity"
+alias cpvc="~/.gclrc/bin/gstart vue vue-compiler-core"
+alias cpvd="~/.gclrc/bin/gstart vue vue-compiler-dom"
+alias cpvf="~/.gclrc/bin/gstart vue vue-compiler-sfc"
+alias cpvt="~/.gclrc/bin/gstart vue vue-runtime-test"
+alias cpvD="~/.gclrc/bin/gstart vue vue-runtime-dom"
+alias cpvca="cpvc append"
+alias cpvda="cpvd append"
+alias cpvsa="cpvs append"
+alias cpvfa="cpvf append"
+alias cpvcm="cpvc appendesm"
+alias cpvdm="cpvd appendesm"
+alias cpvsm="cpvs appendesm"
+alias cpvfm="cpvf appendesm"
+
+
+
+# cl, clean
+alias clsm="xcrun simctl delete unavailable"
+
+# chmod
+alias chmbin="cd $GCLRC_BIN && chmod +x ./*"

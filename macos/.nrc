@@ -1,0 +1,14 @@
+# ======================== N alias ========================
+
+alias nhs="npx http-server"
+alias nrb="npm run build"
+alias nrd="npm run dev"
+alias nri="npm run install"
+alias nrsv="npm run server"
+alias nrsvd="npm run serverdev"
+alias nrsvp="npm run serverpro"
+alias nrw="npm run watch"
+alias nis="npm install --save-dev"
+alias nig="npm install -g"
+alias nii="npm install"
+alias nupgrade="ncu -u && npm update && npm install"

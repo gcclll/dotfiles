@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+pwd
+echo "正在更新上传代码..."
+git add .
+if [[ $# -ge 1 && -n "$1" ]]; then
+    git commit -m "$1"
+else
+    git commit -m "$(date +"%Y-%m-%d %H:%M:%S")"
+fi
+git push

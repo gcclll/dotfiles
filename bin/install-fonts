@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "> 开始执行 install-fonts.sh 脚本"
+
+color_info "> 请直捷从移动硬盘的字体备份目录(/Volumes/wyu/vfonts/...)拷贝"
+
+color_info "> ------ install-fonts.sh DONE ------\n"

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "\n> Begin to execute install-codes.sh."
+
+ALIYUN="$HOME/github/aliyun"
+test_dir "$ALIYUN"
+books="$ALIYUN/books"
+
+if [ -d "$books" ]; then
+    color_warn "> $books existed, ready to update..."
+    cd "$books" && git pull
+else
+    git clone git@code.aliyun.com:gccll/books.git $ALIYUN/books
+fi
+
+color_info "> ------ install-codes.sh DONE ------\n"

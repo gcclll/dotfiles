@@ -1,0 +1,59 @@
+export DOT_HOME="$HOME/.gclrc"
+export VNEXT="$HOME/github/vue/stb-vue-next"
+export VNEXT_PKG="$HOME/github/vue/stb-vue-next/packages"
+export VNEXT_PKG_CC="$HOME/github/vue/stb-vue-next/packages/compiler-core"
+export VNEXT_PKG_CS="$HOME/github/vue/stb-vue-next/packages/compiler-sfc"
+export VNEXT_PKG_CD="$HOME/github/vue/stb-vue-next/packages/compiler-dom"
+export VNEXT_PKG_SFC="$HOME/github/vue/stb-vue-next/packages/compiler-sfc"
+export VNEXT_PKG_RC="$HOME/github/vue/stb-vue-next/packages/runtime-core"
+export VNEXT_PKG_RD="$HOME/github/vue/stb-vue-next/packages/runtime-dom"
+export VNEXT_PKG_SR="$HOME/github/vue/stb-vue-next/packages/server-renderer"
+export VNEXT_PKG_REA="$HOME/github/vue/stb-vue-next/packages/reactivity"
+export EPG_HOME=$HOME/github/aliyun/native-epg-40
+export EPG_HOME_VIL=$HOME/github/aliyun/new-village
+export EPG_NC_HOME=$HOME/github/aliyun/cms/epg
+export EPG_SCRIPTS=$HOME/github/aliyun/native-epg-40/scripts
+export EPG_SCRIPTS_VIL=$HOME/github/aliyun/new-village/scripts
+export EPG_NC_SCRIPTS=$HOME/github/aliyun/cms/epg/scripts
+export EPG_PUBLISH=$HOME/ccc/tmp/epg_publish_dir/iptv
+export BLOG_HOME=$HOME/blog/cheng92.com
+export BLOG_DIR=$HOME/blog/cheng92.com
+export BLOG_DIR_VUE=$HOME/blog/cheng92.com/static/js/vue
+export BLOG_JS=$HOME/blog/cheng92.com/static/js
+
+alias gscripts="cd $EPG_SCRIPTS"
+alias gali="cd $HOME/github/aliyun"
+alias g400="cd $HOME/github/aliyun/native-epg-40"
+alias g500="cd $HOME/github/aliyun/native-epg-50"
+alias gdvs="cd $HOME/github/aliyun/server-ui/dvs-basic"
+alias gtsepg="cd $HOME/github/aliyun/native-epg-ts"
+alias gvil="cd $HOME/github/aliyun/new-village"
+
+alias xpubnc="$EPG_NC_SCRIPTS/publish.sh"
+alias xpubnc-2d1="$EPG_NC_SCRIPTS/publish.sh -n v2d1"
+alias xpubnc-2d3="$EPG_NC_SCRIPTS/publish.sh -n v2d3"
+
+# download sshkey
+alias sl-get-key="wget -P \"$HOME/.gclrc/keys/\" \"https://218.17.162.117:20443/install/package/sshkey/init.pk\" --no-check-certificate"
+alias sl-ssh-218="ssh -i /usr/local/sunlight/sshkeys/k218.pk -o IdentitiesOnly=yes -p 20443 root@218.17.162.117"
+
+# sshx
+alias j158="sxc dev"
+alias slxj="sxc sunlight"
+alias jhnlttest="sxe sunlight --tty -- /bin/bash"
+
+# sunlight
+alias sxas="sshx add sunlight -l root@218.17.162.117:2222 -i \"$HOME/.ssh/id_rsa_sl\""
+alias sp_sunlight="sxc sunlight"
+alias sp_demoroom="sxc demoroom"
+alias sp_jsdxtest="sxc jsdxtest"    # 江苏电信测试
+alias sp_jsdx="sxc jsdx"            # 江苏电信正式
+alias sp_handxtest="sxc handxtest"  # 海南电信测试
+alias sp_handx="sxc handx"          # 海南电信正式
+alias sp_tjdxtest="sxc tjdxtest"    # 天津电信测试
+alias sp_tjdx="sxc tjdx"            # 天津电信正式
+alias sit_41="sxc sit41"             # 192.168.200.41
+
+
+alias gepgmodules="g400 && cd modules && cd"
+alias gepgcommon="g400 && cd commons && cd"

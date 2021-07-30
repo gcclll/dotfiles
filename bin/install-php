@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "> 开始执行 install-php.sh 脚本"
+
+color_info "> 开始安装 php 相关的东西..."
+
+PA="$HOME/github/libs"
+test_dir "$PA"
+cd $PA
+
+if ! [ -x "$(command -v composer)" ]; then
+    color_info "> 安装PHP包管理器 Composer"
+    sudo php -r "copy('https://getcomposer.org/installer','composer-setup.php');"
+    php composer-setup.php
+
+    color_info "> 下载 phpactor"
+    if [ ! -d $PA/phpactor ]; then
+        git clone git@github.com:phpactor/phpactor
+    fi
+
+    color_info "> 安装 composer"
+    cd $PA/phpactor
+    composer install
+    link_s_bin_full "phpactor" "$PA/phpactor/bin/phpactor"
+else
+    color_warn "> composer 已经安装。"
+fi
+
+color_info "> ------ install-php.sh DONE ------\n"

@@ -1,0 +1,4 @@
+# ======================== Q alias ========================
+
+alias qshell="~/tools/qshell"
+alias qdownall="qshell qdownload -c 10 ~/.qshell/download_all.conf"

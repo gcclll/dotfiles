@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "> 开始执行 install-hugo-exended.sh 脚本"
+
+if ! [ -x "$(command -v hugo)" ]; then
+    test_dir "$HOME/github/libs"
+    git clone https://github.com/gohugoio/hugo.git
+    cd hugo
+    go install --tags extended
+
+else
+    color_warn "> hugo existed。"
+fi
+
+color_info "> Fetching my blog..."
+test_dir_rm "$BLOG_DIR"
+git clone https://github.com/gcclll/cheng92.com.git "$BLOG_DIR"
+
+color_info "> ------ install-hugo-extended.sh DONE ------"

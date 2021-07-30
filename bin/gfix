@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+fix_chrome_ports() {
+    color_info "> 开始修复 Chrome 端口限制..."
+    cd "/Applications/Google Chrome.app/Contents/MacOS/"
+    sudo mv "Google Chrome" Google.real
+    sudo printf '#!/bin/bash\ncd "/Applications/Google Chrome.app/Contents/MacOS"\n"/Applications/Google Chrome.app/Contents/MacOS/Google.real" --explicitly-allowed-ports=10080,6000 "$@"\n' >Google\ Chrome
+    sudo chmod u+x "Google Chrome"
+    color_info "< ..."
+}
+
+if [ $# -eq 1 ]; then
+    case $1 in
+        "chrome-ports")
+            fix_chrome_ports
+            ;;
+    esac
+
+else
+    bin=${0##*/}
+
+    error_less_arg
+
+    color_info "
+> 修修补补： $bin <name>
+
+  1. $bin chrome-port, 解决 Google Chrome 限制了 10080 等端口问题
+"
+fi

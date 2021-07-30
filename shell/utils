@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/colors
+
+BIN="/usr/local/bin"
+
+test_command() {
+    local ret='0'
+    command -v $1 >/dev/null 2>&1 || { local ret='1'; }
+
+    # fail on non-zero return value
+    if [ "$ret" -ne 0 ]; then
+        if [ "$2" ]; then
+            color_info "$2 $1"
+            $($2 $1)
+        fi
+
+        return 1
+    fi
+    color_warn "> command $1 existed > $(which $1)"
+
+    return 0
+}
+
+test_dir() {
+    if [ ! -d "$1" ]; then
+        mkdir -p "$1"
+    else
+        color_warn "> Directory: $1 已存在。"
+    fi
+}
+
+test_dir_rm() {
+    if [ -d "$1" ]; then
+        rm -rf "$1"
+    fi
+}
+
+link_s_bin_full() {
+    name="$1"
+    src="$2"
+    if [ ! -f "$BIN/$name" ] && [ -f "$src" ]; then
+        ln -s "$src" "$BIN/$name"
+    else
+        color_warn "> $BIN/$name 已存在."
+    fi
+}
+link_s_bin() {
+    cmd="$1"
+    path="$2"
+    link_s_bin_full "$cmd" "$path/$cmd"
+}
+
+brew_install() {
+    color_info "> brew install $1"
+    test_command "$1" "brew install"
+}
+
+brew_install_cask() {
+    color_info "> brew install --cask $1"
+    test_command "$1" "brew install --cask"
+}
+
+pipx_install() {
+    color_info "> pipx install $1"
+    test_command "$1" "pipx install"
+}

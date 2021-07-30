@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "\n> Begin to execute install-emacs-nix.sh."
+
+# brew install --cask emacs-nightly
+# https://github.com/Homebrew/homebrew-cask-versions/blob/master/Casks/emacs-nightly.rb
+# 可以直接安装了？
+# [[https://github.com/twlz0ne/nix-gccemacs-darwin][twlz0ne/nix-gccemacs-darwin: Build gccemacs for macOS 10.15 or newer using Nix.]]
+if [ "$1" == "update" ]; then
+    echo "> 更新..."
+    nix-env -iA emacsGccDarwin -f https://github.com/twlz0ne/nix-gccemacs-darwin/archive/master.zip
+else
+    color_info "> installing native comp emacs with nix"
+    nix-env -iA cachix -f https://cachix.org/api/v1/install
+    cachix use gccemacs-darwin
+    nix-env -iA emacsGccDarwin -f https://github.com/twlz0ne/nix-gccemacs-darwin/archive/master.zip
+fi
+sudo ln -s $HOME/.nix-profile/Applications/Emacs.app /Applications/Emacs
+sudo ln -s $HOME/.nix-profile/Applications/Emacs.app /usr/local/bin/emacs
+# open $HOME/.nix-profile/Applications/Emacs.app
+
+color_info "> ------ install-emacs-nix.sh DONE ------\n"

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+OPT="/opt/local/bin"
+U="/usr/local/bin"
+
+color_info "\n> Begin to execute install-alias.sh."
+
+color_info "> 正在设置各种上命令的别名"
+
+set_alias() {
+    if [ $# -lt 1 ]; then
+        echo "> 必需提供命令名称."
+        exit 1
+    else
+        src=$OPT/$1
+        target=$U/$1
+        echo "> $src 链接到 $target"
+
+        if [ ! -f $target ] && [ -f $src ]; then
+            ln -s $src $target
+        else
+            echo "  $target 已经存在。"
+        fi
+        ls -al $target
+        echo ""
+    fi
+    echo ""
+}
+
+set_alias fd
+set_alias ripgrep
+set_alias rg
+set_alias perl
+
+color_info "> ------ install-alias.sh DONE ------\n"

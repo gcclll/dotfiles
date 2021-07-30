@@ -1,0 +1,20 @@
+# ======================== H alias ========================
+
+alias hinfo='echo "=== alias h ==="
+echo ""
+echo "-- hi, history, 历史记录"
+echo "   hisf   = history | grep, 查询过滤历史记录"
+echo ""
+echo "-- hu, hugo, 博客 hugo CLI"
+echo "   hus    = cd blog && hugo server"
+echo "------------------------------------------------------------"
+echo ""
+'
+
+# history
+alias hi="history"
+alias hisf="history | grep"
+
+# hugo
+alias hu="hugo"
+alias hus="gblog && hugo server"

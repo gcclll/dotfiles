@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+if [ $# == 1 ] && [ $1 == 'sunlight' ]; then
+    sshx add sunlight -l root@218.17.162.117 -i "$HOME/.ssh/id_rsa_sl"
+elif [ $# -eq 3 ] && [ $1 == "key" ]; then
+    sshx add $2 -l $3 -i "/usr/local/sunlight/sshkeys/init.pk"
+else
+    error_less_arg
+    bin=${0##*/}
+
+    color_info "
+> 支持的命令模式：
+
+  1. $bin sunlight, 将盛阳外网服务器添加到 sshx 中
+
+  2. $bin key <name> <user@ip:port>
+
+     将指定服务器添加到 sshx 管理列表
+
+     <name>: sshx 中的名称，添加成功后，可 sshx connect <name> 来登陆到服务器
+
+     <user@ip:port>: 登陆服务器的“用户名”，IP，和端口号
+
+     如： $bin key dev root@192.168.88.158
+"
+fi

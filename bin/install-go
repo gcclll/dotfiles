@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "> 开始执行 install-go.sh 脚本"
+
+if ! [ -x "$(command -v go)" ]; then
+    color_info "> 下载 golang pkg to install"
+    open "https://golang.org/dl/go1.16.6.darwin-amd64.pkg"
+else
+    color_warn "\t> golang 已经安装"
+fi
+
+export PATH=$PATH:$(go env GOPATH)/bin
+export GOPATH=$(go env GOPATH)
+export GOPROXY=https://goproxy.cn
+
+color_info "> 开始安装 go 相关的工具和信赖"
+if ! [ -x "$(command -v gocode)" ]; then
+    color_sub "\t> gocode"
+    go get -u github.com/nsf/gocode
+    ln -s $GOPATH/bin/gocode /usr/local/bin/gocode
+    color_sub "\t> gocode done\n"
+fi
+
+# 测试 go #####################################################################
+color_info "> 开始测试..."
+USER="$GOPATH/src/github.com/user"
+test_dir "$USER"
+test_dir "$USER/hello"
+
+echo "
+package main
+
+import \"fmt\"
+
+func main() {
+	fmt.Println(\"Hello, world.\")
+}
+" >"$USER/hello/hello.go"
+color_sub "\t> install hello module"
+go install github.com/user/hello
+cd $USER/hello
+color_sub "\t> install hello command"
+go install
+color_sub "\t> $GOPATH/bin/hello"
+color_sub "\t:\t$($GOPATH/bin/hello)"
+color_sub "\t> hello"
+color_sub "\t:\t$(hello)"
+
+color_sub "\t> 测试自定义包: stringutil"
+stringutil="$GOPATH/src/github.com/user/stringutil"
+test_dir $stringutil
+cd $stringutil
+echo "
+// Package stringutil contains utility functions for working with strings.
+package stringutil
+
+// Reverse returns its argument string reversed rune-wise left to right.
+func Reverse(s string) string {
+	r := []rune(s)
+	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
+		r[i], r[j] = r[j], r[i]
+	}
+	return string(r)
+}
+" >"$stringutil/reverse.go"
+go build github.com/user/stringutil
+go build
+echo "
+package main
+
+import (
+	\"fmt\"
+
+	\"github.com/user/stringutil\"
+)
+
+func main() {
+	fmt.Println(stringutil.Reverse(\"!oG ,olleH\"))
+}
+" >"$USER/hello/hello.go"
+go install github.com/user/hello
+color_sub "\t:\t$(hello)"
+color_info "\n> 测试结束, 结果正常。\n"
+
+color_info "> 设置代理"
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.io,direct
+
+color_info "> 安装信赖..."
+go get -u github.com/fatih/gomodifytags \
+    github.com/nsf/gocode \
+    github.com/cweill/gotests/... \
+    github.com/motemen/gore/cmd/gore
+# window: go get -u -ldflags -H=windowsgui github.com/nsf/gocode
+link_s_bin "gocode" "$GOPATH/bin"
+link_s_bin "gomodifytags" "$GOPATH/bin"
+link_s_bin "gotests" "$GOPATH/bin"
+link_s_bin "gore" "$GOPATH/bin"
+link_s_bin "guru" "$GOPATH/bin"
+
+color_info "> ------ install-go.sh DONE ------\n"

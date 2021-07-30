@@ -1,0 +1,28 @@
+# ======================== Y alias ========================
+
+alias ainfo='echo "=== alias a ==="
+echo "-- ya, yarn"
+echo "   yaa    = yarn add"
+echo "   yad    = yarn add --dev"
+echo "   yao    = yarn add --optional"
+echo "   yab    = yarn run buld"
+echo "   yas    = yarn run start"
+echo "   yap    = yarn run publish"
+echo "   yap    = yarn run publish"
+echo "   ysdvs  = cd dvs-basic, yarn serve"
+echo "   ysepg  = cd native-epg-40, yarn start"
+echo "   ybepg  = cd native-epg-40, yarn build"
+echo ""
+echo "------------------------------------------------------------"
+'
+
+alias yad="yarn add --dev"
+alias yap="yarn add --peer"
+alias yao="yarn add --optional"
+alias yrb="yarn run build"
+alias yrt="yarn run test"
+alias yrs="yarn run start"
+alias yrp="yarn run publish"
+alias ysdvs="gdvs && yarn serve"
+alias ysepg="g400 && yarn start"
+alias ybepg="g400 && yarn build"

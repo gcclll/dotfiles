@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "\n> Begin to execute install-os.sh."
+color_info "> Initializing system..."
+color_info "> ------ Commands Installation ---------"
+color_sub "==           Recommend List            =="
+color_sub "== Crack：https://www.macwk.com/       =="
+color_sub "① contexts, switch windows: https://xclient.info/s/contexts.html"
+color_sub "② ForkLift, SFTP                 : https://www.macwk.com/soft/forklift，[in wyu]"
+color_sub "③ OmniPlan, Project Management   : https://www.macwk.com/soft/omniplan"
+color_sub "④ aDrive                         : https://www.aliyundrive.com/"
+color_sub "⑤ qshell for qiniu               : https://github.com/qiniu/qshell"
+color_sub "⑥ draw.io                        : https://app.diagrams.net/"
+
+# directory ###################################################################
+GITHUB="$HOME/github"
+ALIYUN="$GITHUB/aliyun"
+LIBS="$GITHUB/LIBS"
+
+color_info "> Create some directories..."
+test_dir $GITHUB
+test_dir $ALIYUN
+test_dir $LIBS
+
+# shell scripts ############################################################
+install-tools
+install-alias
+install-nix # must before emacs-nix
+install-php
+install-python
+install-hugo
+install-rime
+install-fonts
+install-codes
+install-emacs-nix
+install-doom-emacs
+
+color_info "> 重新部署 .zshrc ..."
+sshrc
+color_info "> 所有工作全部完成！！！！！！！！！！"
+
+color_info "> ------ install-os DONE ------\n"

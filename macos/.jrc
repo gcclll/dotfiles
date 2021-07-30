@@ -1,0 +1,14 @@
+# ======================== J alias ========================
+alias jinfo='echo "=== alias j ==="
+echo ""
+echo "-- j, autojump, 跳转到目录"
+echo ""
+echo "   jv     = j --version, 版本"
+echo "   jc     = jc <child-dir>"
+echo "   jo     = jo <dir>, 在 Finder 中打开目录"
+echo "   jco    = jco <dir>, jc 的 jo 版本，打开子目录"
+echo "------------------------------------------------------------"
+echo ""
+'
+
+alias jv="j --version"

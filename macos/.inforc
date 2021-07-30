@@ -1,0 +1,77 @@
+
+alias inforime='echo "=== alias rime help information ==="
+echo ""
+echo "-- awesome rime"
+echo "
+        https://github.com/sgalal/awesome-rime"
+echo ""
+echo "-- 配色"
+echo "
+        自定义配色：https://bennyyip.github.io/Rime-See-Me/"
+echo ""
+echo "-- 配置目录"
+echo "
+        1. Mac OSX: 鼠鬚管 (Squirrel) 配置目录：~/Library/Rime/
+        2. Linux: 中州韻 (ibus-rime) 配置目录：~/.config/ibus/rime/
+        3. Windows: 小狼毫 (Weasel) 配置目录：%APPDATA%\Rime
+"
+echo "-- Symbols"
+echo "
+        1. unicode: https://en.wikipedia.org/wiki/Mathematical_operators_and_symbols_in_Unicode
+        2. latex: http://tug.ctan.org/info/symbols/comprehensive/symbols-a4.pdf
+"
+echo "------------------------------------------------------------"
+echo ""
+'
+
+alias inforemacs='echo "=== alias inforemacs ==="
+echo ""
+echo "-- 优秀配置方案
+
+        1. org-mode: https://tecosaur.github.io/emacs-config/config.html#org
+"
+
+echo ""
+echo "-- org information..."
+echo ""
+echo "------------------------------------------------------------"
+echo ""
+'
+
+alias infogo='echo "=== alias go information ==="
+echo "-- go help information --
+
+        0. 官网：https://golang.org
+        1. GOPATH: https://golang.org/doc/code
+"
+'
+
+alias awesome='echo "====== awesome ======"
+
+        1. https://pan.zps.im/s1/software/Parallels%20Desktop/
+        2. 官网：https://golang.org
+        3. GOPATH: https://golang.org/doc/code
+"
+'
+
+alias infocli='echo "=== awesome CLI tools ===
+
+      ------------------------ Normal ------------------------
+      1. bcal, 进制转换工具
+
+
+      ------------------------ WEB ------------------------
+
+      1. caniuse
+"
+'
+
+alias infops='echo -e "=== ps 命令 - 常用  ===
+
+alias psef="ps -ef"         # 显示所有以完整格式输出
+alias psl="ps -efl"         # 更详细输出
+alias psg="ps -ef | grep"   # 过滤
+alias pslg="ps -elf | grep" # 详细 + 过滤
+alias pstop="top"           # top
+
+"'

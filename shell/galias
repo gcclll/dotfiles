@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tmprc=$GCLRC_HOME/macos/.tmprc
+fd_list="d e f p x"
+
+if_not_ex() {
+    if [ -z "$(grep "$1" "$tmprc")" ]; then
+        echo $1 >>$tmprc
+    fi
+}
+
+set_fd() {
+    for ch in $fd_list; do
+        var_alias="alias fd$ch$1=\"fd${ch} -$1\""
+        if_not_ex "$var_alias"
+    done
+}
+
+if [ $# -gt 2 ]; then
+    case $1 in
+        "exec")
+            echo "none"
+            ;;
+    esac
+elif [ $# -eq 0 ]; then
+    echo "set _fd_ command alias..."
+    # set_fd "t"
+    # set_fd "e"
+    set_fd "i"
+    set_fd "I"
+    set_fd "x"
+    set_fd "X"
+fi

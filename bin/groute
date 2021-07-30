@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+if [ $# -gt 0 ]; then
+    if [ $1 == "add" ] && [ $# -eq 4 ]; then
+        # groute add <ip> <mask> <target ip>
+        sudo route -n add -net $2 -netmask $3 $4
+        netstat -nr | grep $3
+    elif [ $1 == "delete" ]; then
+        # groute add <ip> <gate>
+        sudo route -v delete -net $2 -gateway $3
+    elif [ $1 == "show" ]; then
+        color_info "show $2 route info:"
+        netstat -nr | grep $2
+    fi
+else
+    error_less_arg
+    bin=${0##*/}
+
+    color_info "
+Usage:
+
+    1. add:     $bin add <ip> <mask> <target ip>
+
+    2. delete:  $bin delete <ip> <gate>
+
+    3. show:    netstat -nr | grep <value>
+"
+fi

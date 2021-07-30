@@ -1,0 +1,5 @@
+# ======================== K alias ========================
+
+
+alias kilsh="kill -s HUP"     # kill process   
+alias kila="killall"

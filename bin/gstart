@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CURR_PATH=$(
+    cd $(dirname $0)
+    pwd
+)
+. $CURR_PATH/lib.sh
+
+VUE_PKG_PATH="$HOME/github/vue/vue-next/packages"
+VUE_BLOG_JS="$HOME/blog/cheng92.com/static/js/vue"
+if [ $1 = "openvpn" ]; then
+    sudo openvpn --daemon --cd /etc/openvpn --config zhichengli.ovpn --log-append /var/log/openvpn.log &
+elif [ $1 = "newgit" ]; then
+    git init
+    git add .
+    git commit -m 'init new depo'
+    git remote add origin $2
+    git pull --rebase origin $3
+    git push -u origin master
+    git status
+elif [ $1 = "gitxx" ]; then
+    COMMENT="$2"
+    if [ $COMMENT = "emacs" ]; then
+        $HOME/.doom.d/make
+        COMMENT="$3"
+    fi
+
+    git add .
+    if [ -z "$COMMENT" ]; then
+        echo "no commit comments."
+        exit 0
+    fi
+    echo "> type: $1"
+    echo "> comments: $2"
+    echo ""
+
+    git commit -m "$2"
+    git push
+
+elif
+    [ $1 = "vue" ]
+then
+    VAR_NAME="$2"
+    PKG_NAME=${2/vue-/}
+    echo "编译后的包名：" $PKG_NAME
+    VAR_NAME=$(lib_capitalize $VAR_NAME)
+    echo "导出后变量名：" $VAR_NAME
+    lib_cp_to_blog $PKG_NAME $VAR_NAME "$3"
+elif [ $1 = "route" ]; then
+    if [ $2 = "add" ]; then
+        IP_SRC="$3"
+        IP_MASK="$4"
+        IP_TARGET="$5"
+        sudo route -n add -net $IP_SRC -netmask $IP_MASK $IP_TARGET
+        echo "add ok."
+        netstat -nr | grep "$3"
+    elif [ $2 = "delete" ]; then
+        IP_TARGET="$3"
+        IP_GATE="$4"
+        sudo route -v delete -net $IP_TARGET -gateway $IP_GATE
+        echo "delete ok."
+        netstat -nr | grep "$3"
+    elif [ $2 = "show" ]; then
+        IF_FILTER="$3"
+        if [ $IF_FILTER ]; then
+            netstat -nr | grep $IF_FILTER
+        else
+            netstat -nr
+        fi
+    fi
+else
+    echo "none.."
+fi

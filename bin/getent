@@ -1,0 +1,5 @@
+#!/bin/bash
+
+if [ "$1" == "passwd" ]; then
+    echo "1:2:3:4:5:6:/bin/bash"
+fi

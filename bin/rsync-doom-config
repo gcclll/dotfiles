@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ZSH="$HOME/.zshrc"
+# chmod 600 $HOME/.ssh/id_rsa*
+if [ -e $ZSH ]; then
+    cp $ZSH ~/.gclrc/.zshrc # bakup
+fi
+
+IMAPRC="$HOME/.offlineimaprc"
+if [ -e $IMAPRC ]; then
+    cp $IMAPRC "$GCLRC_HOME/mu/.offlineimaprc"
+fi
+
+cp -R ~/.ssh ~/.gclrc/
+cp ~/.doom.d/config.org ~/.doom.d/README.org
+cp ~/.doom.d/config.org $BLOG_HOME/content/emacs/doom-emacs-with-org.org

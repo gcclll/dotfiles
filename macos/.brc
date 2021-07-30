@@ -1,0 +1,43 @@
+# ======================== B alias ========================
+
+alias binfo='=== alias b ===
+
+-- bk, buku, 浏览器URL管理命令"
+     bk   = buku --suggest, 当添加时显示同类标签 "
+     bke  = buku -e [x.md], 导出到 markdown 文件"
+     bkai = buku --suggest -ai, 自动从 firefox/chrom/chromim 导入"
+     bkim = buku -i $HOME/Desktop/bookmarks.html, 从 html 导入"
+
+-- brew, macos 包管理器"
+
+    alias brewclean="brew cleanup"
+    alias brewdoctor="brew doctor"
+    alias brewdc="brd && brc"
+    alias brewi="brew install"
+    alias brewic="brew install --cask"
+    alias brews="brew services restart"
+    alias brewsr="brew services restart"
+    alias brewsr-ng="brew services restart nginx"
+    alias brewsr-mdb="brew services restart mariadb"
+    alias brewsr-php="brew services restart php"
+    alias brewu="brew upgrade"
+
+'
+
+## buku - 终端中的浏览器URL管理
+alias bk='buku --suggest'       # 当添加时显示同类标签
+alias bke='buku -e $HOME/github/documents/bookmarks/bm.md'  # 导出
+alias bkai="buku --suggest --ai"        # 自动从 firefox/chrom/chromim 导入
+alias bkim="buku -i $HOME/Desktop/bookmarks.html" # 从 html 中导入
+
+alias brewclean="brew cleanup"
+alias brewdoctor="brew doctor"
+alias brewdc="brd && brc"
+alias brewi="brew install"
+alias brewic="brew install --cask"
+alias brews="brew services restart"
+alias brewsr="brew services restart"
+alias brewsr-ng="brew services restart nginx"
+alias brewsr-mdb="brew services restart mariadb"
+alias brewsr-php="brew services restart php"
+alias brewu="brew upgrade"

@@ -1,0 +1,55 @@
+# ======================== S alias ========================
+
+alias sinfo='echo "=== alias s ==="
+echo ""
+echo "-- sx, sshx, 加强版 ssh 命令工具"
+echo ""
+echo "   sxa    = sshx add <name> -l user@ip:port, 添加 ssh 记录"
+echo "   sxb    = sshx copyid, 拷贝 *.pub 到远程机器上"
+echo "   sxc    = sshx connect <name>, 根据 sxa 添加的名字登录到远程机器上"
+echo "   sxd    = sshx del <name>, 删除记录"
+echo "   sxe    = sshx exec <cmd>, 执行命令"
+echo "   sxg    = sshx config, 配置"
+echo "   sxi    = sshx init, 初始化，配置文件根据 SSHX_HOME 指定"
+echo "   sxif   = sshx init --force, 强制初始化，会删除 SSHX_HOME 重建"
+echo "   sxl    = sshx list, 显示所有记录列表"
+echo "   sxp    = sshx scp, 远程拷贝"
+echo "   sxs    = sshx show <name>, 显示记录信息"
+echo "   sxu    = sshx update, 更新"
+echo "   sxai   = gsshx key, 使用 init.key 密钥登录"
+echo ""
+echo "   sxj    = sxe sunlight --tty -- /usr/bin/ssh, 盛阳服务器"
+echo "   sp_x   = sxc spcode, 直接登录运营商服务器(如：jsdxtest, handxtest)"
+echo "------------------------------------------------------------"
+echo ""
+'
+
+
+
+alias spi="sudo port install"
+alias sshrc="source $HOME/.zshrc"
+alias start-openvpn="$GCLRC_BIN/gstart openvpn"
+alias shg="ssh-keygen -t rsa"
+alias shgc="ssh-keygen -t rsa -b 4096 -C"
+# sshx: https://sshx.readthedocs.io/en/latest/install.html
+alias sxa="sshx add"        # sshx add myhost -l root@192.168.88.158
+alias sxb="sshx copyid"     # copy *.pub to remote host
+alias sxc="sshx connect"   # by name added by sshx add
+alias sxd="sshx del"
+alias sxe="sshx exec"
+alias sxg="sshx config"
+alias sxi="sshx init"
+alias sxif="sshx init --force"
+alias sxl="sshx list"
+alias sxp="sshx scp"
+alias sxs="sshx show"
+alias sxu="sshx update"
+alias sxai="$GCLRC_BIN/gsshx key"
+
+# sort
+alias sortnm="sort -nM"                         # 字符识别成数字，按月排序
+alias sortpwd="sort -t ':' -k 3 -n /etc/passwd" # PID 排序输出
+alias sortdu="du -sh * | sort -nr"              # r, 按降序显示
+
+# sync
+alias syncmail="$GCLGC_HOME/mu/bin/sync-mail"

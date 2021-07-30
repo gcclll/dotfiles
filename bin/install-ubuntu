@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "> Installing some tools for ubuntu ..."
+
+sudo apt install net-tools git curl
+
+curl -L https://raw.githubusercontent.com/gcclll/dotfiles/main/bin/install-zsh | bash

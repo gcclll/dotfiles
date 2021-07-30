@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+source $GCLRC_SHELL/utils
+# If -f, then put computer to sleep.
+# Otherwise, lock screen and turn off monitor.
+
+if [[ $1 == -h ]]; then
+  bin=${0##*/}
+  color_info "
+Usage: $bin [-f]
+
+       $bin     # 仅关闭显示器
+
+       $bin -f  # 让计算机进入休眠
+
+"
+elif [[ $1 == -f ]]; then
+  color_warn "准备进入休眠..."
+  systemctl suspend
+else
+  color_cyan "正在关闭显示器..."
+  if command -v slock >/dev/null; then
+    pgrep slock >/dev/null || slock &
+  fi
+  sleep 1
+  xset dpms force off
+fi

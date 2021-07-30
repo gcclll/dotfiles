@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tmprc=$GCLRC_HOME/macos/.tmprc
+
+if [ ! -f $tmprc ]; then
+    touch $tmprc
+fi
+
+ls -al $tmprc

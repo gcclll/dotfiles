@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_HOME/shell/utils
+
+libs=$HOME/github/libs
+test_dir $libs
+
+echo "> BEGIN BAKUP..."
+
+if [ ! -d $libs/dotfiles ]; then
+    color_warn "> dotfiles do not exist, cloning"
+    git clone git@github.com:gcclll/dotfiles.git $libs/dotfiles
+
+fi
+
+if [ -d $GCLRC_HOME ]; then
+    cp -R $GCLRC_HOME/bin \
+        $GCLRC_HOME/shell \
+        $GCLRC_HOME/macos \
+        $GCLRC_HOME/.zshrc \
+        $GCLRC_HOME/mu \
+        $GCLRC_HOME/dev \
+        $libs/dotfiles
+    cd $libs/dotfiles
+    gpush
+fi
+
+echo "> BAKUP PROCESS DONE."

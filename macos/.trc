@@ -1,0 +1,37 @@
+# ======================== T alias ========================
+
+alias tinfo='echo "=== alias t ==="
+echo ""
+echo "-- tm, tmutil"
+echo ""
+echo "   tmdels     = tmutil deletelocalsnapshots <snap>"
+echo "   tmlist     = tmutil listlocalsnapshots /"
+echo "------------------------------------------------------------"
+echo ""
+echo "-- tail, 显示最后几行内容
+
+        tailn     = "tail -n"    # 修改所显示的行数
+        tailf     = "tail -f"     # 实时监控文件内容变化
+
+"
+echo "-- test, test
+
+        1. testcolors   = "shell/colors.sh test, 终端颜色"
+"
+echo ""
+'
+
+# tmutil
+alias tmdels="tmutil deletelocalsnapshots"
+alias tmlist="tmutil listlocalsnapshots /"
+
+# test
+alias testcolors="$GCLRC_SHELL/colors.sh test"
+
+# tail
+alias tailn="tail -n"    # 修改所显示的行数
+alias tailf="tail -f"     # 实时监控文件内容变化
+
+# tree
+alias tree1="tree -L 1"
+alias treen="tree -L"

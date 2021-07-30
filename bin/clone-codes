@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "> 正在拉取所有需要的代码仓库..."
+color_info ">> 过程会很漫长，依据网速..."
+
+color_info "> git clone from github..."
+vue="$HOME/github/vue"
+test_dir $vue
+cd $vue
+git clone https://github.com/vuejs/vue-next.git
+git clone https://github.com/vuejs/vuex.git
+git checkout 4.0
+git clone https://github.com/vuejs/vue-router-next.git
+git clone https://github.com/vuejs/vite.git
+git clone https://github.com/vuejs/rfcs.git
+git clone https://github.com/gcclll/stb-vue-next.git
+git clone https://github.com/gcclll/cheng92.com.git

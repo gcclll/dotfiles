@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "\n> Begin to execute install-nix.sh."
+
+if ! [ -x "$(command -v nix)" ]; then
+    color_sub '\n\t> Install nix by step follow...'
+    color_sub '\t> 1. sh <(curl -L https://nixos.org/nix/install) --darwin-use-unencrypted-nix-store-volume'
+    color_sub '\t> 2. nix-build https://github.com/LnL7/nix-darwin/archive/master.tar.gz -A installer'
+    color_sub '\t> 3. ./result/bin/darwin-installer\n'
+
+    color_info "> Installing nix..."
+    cd $HOME
+    /bin/sh <(curl -L https://nixos.org/nix/install) --darwin-use-unencrypted-nix-store-volume
+    nix-build https://github.com/LnL7/nix-darwin/archive/master.tar.gz -A installer
+    ./result/bin/darwin-installer
+    color_info '> nix DONE'
+    exit 1
+fi
+
+color_info "> ------ install-nix.sh DONE ------\n"

@@ -1,0 +1,5 @@
+# ======================== E alias ========================
+
+alias ewhere="emacsclient --eval \"(emacs-everywhere)\""
+alias etangle="emacs --batch --eval \"(progn (require 'org) (setq org-confirm-babel-evaluate nil) (org-babel-tangle-file \"~/.doom.d/config.org\"))\" && /bin/bash ~/.gclrc/shl/cp-config-org.sh"
+alias etmp="$GCLRC_SHELL/tmp.sh"

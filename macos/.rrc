@@ -1,0 +1,16 @@
+# ======================== R alias ========================
+
+alias rinfo='echo "=== alias r ==="
+echo ""
+echo "-- rmi, rime-install, 输入法"
+echo ""
+echo "   sxa    = sshx add <name> -l user@ip:port, 添加 ssh 记录"
+echo "------------------------------------------------------------"
+echo ""
+'
+
+alias rmf="rm -rf"
+alias rmi="cd $HOME/Library/Rime/plum && bash rime-install"
+alias route-add="$GCLRC_BIN/gstart route add"
+alias route-del="$GCLRC_BIN/gstart route delete"
+alias route-show="$GCLRC_BIN/gstart route show"

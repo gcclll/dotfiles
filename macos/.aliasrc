@@ -1,0 +1,68 @@
+## =========================== path settings =========================== ##
+export SSHX_HOME="$HOME/.gclrc/.sshx"
+export GCLRC_HOME="$HOME/.gclrc"
+export GCLRC_BIN="$HOME/.gclrc/bin"
+export GCLRC_SHELL="$HOME/.gclrc/shell"
+export BLOG_HOME="$HOME/blog/cheng92.com"
+export VUE_LOC_DIR="$HOME/github/vue/vue-next"
+export VUE_LOC_PKG="$HOME/github/vue/vue-next/packages"
+export VUE_PKG_SFC="$VUE_LOC_DIR/packages/compiler-sfc"
+## =========================== alias settings =========================== ##
+
+alias infox='echo "=== alias - ==="
+echo ""
+echo "-- ad, adb"
+echo "-- bk, buku, 浏览器URL管理命令"
+echo "-- br, brew"
+echo "-- ce, /opt/local/bin/emacs"
+echo "-- cp, cp, 拷贝命令"
+echo "-- da, dart, Dart 语言 CLI"
+echo "-- dm, doom, Doom Emacs CLI"
+echo "-- fd, fd, fasd, 文件和目录快速查找"
+echo "-- fi, fix, 修复一些 BUG 类的命令或脚本"
+echo "-- sx, sshx"
+echo "-- tm, tmutil, ..."
+echo "------------------------------------------------------------"
+echo ""
+'
+
+
+$GCLRC_BIN/expand-aliases
+D="$GCLRC_HOME/macos"
+source $D/.arc # alias-a
+source $D/.brc # alias-b
+source $D/.crc # alias-c
+source $D/.drc # alias-d
+source $D/.erc # alias-e
+source $D/.frc # alias-f
+source $D/.grc # alias-g
+source $D/.hrc # alias-h
+source $D/.irc # alias-i
+source $D/.jrc # alias-j
+source $D/.krc # alias-k
+source $D/.lrc # alias-l
+source $D/.mrc # alias-m
+source $D/.nrc # alias-n
+source $D/.orc # alias-o
+source $D/.prc # alias-p
+source $D/.qrc # alias-q
+source $D/.rrc # alias-r
+source $D/.src # alias-s
+source $D/.trc # alias-t
+source $D/.urc # alias-u
+source $D/.vrc # alias-v
+source $D/.wrc # alias-w
+source $D/.xrc # alias-x
+source $D/.yrc # alias-y
+source $D/.zrc # alias-z
+source $D/.inforc
+
+# to add fdat, fddt, ... & fdae, fdde, ...
+$GCLRC_SHELL/galias
+source $GCLRC_HOME/macos/.tmprc
+
+export PATH="/Library/TeX/texbin/:$GCLRC_HOME/bin:$PATH"
+
+export PATH=$(echo $PATH | sed 's/:/\n/g' | sort | uniq | tr -s '\n' ':' | sed 's/:$//g')
+
+# $GCLRC_BIN/bin/gawesome
