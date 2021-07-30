@@ -13,6 +13,7 @@ elif [ $(uname) == "Darwin" ]; then
     brew install zsh
 fi
 
+echo "> Installing oh-my-zsh..."
 sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
 rc=~/.gclrc
