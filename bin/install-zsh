@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "\n> Begin to execute install-zsh."
+
+sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
+rc=~/.gclrc
+if [ ! -d "$rc" ]; then
+    rm -rf $rc
+fi
+
+echo "> Cloning my private dotfiles..."
+git clone git@code.aliyun.com:wyu/dotdat.git $rc
+
+chmod +x $rc/bin/*
+
+echo "> Cover the default .zshrc"
+cp $rc/.zshrc ~/.zshrc
+
+echo "> source it !"
+source ~/.zshrc
+
+GETENT="/usr/local/bin/getent"
+echo "> getent command"
+if [ ! -f "$GETENT" ]; then
+    cp "$rc/bin/getent" "$GETENT"
+    chmod +x "$GETENT"
+else
+    echo "> getent existed."
+fi
+
+echo "> ------ install-zsh DONE ------\n"
