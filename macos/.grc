@@ -15,6 +15,7 @@ alias gpeven="gbeven && gpush"
 
 alias gdot="cd $GCLRC_HOME"
 alias gpdot="gdot && gpush"
+alias gbakupdot="gdot && gpush && bakup2github"
 
 alias gdoom="cd $HOME/.doom.d"
 alias gpdoom="gdoom && gpush"

@@ -7,9 +7,9 @@ cd /tmp
 
 echo "> Installing zsh ..."
 
-if [ $(uname) == "Linux" ]; then
+if [ $(uname) == "Linux" ] && [ ! -f /usr/bin/zsh ]; then
     sudo apt install zsh
-elif [ $(uname) == "Darwin" ]; then
+elif [ $(uname) == "Darwin" ] && [ ! -f /bin/zsh ]; then
     brew install zsh
 fi
 
