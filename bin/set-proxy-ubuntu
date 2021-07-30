@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "set proxy ..."
+net_addr=$($HOME/.gclrc/bin/myip | grep -Eo '(^[0-9]*.[0-9]*[^.])')
+echo "net_addr=$net_addr"
+
+unset HTTP_PROXY
+unset ALL_PROXY
+unset http_proxy
+unset all_proxy
+if [ "$net_addr" == "192.168" ]; then
+    echo "> set proxy in home environment"
+#    export HTTP_RPOXY=http://192.168.0.102:7890/
+#    export ALL_RPOXY=socks://192.168.0.102:7891/
+else
+    echo "> set proxy in company environment"
+#    export HTTP_RPOXY=http://172.18.2.22:7890/
+#    export ALL_RPOXY=socks://172.18.2.22:7891/
+fi
+echo "set ok"
