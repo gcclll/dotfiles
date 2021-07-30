@@ -18,8 +18,11 @@ else
     cachix use gccemacs-darwin
     nix-env -iA emacsGccDarwin -f https://github.com/twlz0ne/nix-gccemacs-darwin/archive/master.zip
 fi
-sudo ln -s $HOME/.nix-profile/Applications/Emacs.app /Applications/Emacs
-sudo ln -s $HOME/.nix-profile/Applications/Emacs.app /usr/local/bin/emacs
-# open $HOME/.nix-profile/Applications/Emacs.app
+
+name=$(uname)
+if [ "$name" == "Darwin" ]; then
+    sudo ln -s $HOME/.nix-profile/Applications/Emacs.app /Applications/Emacs
+    sudo ln -s $HOME/.nix-profile/Applications/Emacs.app /usr/local/bin/emacs
+fi
 
 color_info "> ------ install-emacs-nix.sh DONE ------\n"

@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ $(uname) == "Linux" ]; then
-    echo "is linux"
-elif [ $(uname) == "Darwin" ]; then
-    echo "is mac"
-else
-    echo $(uname)
+if [ -f /etc/os-release ]; then
+    source /etc/os-release
 fi
+
+is_mac() {
+    if [ "$(uname)" == "Darwin" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+is_ubuntu() {
+    if [ "$NAME" == "Ubuntu" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+if is_mac; then echo "is mac"; else echo "is not mac"; fi

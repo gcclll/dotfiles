@@ -5,6 +5,8 @@ source $GCLRC_SHELL/colors
 
 BIN="/usr/local/bin"
 
+name="$(uname)"
+
 test_command() {
     local ret='0'
     command -v $1 >/dev/null 2>&1 || { local ret='1'; }
@@ -65,4 +67,20 @@ brew_install_cask() {
 pipx_install() {
     color_info "> pipx install $1"
     test_command "$1" "pipx install"
+}
+
+is_mac() {
+    if [ "$name" == "Darwin" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+is_linux() {
+    if [ "$name" == "Darwin" ]; then
+        return 0
+    else
+        return 1
+    fi
 }

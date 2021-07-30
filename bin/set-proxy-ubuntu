@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "set proxy ..."
+echo "> set proxy ..."
 net_addr=$($HOME/.gclrc/bin/myip | grep -Eo '(^[0-9]*.[0-9]*[^.])')
-echo "net_addr=$net_addr"
+echo "> net_addr=$net_addr"
 
 unset HTTP_PROXY
 unset ALL_PROXY
@@ -20,4 +20,4 @@ elif [ "$net_addr" == "172.18" ]; then
 else
     echo "> maybe a new place ???"
 fi
-echo "set ok"
+echo "> set ok"
