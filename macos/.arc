@@ -10,3 +10,6 @@ echo "------------------------------------------------------------"
 alias adblt="adb logcat -v time"
 
 alias adduser="useradd"
+
+# ubuntu
+alias aptins="sudo apt install -y"

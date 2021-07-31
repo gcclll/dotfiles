@@ -69,18 +69,14 @@ pipx_install() {
     test_command "$1" "pipx install"
 }
 
+if [ -f /etc/os-release ]; then
+    source /etc/os-release
+fi
+
 is_mac() {
-    if [ "$name" == "Darwin" ]; then
-        return 0
-    else
-        return 1
-    fi
+    if [ "$(uname)" == "Darwin" ]; then return 0; else return 1; fi
 }
 
-is_linux() {
-    if [ "$name" == "Darwin" ]; then
-        return 0
-    else
-        return 1
-    fi
+is_ubuntu() {
+    if [ "$NAME" == "Ubuntu" ]; then return 0; else return 1; fi
 }

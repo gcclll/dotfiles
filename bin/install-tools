@@ -13,8 +13,11 @@ npm -g install yarn opencc js-beautify indium tree-sitter-cli \
     editorconfig jest vmd tsun indium ba64
 
 # brew ########################################################################
+
 color_info "> Brew install..."
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash
+# ubuntu 也支持 brew
 brew install fd fzf ripgrep rg m-cli autojump stardict sdcv jq pngpaste \
     gnuplot pipx rust-analyzer pandoc glslang graphviz bcal \
     pkg-config poppler automake clang-format texmacs texlab \
@@ -23,8 +26,18 @@ brew install --cask gifcapture mpv basictex
 # mactex, large 4gb download
 # brew install --cask mactex
 brew link fd
+
 # xdotool
 defaults write org.x.X11 enable_test_extensions -boolean true
+# elif is_ubuntu; then
+#     # 安装之后名字是 fdfind
+#     sudo apt install fd-find fzf ripgrep autojump sdcv jq gnuplot pipx \
+#         cargo
+#     [ ! -d ~/.local/bin ] && mkdir -p ~/.local/bin
+#     ln -s $(which fdfind) ~/.local/bin/fd
+# else
+#     # TODO more os
+# fi
 
 color_sub "\t> brew install done.\n"
 
