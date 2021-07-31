@@ -3,7 +3,7 @@
 
 export FZF_BASE=/opt/local/share/fzf
 # Path to your oh-my-zsh installation.
-export ZSH="$HOME/.oh-my-zsh"
+export ZSH="/Users/simon/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -110,4 +110,4 @@ if [ -e /Users/simon/.nix-profile/etc/profile.d/nix.sh ]; then . /Users/simon/.n
 export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0
 
 # Created by `pipx` on 2021-07-18 15:29:58
-export PATH="$PATH:$HOME/.local/bin"
+export PATH="$PATH:/Users/simon/.local/bin"

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+run_dev_cjs() {
+    cd $VUE_LOC_DIR
+    pwd
+    yarn run dev $1 -f cjs
+}
+
+case $1 in
+    cjs) run_dev_cjs $2 ;;
+esac
