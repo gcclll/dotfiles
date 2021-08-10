@@ -6,7 +6,7 @@ source $GCLRC_HOME/shell/utils
 libs=$HOME/github/libs
 test_dir $libs
 
-echo "> BEGIN BAKUP..."
+color_info "> BEGIN BAKUP..."
 
 if [ ! -d $libs/dotfiles ]; then
     color_warn "> dotfiles do not exist, cloning"
@@ -28,8 +28,9 @@ if [ -d $GCLRC_HOME ]; then
         color_warn "> Do not bakup anything of company related"
         rm -f $libs/dotfiles/macos/.sunlightrc
     fi
+    pwd
     gpush
 
 fi
 
-echo "> BAKUP PROCESS DONE."
+color_info "> BAKUP PROCESS DONE."

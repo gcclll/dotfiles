@@ -38,5 +38,6 @@ git_clone_lib "$LIB/input-event" "https://github.com/song940/input-event.git"
 # my
 color_info "> Cloing my blog and ..."
 git_clone_lib "$BLOG/cheng92.com" "https://github.com/gcclll/cheng92.com.git"
+git_clone_lib "$LIB/dotfiles" "git@github.com:gcclll/dotfiles.git"
 
 color_info "> ------ install-codes.sh DONE ------\n"
