@@ -80,3 +80,19 @@ is_mac() {
 is_ubuntu() {
     if [ "$NAME" == "Ubuntu" ]; then return 0; else return 1; fi
 }
+
+git_clone_lib() {
+    if [ $# -lt 2 ]; then
+        color_error "> no target dir or code git source url."
+        exit 1
+    fi
+    target_dir="$1"
+    code_url="$2"
+    if [ -d "$target_dir" ]; then
+        color_warn "> $target_dir existed, ready to update..."
+        cd "$target_dir" && git pull
+    else
+        git clone $code_url $target_dir
+    fi
+
+}

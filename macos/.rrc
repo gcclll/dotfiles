@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== R alias ========================
 
 alias rinfo='echo "=== alias r ==="
@@ -10,7 +11,7 @@ echo ""
 '
 
 alias rmf="rm -rf"
-alias rmi="cd $HOME/Library/Rime/plum && bash rime-install"
+alias rimei="cd $HOME/Library/Rime/plum && bash rime-install"
 alias route-add="$GCLRC_BIN/gstart route add"
 alias route-del="$GCLRC_BIN/gstart route delete"
 alias route-show="$GCLRC_BIN/gstart route show"

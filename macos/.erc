@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== E alias ========================
 
 alias ewhere="emacsclient --eval \"(emacs-everywhere)\""

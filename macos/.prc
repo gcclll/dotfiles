@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== P alias ========================
 
 alias pinfo='echo -e "=== alias p ===

@@ -3,10 +3,19 @@ set -euo pipefail
 
 source $GCLRC_SHELL/utils
 
-if [ $# == 1 ] && [ $1 == 'sunlight' ]; then
-    sshx add sunlight -l root@218.17.162.117 -i "$HOME/.ssh/id_rsa_sl"
-elif [ $# -eq 3 ] && [ $1 == "key" ]; then
-    sshx add $2 -l $3 -i "/usr/local/sunlight/sshkeys/init.pk"
+if [ $# -gt 0 ]; then
+    type="$1"
+    case $type in
+        ssh_id)
+            sshx add $2 -l $3 -i "$HOME/.ssh/id_rsa_sl"
+            ;;
+        sunlight)
+            sshx add sunlight -l root@218.17.162.117 -i "$HOME/.ssh/id_rsa_sl"
+            ;;
+        key)
+            sshx add $2 -l $3 -i "/usr/local/sunlight/sshkeys/init.pk"
+            ;;
+    esac
 else
     error_less_arg
     bin=${0##*/}
@@ -25,5 +34,11 @@ else
      <user@ip:port>: 登陆服务器的“用户名”，IP，和端口号
 
      如： $bin key dev root@192.168.88.158
+
+  3. $bin ssh_id <name> <user@ip:port>
+
+     类似 $bin sunlight, 前提是要在服务器上的 ~/.ssh/authorized_keys 中加入自己的
+
+     ssh key, 这里默认用的是 ~/.ssh/id_rsa_sl.pub
 "
 fi

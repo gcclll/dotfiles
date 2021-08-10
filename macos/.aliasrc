@@ -1,3 +1,5 @@
+# -*- mode: conf -*-
+
 ## =========================== path settings =========================== ##
 export SSHX_HOME="$HOME/.gclrc/.sshx"
 export GCLRC_HOME="$HOME/.gclrc"
@@ -7,6 +9,8 @@ export BLOG_HOME="$HOME/blog/cheng92.com"
 export VUE_LOC_DIR="$HOME/github/vue/vue-next"
 export VUE_LOC_PKG="$HOME/github/vue/vue-next/packages"
 export VUE_PKG_SFC="$VUE_LOC_DIR/packages/compiler-sfc"
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib"
+export NODE_LIB="/usr/local/lib/node_modules"
 ## =========================== alias settings =========================== ##
 
 alias infox='echo "=== alias - ==="

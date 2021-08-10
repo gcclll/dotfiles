@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+tests() {
+    if [ $# -eq 0 ]; then
+        color_error "no keyword(eg. get|post|put|upload|...)."
+        exit -1
+    fi
+    case $1 in
+        # method
+        get) https GET httpie.io/hello ;;
+        post) http -f POST pie.dev/post hello=World ;;
+        put) http PUT pie.dev/put X-API-Token:123 name=John ;;
+        delete) http DELETE pie.dev/delete ;;
+
+        # down/up load
+        upload) http pie.dev/post <$2 ;;
+        download) {
+            http pie.dev/image/png >/tmp/image.png
+            ls -al /tmp/image.png
+        } ;;
+        wget) http --download pie.dev/image/png ;;
+
+        # session, host
+        named-session) echo "$ http --session=logged-in -a username:password pie.dev/get API-Key:123" ;;
+        session) echo "$ http --session=logged-in pie.dev/headers" ;;
+        host) echo "$ http localhost:8000 Host:example.com" ;;
+        comment) {
+            text="HTTPie is awesome! :heart:"
+            if [ $# -eq 2 ]; then
+                text="$2"
+            fi
+            http -a gcclll POST https://api.github.com/repos/gcclll/.doom.d/issues/1/comments body='$text'
+        } ;;
+
+        # localhost
+        localhost) {
+            echo -e '\tlocalhost 缩写 1：
+            -> http :
+            <- GET / HTTP/1.1
+               Host: localhost'
+            echo -e '\tlocalhost 缩写 2：
+            -> http :/foo
+            <- GET /foo HTTP/1.1
+               Host: localhost'
+            echo -e '\tlocalhost 缩写 3(指定端口)：
+            -> http :3000/bar
+            <- GET /foo HTTP/1.1
+               Host: localhost:3000'
+
+        } ;;
+
+        # other
+        request) http -v pie.dev/get ;; # 发送的请求详情
+        offline) http --offline pie.dev/post hello=offline ;;
+
+        # query string parameter
+        query) {
+            echo "-> http https://api.github.com/search/repositories q==httpie per_page==1"
+            echo "<- GET /search/repositories?q=httpie&per_page=1 HTTP/1.1"
+            http https://api.github.com/search/repositories q==httpie per_page==1
+        } ;;
+    esac
+}
+
+test_epg() {
+
+}
+
+argc=$#
+if [ $argc -gt 0 ]; then
+    case $1 in
+        tests) tests "${@:2}" ;;
+    esac
+else
+    http --help
+fi

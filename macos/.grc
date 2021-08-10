@@ -1,14 +1,18 @@
+# -*- mode: conf -*-
 # ======================== G alias ========================
 
 # mine
 alias gccll="$GCLRC_BIN/awesome.sh"
 
 # cd
+alias gvue="cd $HOME/github/vue/vue-next"
 alias gp400="g400 && gpush"
 alias gpdvs="gdvs && gpush"
 
 alias gblog="cd $BLOG_HOME"
+alias geven="cd $BLOG_HOME/themes/even"
 alias gpblog="gblog && gpush"
+alias gpeven="geven && gpush"
 
 alias gbeven="cd $BLOG_HOME/themes/even"
 alias gpeven="gbeven && gpush"
@@ -33,12 +37,18 @@ alias gpublish="cd $HOME/ccc/tmp/epg_publish_dir"
 alias gssh="cd $HOME/.ssh"
 alias ggopath="cd $GOPATH"
 
+alias glib="cd $HOME/github/libs"
+
+# git
 alias ga="git add"
 alias gc="git checkout"
 alias gf="git fetch"
 alias gl="git pull"
 alias gm="git commit -m"
 alias gs="git status"
+## git cherry-pick <commitId | branchname>
+## 如果是 branchname 则是将该分支的最新提交合并过来
+alias gpick="git cherry-pick"
 
 # alias git-ignore-logs="rm -rf .log && git rm -r .log && git commit -m 'clear logs' && git push"
 alias gcb="git checkout -b"

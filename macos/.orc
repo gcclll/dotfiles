@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== O alias ========================
 
 alias orimecolorb="open https://bennyyip.github.io/Rime-See-Me/"

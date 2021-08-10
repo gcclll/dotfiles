@@ -5,15 +5,38 @@ source $GCLRC_SHELL/utils
 
 color_info "\n> Begin to execute install-codes.sh."
 
-ALIYUN="$HOME/github/aliyun"
-test_dir "$ALIYUN"
-books="$ALIYUN/books"
+ALI="$HOME/github/aliyun"
+LIB="$HOME/github/libs"
+VUE="$HOME/github/vue"
+BLOG="$HOME/blog"
+test_dir "$ALI"
+test_dir "$LIB"
+test_dir "$VUE"
+test_dir "$BLOG"
 
-if [ -d "$books" ]; then
-    color_warn "> $books existed, ready to update..."
-    cd "$books" && git pull
-else
-    git clone git@code.aliyun.com:gccll/books.git $ALIYUN/books
-fi
+# Aliyun ######################################################################
+color_info "> Cloning from code.aliyun.com"
+git_clone_lib "$ALI/books" "git@code.aliyun.com:gccll/books.git"
+
+# Github ######################################################################
+color_info "> Cloning from github.com"
+git_clone_lib "$LIB/org-html-themes" "git@github.com:gcclll/org-html-themes.git"
+
+# vue
+color_info "> Cloning library related with vue.js"
+git_clone_lib "$VUE/vue-next" "https://github.com/vuejs/vue-next.git"
+git_clone_lib "$VUE/vuex" "https://github.com/vuejs/vuex.git"
+cd $VUE/vuex && git checkout 4.0
+git_clone_lib "$VUE/vue-router-next" "https://github.com/vuejs/vue-router-next.git"
+git_clone_lib "$VUE/vite" "https://github.com/vuejs/vite.git"
+git_clone_lib "$VUE/rfcs" "https://github.com/vuejs/rfcs.git"
+git_clone_lib "$VUE/vue-next-benchmarks" "https://github.com/basvanmeurs/vue-next-benchmarks.git"
+
+# input-event
+git_clone_lib "$LIB/input-event" "https://github.com/song940/input-event.git"
+
+# my
+color_info "> Cloing my blog and ..."
+git_clone_lib "$BLOG/cheng92.com" "https://github.com/gcclll/cheng92.com.git"
 
 color_info "> ------ install-codes.sh DONE ------\n"

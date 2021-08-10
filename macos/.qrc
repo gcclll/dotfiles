@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== Q alias ========================
 
 alias qshell="~/tools/qshell"

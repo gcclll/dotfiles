@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== L alias ========================
 
 alias linfo='echo -e "=== alias l ===

@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 
 alias inforime='echo "=== alias rime help information ==="
 echo ""

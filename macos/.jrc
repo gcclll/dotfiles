@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== J alias ========================
 alias jinfo='echo "=== alias j ==="
 echo ""

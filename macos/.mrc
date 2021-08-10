@@ -1,3 +1,4 @@
+# -*- mode: conf -*-
 # ======================== M alias ========================
 
 alias minfo='echo "=== alias m ==="
@@ -119,7 +120,7 @@ alias mupdate="mac update"
 alias muself="mac upgrade"
 alias muinstall="mac uninstall"
 alias mlock="mac lock"
-alias mres="mac restart"
+alias mreboot="mac restart"
 alias msleep="mac sleep"
 alias mshutd="mac shutdown"
 alias mprepare="mac presentation"
