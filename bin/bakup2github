@@ -28,7 +28,7 @@ if [ -d $GCLRC_HOME ]; then
         color_warn "> Do not bakup anything of company related"
         rm -f $libs/dotfiles/macos/.sunlightrc
     fi
-    pwd
+    color_info "$(pwd)"
     gpush
 
 fi
