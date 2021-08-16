@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+curl -sLf https://spacevim.org/install.sh | bash

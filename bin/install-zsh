@@ -5,6 +5,13 @@ echo -e "\n> Begin to execute install-zsh."
 
 cd /tmp
 
+test_ln() {
+    if [ -f "$2" ]; then
+        rm -f $2
+    fi
+    ln -sv $1 $2
+}
+
 if [ $(uname) == "Linux" ] && [ ! -f /usr/bin/zsh ]; then
     echo "> Installing zsh(apt) ..."
     sudo apt install zsh
@@ -28,7 +35,12 @@ if [ ! -d ~/.oh-my-zsh ]; then
 fi
 
 echo "> Cover the default .zshrc"
-cp $rc/.zshrc ~/.zshrc
+test_ln $rc/.zshrc ~/.zshrc
+test_ln $rc/mu4e/mbsyncrc ~/.mbsyncrc
+test_ln $rc/mu4e/msmtprc ~/.msmtprc
+test_ln $rc/.hammerspoon ~/.hammerspoon
+test_ln $rc/.netrc ~/.netrc
+test_ln $rc/.mpdconf ~/.mpdconf
 
 echo "> source it !"
 source ~/.zshrc

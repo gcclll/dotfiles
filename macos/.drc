@@ -38,3 +38,6 @@ alias dfh="df -h"       # 大小用易读形式显示
 # du
 alias duc="du -ch"      # 显示所有已列出文件总的大小
 alias dus="du -chs"     # 显示每个输出参数的总计
+
+# delete
+alias del-unused-simulator="xcrun simctl delete unavailable"

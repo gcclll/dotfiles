@@ -39,6 +39,9 @@ alias ggopath="cd $GOPATH"
 
 alias glib="cd $HOME/github/libs"
 
+# go mail dir
+alias gmail="cd $HOME/Mail"
+
 # git
 alias ga="git add"
 alias gc="git checkout"
@@ -55,8 +58,8 @@ alias gcb="git checkout -b"
 alias gdc="git rm --cached"
 alias gdf="git diff"
 alias gdo="git push origin --delete"
-alias gma="git submodule add"
-alias gmu="git submodule update --init --recursive"
+alias gasub="git submodule add"
+alias gaup="git submodule update --init --recursive"
 alias gall="git clone --recurse-submodules"
 alias gpusho="git push origin"
 alias greset="git reset HEAD"

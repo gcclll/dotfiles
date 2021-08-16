@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+case $1 in
+    mb)
+        color_info "> mbsync..."
+        case $2 in
+            gmail)
+                color_info "> mbsync gmail..."
+                mbsync -V gmail
+                ;;
+        esac
+        ;;
+esac

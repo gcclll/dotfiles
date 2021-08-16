@@ -19,7 +19,7 @@ if [ -d $GCLRC_HOME ]; then
         $GCLRC_HOME/shell \
         $GCLRC_HOME/macos \
         $GCLRC_HOME/.zshrc \
-        $GCLRC_HOME/mu \
+        $GCLRC_HOME/mu4e \
         $GCLRC_HOME/dev \
         $libs/dotfiles
     cd $libs/dotfiles

@@ -54,3 +54,7 @@ alias sortdu="du -sh * | sort -nr"              # r, 按降序显示
 
 # sync
 alias syncmail="$GCLGC_HOME/mu/bin/sync-mail"
+
+# simulator
+alias simu-delete-unused="xcrun simctl delete unavailable"
+alias simu-list="xcrun simctl list"

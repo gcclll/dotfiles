@@ -46,10 +46,6 @@ alias cpvdm="cpvd appendesm"
 alias cpvsm="cpvs appendesm"
 alias cpvfm="cpvf appendesm"
 
-
-
-# cl, clean
-alias clsm="xcrun simctl delete unavailable"
-
 # chmod
 alias chmbin="cd $GCLRC_BIN && chmod +x ./*"
+alias chm600="chmod -R 0600"

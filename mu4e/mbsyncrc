@@ -1,0 +1,152 @@
+# -*- mode: conf -*-
+# mbsyncrc based on
+# http://www.ict4g.net/adolfo/notes/2014/12/27/EmacsIMAP.html
+
+# Gmail: gccll.love ================================================================================
+
+# ACCOUNT INFORMATION
+IMAPAccount gmail
+Host imap.gmail.com
+Port 993
+User gccll.love@gmail.com
+# PassCmd "echo ${PASSWORD:-$(gpg -q --for-your-eyes-only --no-tty -d ~/.gclrc/mu4e/mbsyncpass-common.gpg)}"
+PassCmd "cat ~/.mypasswd/common"
+# AuthMechs PLAIN # LOGIN
+SSLType IMAPS
+SSLVersions TLSv1.2
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+# REMOTE STORAGE (USE THE IMAP ACCOUNT SPECIFIED ABOVE)
+IMAPStore gmail-remote
+Account gmail
+
+# LOCAL STORAGE (CREATE DIRECTORIES with mkdir -p Maildir/gmail)
+MaildirStore gmail-local
+Path ~/Mail/gmail/
+Inbox ~/Mail/gmail/inbox
+
+Channel gmail
+Far :gmail-remote:
+Near :gmail-local:
+Patterns *
+Create Both
+Expunge Both
+SyncState *
+
+# QQ:604522194 ================================================================================
+
+# ACCOUNT INFORMATION
+IMAPAccount qq
+# Address to connect to
+Host imap.qq.com
+User 604522194@qq.com
+# PassCmd "gpg -q --for-your-eyes-only --no-tty -d ~/.gclrc/mu4e/mbsyncpass-qq.gpg"
+PassCmd "cat ~/.mypasswd/qq"
+AuthMechs LOGIN
+SSLType IMAPS
+SSLVersions TLSv1.2
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+# REMOTE
+IMAPStore qq-remote
+Account qq
+
+# LOCLA
+MaildirStore qq-local
+Path ~/Mail/qq/
+Inbox ~/Mail/qq/inbox
+
+Channel qq-inbox
+Far :qq-remote:
+Near :qq-local:
+Patterns "INBOX"
+Create Both
+Expunge Both
+SyncState *
+
+Channel qq-trash
+Far :qq-remote:"Deleted Messages"
+Near :qq-local:"trash"
+Create Both
+Expunge Both
+SyncState *
+
+Channel qq-sent
+Far :qq-remote:"Sent Messages"
+Near :qq-local:"sent"
+Create Both
+Expunge Both
+SyncState *
+
+Channel qq-drafts
+Far :qq-remote:"Drafts"
+Near :qq-local:"drafts"
+Create Both
+Expunge Both
+SyncState *
+
+Group qq
+Channel qq-inbox
+Channel qq-trash
+Channel qq-sent
+Channel qq-drafts
+
+
+# SUNLIGHT ================================================================================
+
+# ACCOUNT INFORMATION
+IMAPAccount sunlight
+# Address to connect to
+Host imap.exmail.qq.com
+User simon.li@sunlight-tech.com
+# PassCmd "gpg -q --for-your-eyes-only --no-tty -d ~/.gclrc/mu4e/mbsyncpass-common.gpg"
+PassCmd "cat ~/.mypasswd/common"
+AuthMechs LOGIN
+SSLType IMAPS
+SSLVersions TLSv1.2
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+# REMOTE
+IMAPStore sunlight-remote
+Account sunlight
+
+# LOCLA
+MaildirStore sunlight-local
+Path ~/Mail/sunlight/
+Inbox ~/Mail/sunlight/inbox
+# SubFolders Verbatim
+
+Channel sunlight-inbox
+Far :sunlight-remote:
+Near :sunlight-local:
+Patterns "INBOX"
+Create Both
+Expunge Both
+SyncState *
+
+Channel sunlight-trash
+Far :sunlight-remote:"Deleted Messages"
+Near :sunlight-local:"trash"
+Create Both
+Expunge Both
+SyncState *
+
+Channel sunlight-sent
+Far :sunlight-remote:"Sent Messages"
+Near :sunlight-local:"sent"
+Create Both
+Expunge Both
+SyncState *
+
+Channel sunlight-drafts
+Far :sunlight-remote:"Drafts"
+Near :sunlight-local:"drafts"
+Create Both
+Expunge Both
+SyncState *
+
+Group sunlight
+Channel sunlight-inbox
+Channel sunlight-trash
+Channel sunlight-sent
+Channel sunlight-drafts

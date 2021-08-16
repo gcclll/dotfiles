@@ -21,10 +21,14 @@ curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | 
 brew install fd fzf ripgrep rg m-cli autojump stardict sdcv jq pngpaste \
     gnuplot pipx rust-analyzer pandoc glslang graphviz bcal \
     pkg-config poppler automake clang-format texmacs texlab \
-    mu isync offlineimap aspell xdotool mpd mpc httpie msmtp
-brew install --cask gifcapture mpv basictex
+    aspell xdotool mpd mpc httpie aria2 pass w3m msmtp isync offlineimap mu openssl
+
+brew install --cask gifcapture mpv basictex hammerspoon
+
 # mactex, large 4gb download
 # brew install --cask mactex
+# link
+brew link openssl --force
 brew link fd
 
 # xdotool

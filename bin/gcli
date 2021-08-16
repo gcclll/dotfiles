@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+bin=${0##*/}
+
+usage() {
+    color_info 'Usage: gcli <COMMAND> [OPTIONS] ...
+COMMAND:
+
+d)  aria2c, Download everything...
+
+    https://aria2.github.io/manual/en/html/aria2c.html
+
+    Options:
+
+        -p,     Use proxy, http://127.0.0.1:7890
+
+'
+}
+
+_aria2c() {
+    option=""
+    proxy=""
+    n=$#
+
+    while getopts "pi:" o; do
+        case "$o" in
+            p)
+                option=$option" --http-proxy=http://127.0.0.1:7890"
+                n=$((n + 1))
+                ;;
+            ?) echo '' ;;
+        esac
+    done
+
+    # if [ "$1" == "p" ]; then
+    # option=option" --http-proxy=http://127.0.0.1:7891"
+    # fi
+
+    if [ $n -gt 1 ]; then
+        n=$((n - 1))
+    fi
+    aria2c -d ~/Downloads $option ${@:n}
+}
+
+cmd="$1"
+
+case $cmd in
+    d) _aria2c "${@:2}" ;; # d -> download
+    ?) usage ;;
+esac
+
+# while getopts 'abc' OPT; do
+#     case $OPT in
+#         h) usage ;;
+#         ?) usage ;;
+#     esac
+# done

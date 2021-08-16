@@ -210,3 +210,7 @@ alias mgbdremote="mac git:branch:remove-remote"
 alias mdmonitor="mac dev:monitor"
 alias mdoi="mac dev:optimize-images"
 alias mdcs="mac dev:css:convert-to-scss"
+
+# mu4e
+alias musync="time mbsync -a"
+alias musidx="musync && mu index"

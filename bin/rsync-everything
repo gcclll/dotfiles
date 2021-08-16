@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+color_info "\n> Begin to execute rsync-everything."
+
+color_info "> Rsync Doom Emacs Configuration."
+cp ~/.doom.d/config.org ~/.doom.d/README.org
+cp ~/.doom.d/config.org \
+    $BLOG_HOME/content/emacs/doom-emacs-with-org.org
+
+color_info "> Rsync MacOS Hammerspoon Configuration."
+cp $GCLRC_HOME/.hammerspoon/init.org \
+    $BLOG_HOME/content/post/macos-hammerspoon-configuration.org
+
+color_info "> ------ rsync-everything DONE ------\n"

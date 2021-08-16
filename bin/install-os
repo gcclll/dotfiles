@@ -14,16 +14,25 @@ color_sub "③ OmniPlan, Project Management   : https://www.macwk.com/soft/omnip
 color_sub "④ aDrive                         : https://www.aliyundrive.com/"
 color_sub "⑤ qshell for qiniu               : https://github.com/qiniu/qshell"
 color_sub "⑥ draw.io                        : https://app.diagrams.net/"
+color_sub "⑦ Hammerspoon                    : https://github.com/Hammerspoon/hammerspoon"
+color_sub "⑦ Epichrome                      : https://github.com/dmarmor/epichrome
+
+                基于 Chrome 的可以将见面当作 App 来使用
+"
 
 # directory ###################################################################
 GITHUB="$HOME/github"
 ALIYUN="$GITHUB/aliyun"
 LIBS="$GITHUB/LIBS"
+MAIL="$HOME/Mail"
 
 color_info "> Create some directories..."
 test_dir $GITHUB
 test_dir $ALIYUN
 test_dir $LIBS
+test_dir $MAIL/sunlight
+test_dir $MAIL/qq
+test_dir $MAIL/gmail
 
 # shell scripts ############################################################
 install-tools

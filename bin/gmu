@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source $GCLRC_SHELL/utils
+
+if [ $# -gt 0 ]; then
+    case $1 in
+        init) mu init --maildir=~/Mail --my-address=$2 ;;
+        sync) mbsync -c $GCLRC_HOME/mu4e/mbsyncrc -a ;;
+    esac
+else
+    bin=${0##*/}
+
+    error_less_arg
+
+    color_info "
+> mu4e： $bin <command>
+
+  1. $bin init <email>, 初始化 mu4e
+"
+
+fi

@@ -5,6 +5,17 @@ source $GCLRC_SHELL/utils
 
 color_info "> 开始执行 install-fonts.sh 脚本"
 
-color_info "> 请直捷从移动硬盘的字体备份目录(/Volumes/wyu/vfonts/...)拷贝"
+cd /tmp
+
+test_dir_rm /tmp/fonts
+
+FONTS=~/Library/Fonts/
+git clone https://github.com/DavidBarts/ET_Bembo.git /tmp/fonts
+cd fonts && ls
+cp ./*.otf $FONTS || true
+cp ./*.sfd $FONTS || true
+cp ./*.ttf $FONTS || true
+cd ..
+rm -rf /tmp/fonts
 
 color_info "> ------ install-fonts.sh DONE ------\n"
