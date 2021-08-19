@@ -30,6 +30,7 @@ USER="$GOPATH/src/github.com/user"
 test_dir "$USER"
 test_dir "$USER/hello"
 
+go mod init github.com/
 echo "
 package main
 
@@ -40,7 +41,7 @@ func main() {
 }
 " >"$USER/hello/hello.go"
 color_sub "\t> install hello module"
-go install github.com/user/hello
+go build $GOPATH/src/github.com/user/hello/hello.go
 cd $USER/hello
 color_sub "\t> install hello command"
 go install

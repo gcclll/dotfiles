@@ -74,3 +74,6 @@ alias gpg-expire="gpg --homedir ~/.emacs.d/elpa/gnupg --quick-set-expire 474F058
 # grep, grep [options] pattern [file]
 alias grepn="grep -n"           # 显示行号
 alias grepv="grep -nv"          # 输出事匹配的行
+
+# go alias
+alias gomi="go mod init"

@@ -82,17 +82,21 @@ is_ubuntu() {
 }
 
 git_clone_lib() {
-    if [ $# -lt 2 ]; then
-        color_error "> no target dir or code git source url."
-        exit 1
-    fi
     target_dir="$1"
     code_url="$2"
+    depth=""
+    if [ $# -eq 3 ] && [ "$3" == "depth" ]; then
+        depth="--depth=1"
+    fi
     if [ -d "$target_dir" ]; then
         color_warn "> $target_dir existed, ready to update..."
         cd "$target_dir" && git pull
     else
-        git clone $code_url $target_dir
+        git clone $depth $code_url $target_dir
     fi
 
+}
+
+git_clone_depth1() {
+    git_clone_lib "$1" "$2" depth
 }

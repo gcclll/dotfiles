@@ -10,11 +10,12 @@ Host imap.gmail.com
 Port 993
 User gccll.love@gmail.com
 # PassCmd "echo ${PASSWORD:-$(gpg -q --for-your-eyes-only --no-tty -d ~/.gclrc/mu4e/mbsyncpass-common.gpg)}"
-PassCmd "cat ~/.mypasswd/common"
-# AuthMechs PLAIN # LOGIN
+PassCmd "cat ~/.mypasswd/gmail"
+AuthMechs PLAIN
 SSLType IMAPS
-SSLVersions TLSv1.2
-CertificateFile /etc/ssl/certs/ca-certificates.crt
+SSLVersions TLSv1.3
+# CertificateFile /etc/ssl/certs/ca-certificates.crt
+# CertificateFile ~/.gclrc/certs/gmail.crt
 
 # REMOTE STORAGE (USE THE IMAP ACCOUNT SPECIFIED ABOVE)
 IMAPStore gmail-remote
@@ -25,13 +26,32 @@ MaildirStore gmail-local
 Path ~/Mail/gmail/
 Inbox ~/Mail/gmail/inbox
 
-Channel gmail
+Channel gmail-inbox
 Far :gmail-remote:
 Near :gmail-local:
-Patterns *
+Patterns "INBOX"
 Create Both
 Expunge Both
 SyncState *
+
+Channel gmail-trash
+Far :gmail-remote:"[Gmail]Trash"
+Near :gmail-local:"trash"
+Create Both
+Expunge Both
+SyncState *
+
+Channel gmail-sent
+Far :gmail-remote:"[Gmail]Sent Mail"
+Near :gmail-local:"sent"
+Create Both
+Expunge Both
+SyncState *
+
+Group gmail
+Channel gmail-inbox
+Channel gmail-trash
+Channel gmail-sent
 
 # QQ:604522194 ================================================================================
 

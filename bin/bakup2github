@@ -21,7 +21,9 @@ if [ -d $GCLRC_HOME ]; then
         $GCLRC_HOME/.zshrc \
         $GCLRC_HOME/mu4e \
         $GCLRC_HOME/dev \
+        $GCLRC_HOME/xminds \
         $libs/dotfiles
+
     cd $libs/dotfiles
 
     if [ -f $libs/dotfiles/macos/.sunlightrc ]; then

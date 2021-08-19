@@ -9,10 +9,12 @@ ALI="$HOME/github/aliyun"
 LIB="$HOME/github/libs"
 VUE="$HOME/github/vue"
 BLOG="$HOME/blog"
+GO="$HOME/golang"
 test_dir "$ALI"
 test_dir "$LIB"
 test_dir "$VUE"
 test_dir "$BLOG"
+test_dir "$GO"
 
 # Aliyun ######################################################################
 color_info "> Cloning from code.aliyun.com"
@@ -39,5 +41,10 @@ git_clone_lib "$LIB/input-event" "https://github.com/song940/input-event.git"
 color_info "> Cloing my blog and ..."
 git_clone_lib "$BLOG/cheng92.com" "https://github.com/gcclll/cheng92.com.git"
 git_clone_lib "$LIB/dotfiles" "git@github.com:gcclll/dotfiles.git"
+git_clone_lib "$LIB/awesome-demos" "git@github.com:gcclll/awesome-demos.git"
+
+# golang
+color_info "> Cloing Golang Related ..."
+git_clone_depth1 "$GO/go" "https://github.com/golang/go.git"
 
 color_info "> ------ install-codes.sh DONE ------\n"

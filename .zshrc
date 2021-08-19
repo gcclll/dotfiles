@@ -111,3 +111,8 @@ export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}
 
 # Created by `pipx` on 2021-07-18 15:29:58
 export PATH="$PATH:/Users/simon/.local/bin"
+
+# deno zsh completions
+fpath=(~/.zsh $fpath)
+autoload -Uz compinit
+compinit -u

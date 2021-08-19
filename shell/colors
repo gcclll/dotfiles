@@ -135,6 +135,10 @@ error_less_arg() {
     color_error "> 错误：缺少必须参数，请检查输入。"
 }
 
+print_link() {
+    echo -e "${UGreen}$1${NC}"
+}
+
 if [ $# -eq 1 ] && [ $1 = 'test' ]; then
     for ((i = 30; i < 38; i++)); do
         echo -e "\033[0;"$i"m Normal: (0;$i); \033[1;"$i"m Light: (1;$i)"

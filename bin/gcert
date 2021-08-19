@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+gen_cert() {
+    host="$1"
+    outdir="$2"
+    openssl s_client -connect $host -showcerts 2>&1 </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | head -n 27 >$outdir
+}
+
+case $1 in
+    gen) gen_cert "${@:2}" ;;
+esac
