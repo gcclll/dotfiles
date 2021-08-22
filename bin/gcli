@@ -17,6 +17,11 @@ d)  aria2c, Download everything...
 
         -p,     Use proxy, http://127.0.0.1:7890
 
+sl*) sunlight command line tools
+
+     gcli slu <local> <remote>, upload file to remote host
+
+     gcli sld <remote> <local>, download file from remote host
 '
 }
 
@@ -59,6 +64,7 @@ _sync() {
 }
 
 s158="root@192.168.88.158:/var/www/html/lzc"
+s46="root@192.168.88.46:/usr/local/pkgs/EPG/EPG30"
 url_158="http://192.168.88.158/lzc"
 init_pk="/usr/local/sunlight/sshkeys/init.pk"
 cmd_scp="scp -r -o IdentitiesOnly=yes -i $init_pk"
@@ -66,19 +72,37 @@ dvs_rm="$HOME/github/aliyun/server-ui/dvs-basic/README.html"
 chmod_158() {
     ssh -i $init_pk -o IdentitiesOnly=yes root@192.168.88.158 '/usr/bin/chmod -R 777 /var/www/html/lzc'
 }
-_upload() {
+sl_upload() {
     file="$1"
+    if [ $# -eq 0 ]; then
+        echo "Usage: gcli "
+        exit -1
+    fi
 
     if [ "$1" == "dvs" ]; then
         file=$dvs_rm
+        echo "> Target: $file"
+        link=$url_158"/dvs_readme.html"
+        $cmd_scp $file $s158"/dvs_readme.html"
+        print_link $link
+        chmod_158
+        open $link
+    elif [ "$1" == "46" ]; then
+        file="$2"
+        echo "> Target: $file"
+        $cmd_scp $file "$s46/"
+    elif [ "$1" == "s" ]; then
+        file="$2"
+        echo "> Target: $file"
+        $cmd_scp $file "$3"
     fi
-    echo "> Target: $file"
-    ls -al $file
-    $cmd_scp $file $s158"/dvs_readme.html"
-    link=$url_158"/dvs_readme.html"
-    print_link $link
-    chmod_158
-    open $link
+    echo "> Upload DONE."
+}
+
+sl_download() {
+    remote="$1"
+    localfile="$2"
+    $cmd_scp "$remote" "$localfile"
 }
 
 cmd="$1"
@@ -86,7 +110,8 @@ cmd="$1"
 case $cmd in
     d) _aria2c "${@:2}" ;; # d -> download
     s) _sync "${@:2}" ;;   # s -> sync
-    u) _upload "${@:2}" ;;
+    slu) sl_upload "${@:2}" ;;
+    sld) sl_download "${@:2}" ;;
     deno-zsh)
         test_dir ~/.zsh
         deno completions zsh >~/.zsh/_deno

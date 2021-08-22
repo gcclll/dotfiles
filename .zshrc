@@ -116,3 +116,4 @@ export PATH="$PATH:/Users/simon/.local/bin"
 fpath=(~/.zsh $fpath)
 autoload -Uz compinit
 compinit -u
+compinit -u

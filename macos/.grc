@@ -66,6 +66,8 @@ alias greset="git reset HEAD"
 alias gpop="git stash pop"
 alias gstage="git ls-files --stage"
 alias gunset="git config --global --unset http.https://github.com.proxy && git config --global --unset https.https://github.com.proxy"
+# git remote set-url origin https://<token>@github.com/<uname>/<name>.git
+alias gtoken="git remote set-url origin"
 
 alias gbrew="HOMEBREW_NO_AUTO_UPDATE=1 brew"
 alias gpg-create="gpg --homedir ~/.emacs.d/elpa/gnupg --receive-keys 066DAFCB81E42C40"
