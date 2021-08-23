@@ -22,6 +22,12 @@ sl*) sunlight command line tools
      gcli slu <local> <remote>, upload file to remote host
 
      gcli sld <remote> <local>, download file from remote host
+
+     eg.
+
+        1. gcli slu dvs       upload dvs-basic/README.html to 192.168.88.158/lzc/
+        2. gcli slu 46        upload release epg tar file to 192.168.88.46:/usr/local/pkgs/EPG/EPG30
+
 '
 }
 
@@ -74,10 +80,6 @@ chmod_158() {
 }
 sl_upload() {
     file="$1"
-    if [ $# -eq 0 ]; then
-        echo "Usage: gcli "
-        exit -1
-    fi
 
     if [ "$1" == "dvs" ]; then
         file=$dvs_rm

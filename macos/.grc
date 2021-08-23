@@ -79,3 +79,4 @@ alias grepv="grep -nv"          # 输出事匹配的行
 
 # go alias
 alias gomi="go mod init"
+alias godlv="xcode-select --install && sudo /usr/sbin/DevToolsSecurity -enable && sudo dscl . append /Groups/_developer GroupMembership $(whoami)"

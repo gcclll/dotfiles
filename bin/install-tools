@@ -22,7 +22,8 @@ brew install fd fzf ripgrep rg m-cli autojump stardict sdcv jq pngpaste \
     gnuplot pipx rust-analyzer pandoc glslang graphviz bcal \
     pkg-config poppler automake clang-format texmacs texlab \
     aspell xdotool mpd mpc httpie aria2 pass w3m msmtp isync offlineimap mu openssl \
-    otfcc-mac64 deno
+    otfcc-mac64 deno gdb \
+    delve # go
 
 brew install --cask gifcapture mpv basictex hammerspoon qv2ray v2ray-core
 
