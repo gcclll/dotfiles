@@ -214,3 +214,4 @@ alias mdcs="mac dev:css:convert-to-scss"
 # mu4e
 alias musync="time mbsync -a"
 alias musidx="musync && mu index"
+alias mulock="rm ~/.cache/mu/xapian/flintlock"

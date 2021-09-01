@@ -6,9 +6,6 @@ alias gccll="$GCLRC_BIN/awesome.sh"
 
 # cd
 alias gvue="cd $HOME/github/vue/vue-next"
-alias gp400="g400 && gpush"
-alias gpdvs="gdvs && gpush"
-
 alias gblog="cd $BLOG_HOME"
 alias geven="cd $BLOG_HOME/themes/even"
 alias gpblog="gblog && gpush"
@@ -66,6 +63,7 @@ alias greset="git reset HEAD"
 alias gpop="git stash pop"
 alias gstage="git ls-files --stage"
 alias gunset="git config --global --unset http.https://github.com.proxy && git config --global --unset https.https://github.com.proxy"
+alias geditor="git config --global core.editor"
 # git remote set-url origin https://<token>@github.com/<uname>/<name>.git
 alias gtoken="git remote set-url origin"
 

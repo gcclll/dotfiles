@@ -9,7 +9,10 @@ echo ""
 echo "------------------------------------------------------------"
 '
 
-alias adblt="adb logcat -v time"
+alias adblog="adb logcat -v time"
+alias adbdis="adb disconnect"
+alias adbcon="adb connect"
+alias adbdev="adb devices"
 
 alias adduser="useradd"
 
