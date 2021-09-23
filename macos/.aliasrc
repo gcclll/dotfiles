@@ -11,6 +11,9 @@ export VUE_LOC_PKG="$HOME/github/vue/vue-next/packages"
 export VUE_PKG_SFC="$VUE_LOC_DIR/packages/compiler-sfc"
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib"
 export NODE_LIB="/usr/local/lib/node_modules"
+export GOPATH=$HOME/go
+export GOROOT="/usr/local/go"
+export GOBIN="$GOROOT/bin"
 ## =========================== alias settings =========================== ##
 
 alias infox='echo "=== alias - ==="
@@ -65,7 +68,7 @@ source $D/.inforc
 $GCLRC_SHELL/galias
 source $GCLRC_HOME/macos/.tmprc
 
-export PATH="/Library/TeX/texbin/:$GCLRC_HOME/bin:$PATH"
+export PATH="/Library/TeX/texbin/:$GCLRC_HOME/bin:$GOBIN:$PATH"
 
 export PATH=$(echo $PATH | sed 's/:/\n/g' | sort | uniq | tr -s '\n' ':' | sed 's/:$//g')
 

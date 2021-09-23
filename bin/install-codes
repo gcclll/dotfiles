@@ -23,6 +23,8 @@ git_clone_lib "$ALI/books" "git@code.aliyun.com:gccll/books.git"
 # Github ######################################################################
 color_info "> Cloning from github.com"
 git_clone_lib "$LIB/org-html-themes" "git@github.com:gcclll/org-html-themes.git"
+git_clone_depth1 "$LIB/chromium" "https://github.com/chromium/chromium.git"
+git_clone_depth1 "$LIB/v8" "https://github.com/v8/v8.git"
 
 # vue
 color_info "> Cloning library related with vue.js"

@@ -32,7 +32,8 @@ alias gpbooks="gbooks && gpush"
 
 alias gpublish="cd $HOME/ccc/tmp/epg_publish_dir"
 alias gssh="cd $HOME/.ssh"
-alias ggopath="cd $GOPATH"
+alias goroot="cd $GOPATH"
+alias gosrc="cd $GOPATH/src"
 
 alias glib="cd $HOME/github/libs"
 

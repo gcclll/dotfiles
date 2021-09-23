@@ -28,6 +28,7 @@ sl*) sunlight command line tools
         1. gcli slu dvs       upload dvs-basic/README.html to 192.168.88.158/lzc/
         2. gcli slu 46        upload release epg tar file to 192.168.88.46:/usr/local/pkgs/EPG/EPG30
         3. gcli slu cms       upload cmsepg/README.html to 192.168.88.158/lzc/
+        4. gcli slu cmsr      upload cmsepg/docs/release.html to 192.168.88.158/lzc/
 
 '
 }
@@ -119,6 +120,10 @@ sl_download() {
     $cmd_scp "$remote" "$localfile"
 }
 
+if [ $# -lt 1 ]; then
+    usage
+    exit 1
+fi
 cmd="$1"
 
 case $cmd in
