@@ -5,6 +5,10 @@
 alias gccll="$GCLRC_BIN/awesome.sh"
 
 # cd
+alias gdeno="cd $HOME/github/deno/deno-projects"
+alias gpdeno="gdenopro && gpush"
+alias gleet="cd $HOME/github/mine/make-leetcode"
+alias gpleet="gleet && gpush"
 alias gvue="cd $HOME/github/vue/vue-next"
 alias gblog="cd $BLOG_HOME"
 alias geven="cd $BLOG_HOME/themes/even"
@@ -17,6 +21,9 @@ alias gpeven="gbeven && gpush"
 alias gdot="cd $GCLRC_HOME"
 alias gpdot="gdot && gpush"
 alias gbakupdot="gdot && gpush && bakup2github"
+
+alias gdocs="cd $HOME/github/aliyun/documents"
+alias gpdocs="gdocs && gpush"
 
 alias gdoom="cd $HOME/.doom.d"
 alias gpdoom="gdoom && gpush"
@@ -37,13 +44,13 @@ alias gosrc="cd $GOPATH/src"
 
 alias glib="cd $HOME/github/libs"
 
+alias gdemoreact="cd $HOME/github/awesome-demos/react-antd-app"
+
 # go mail dir
 alias gmail="cd $HOME/Mail"
 
 # git
-alias ga="git add"
 alias gc="git checkout"
-alias gf="git fetch"
 alias gl="git pull"
 alias gm="git commit -m"
 alias gs="git status"
@@ -57,7 +64,7 @@ alias gdc="git rm --cached"
 alias gdf="git diff"
 alias gdo="git push origin --delete"
 alias gasub="git submodule add"
-alias gaup="git submodule update --init --recursive"
+alias git-update-sub="git submodule update --init --recursive"
 alias gall="git clone --recurse-submodules"
 alias gpusho="git push origin"
 alias greset="git reset HEAD"

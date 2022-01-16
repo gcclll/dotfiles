@@ -58,3 +58,12 @@ alias syncmail="$GCLGC_HOME/mu/bin/sync-mail"
 # simulator
 alias simu-delete-unused="xcrun simctl delete unavailable"
 alias simu-list="xcrun simctl list"
+
+# search
+alias search-google="web_search google"
+alias search-baidu="web_search baidu"
+
+# system
+alias syscpu="sysctl -n machdep.cpu.brand_string"
+alias sysram="top -l 1 -s 0 | grep PhysMem"
+alias sysinfo="system_profiler SPDisplaysDataType"

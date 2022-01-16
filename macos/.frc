@@ -85,3 +85,5 @@ alias fevue="frontend vuejs"
 
 # fix
 alias fixcp="$GCLRC_SHELL/gfix chrome-ports"
+
+alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"

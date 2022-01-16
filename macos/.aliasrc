@@ -2,6 +2,7 @@
 
 ## =========================== path settings =========================== ##
 export SSHX_HOME="$HOME/.gclrc/.sshx"
+export DOTFILES="$HOME/.gclrc"
 export GCLRC_HOME="$HOME/.gclrc"
 export GCLRC_BIN="$HOME/.gclrc/bin"
 export GCLRC_SHELL="$HOME/.gclrc/shell"
@@ -34,7 +35,7 @@ echo ""
 '
 
 
-$GCLRC_BIN/expand-aliases
+# $GCLRC_BIN/expand-aliases
 D="$GCLRC_HOME/macos"
 source $D/.arc # alias-a
 source $D/.brc # alias-b
@@ -65,8 +66,8 @@ source $D/.zrc # alias-z
 source $D/.inforc
 
 # to add fdat, fddt, ... & fdae, fdde, ...
-$GCLRC_SHELL/galias
-source $GCLRC_HOME/macos/.tmprc
+# $GCLRC_SHELL/galias
+# source $GCLRC_HOME/macos/.tmprc
 
 export PATH="/Library/TeX/texbin/:$GCLRC_HOME/bin:$GOBIN:$PATH"
 

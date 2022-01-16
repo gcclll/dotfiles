@@ -49,3 +49,9 @@ alias cpvfm="cpvf appendesm"
 # chmod
 alias chmbin="cd $GCLRC_BIN && chmod +x ./*"
 alias chm600="chmod -R 0600"
+
+# create
+alias c-vue-nuxt="npx nuxi init nuxt3-app"
+alias c-react-app="npx create-react-app"
+alias c-react-ts="npx create-react-app --template typescript"
+

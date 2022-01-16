@@ -3,33 +3,31 @@ set -euo pipefail
 
 source $GCLRC_HOME/shell/utils
 
-libs=$HOME/github/libs
-test_dir $libs
+mine=$HOME/github/mine
+dot=$GCLRC_HOME
+test_dir $mine
 
 color_info "> BEGIN BAKUP..."
 
-if [ ! -d $libs/dotfiles ]; then
+if [ ! -d $mine/dotfiles ]; then
     color_warn "> dotfiles do not exist, cloning"
-    git clone git@github.com:gcclll/dotfiles.git $libs/dotfiles
+    git clone git@github.com:gcclll/dotfiles.git $mine/dotfiles
 
 fi
 
-if [ -d $GCLRC_HOME ]; then
-    cp -R $GCLRC_HOME/bin \
-        $GCLRC_HOME/shell \
-        $GCLRC_HOME/macos \
-        $GCLRC_HOME/.zshrc \
-        $GCLRC_HOME/mu4e \
-        $GCLRC_HOME/dev \
-        $GCLRC_HOME/xminds \
-        $libs/dotfiles
+if [ -d $dot ]; then
+    cp -R $dot/bin \
+        $dot/shell \
+        $dot/macos \
+        $dot/.zshrc \
+        $dot/mu4e \
+        $dot/dev \
+        $dot/xminds \
+        $dot/.hammerspoon \
+        $mine/dotfiles
 
-    cd $libs/dotfiles
+    cd $mine/dotfiles
 
-    if [ -f $libs/dotfiles/macos/.sunlightrc ]; then
-        color_warn "> Do not bakup anything of company related"
-        rm -f $libs/dotfiles/macos/.sunlightrc
-    fi
     color_info "$(pwd)"
     gpush
 

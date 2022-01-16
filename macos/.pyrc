@@ -23,6 +23,6 @@ alias pylocal="pyenv local"
 alias pylocal37="pyenv local 3.7.3"
 alias pylocal27="pyenv local 2.7.10"
 alias pylist="pyenv install --list"
-alias pip="pip3"
+# alias pip="pip3"
 
 # export PATH=$(echo $PATH | tr : "\n"| sort | uniq | tr "\n" :)

@@ -1,0 +1,239 @@
+#!/bin/bash
+
+source $GCLRC_SHELL/utils
+
+ALI="$HOME/github/aliyun"
+FONTS="$HOME/Library/Fonts"
+
+test_ln() {
+  if [ -f "$2" ]; then
+    rm -f $2
+  fi
+  ln -sv $1 $2
+}
+
+set_brew_mirror() {
+  repo="$1"
+  core="$2"
+  bottle="$3"
+  cd "$(brew --repo)"
+  echo "set remote origin=$1"
+  git remote set-url origin $repo
+  cd "$(brew --repo)/Library/Taps/homebrew/homebrew-core"
+  echo "set remote core=$2"
+  git remote set-url origin $core
+  echo "export bottle=$3"
+  sed '/export HOMEBREW_BOTTLE_DOMAIN=/d' $HOME/.zshrc >$HOME/.zshrc
+  echo "export HOMEBREW_BOTTLE_DOMAIN=$bottle" >>$HOME/.zshrc
+  echo "updating..."
+  brew update
+  echo "done."
+}
+
+reset_brew_mirror() {
+  git -C "/usr/local/Homebrew/Library/Taps/homebrew/homebrew-core" remote set-url origin https://github.com/Homebrew/homebrew-core
+}
+
+set_github_proxy() {
+  git config --global http.proxy 'socks5://127.0.0.1:7891'
+  git config --global https.proxy 'socks5://127.0.0.1:7891'
+}
+
+unset_github_proxy() {
+  git config --global --unset http.proxy
+  git config --global --unset https.proxy
+}
+
+set_git_user() {
+  git config --global user.name "gcclll"
+  git config --global user.email "gccll.love@gmail.com"
+  git config --list
+  echo "set git user & email done."
+}
+
+set_cnpm_github() {
+  git config --global url.https://github.com.cnpmjs.org/.insteadof https://github.com/
+}
+
+set_alfred_workflows() {
+  if [ $# -lt 1 ]; then
+    echo "COMMAND: gset alfred [set|bak]"
+  fi
+  ali_dir=$HOME/github/aliyun/my-softs/alfred
+  loc_dir=$HOME/Library/Application\ Support/Alfred/Alfred.alfredpreferences/workflows
+  if [ "$1" == "set" ]; then
+    echo "Restoring..."
+    cp -R ${ali_dir} "${loc_dir}"
+  elif [ "$1" == "bak" ]; then
+    echo "Baking up..."
+    cp -R "${loc_dir}/" ${ali_dir}
+    cd ${ali_dir}
+    gpush
+  fi
+}
+
+set_mac_workflows() {
+  wf=$GCLRC_HOME/workflows/
+  cd $wf
+  for dir in *; do
+    target="$HOME/Library/Services/$dir"
+    if [ ! -d "$target" ]; then
+      cp -R "$dir" "$target"
+    fi
+  done
+
+}
+
+set_soft_links() {
+  rc=~/.gclrc
+  test_ln $rc/.zshrc ~/.zshrc
+  test_ln $rc/mu4e/mbsyncrc ~/.mbsyncrc
+  test_ln $rc/mu4e/msmtprc ~/.msmtprc
+  test_ln $rc/.hammerspoon ~/.hammerspoon
+  test_ln $rc/.netrc ~/.netrc
+  test_ln $rc/.mpdconf ~/.mpdconf
+  source ~/.zshrc
+}
+
+init_mu4e_dir() {
+  test_dir $HOME/Mail/qq
+  test_dir $HOME/Mail/gmail
+  gmu init 604522194@qq.com
+  gmu init gccll.love@gmail.com
+}
+
+push_all() {
+  gpdoom
+  gpdot
+  gpblog
+  gpdocs
+  gprime
+}
+
+set_fonts() {
+  if [ $# -lt 1 ]; then
+    echo "COMMAND: gset fonts [set|bak]"
+  fi
+
+  to="$ALI/documents/fonts"
+  from="$FONTS"
+  if [ "$1" == "set" ]; then
+    cp_dir_files "$to" "$from"
+  else
+    cp_dir_files "$from" "$to"
+  fi
+}
+
+set_deno_config() {
+  if [ $# -lt 1 ] && [ ! -d "$1" ]; then
+    echo "No deno projects root"
+    exit -1
+  fi
+
+  deno install \
+    --unstable \
+    --allow-read=$1 \
+    --allow-write=$1 \
+    https://deno.land/x/denoconfig@0.1.1/denoconfig.ts
+}
+
+set_node_lib() {
+  ver="$(node -v)"
+  echo "Node Version: $ver"
+  lib="$HOME/.nvm/versions/node/${ver}/lib/node_modules"
+  old="/usr/local/lib/node_modules"
+  old2="/usr/local/lib/node_modules2"
+  if [ -h "$old" ]; then
+    rm "$old"
+  fi
+  if [ -d "$old" ]; then
+    mv "$old" "$old2"
+  fi
+  ln -s "$lib" "$old"
+  ls -al "$old"
+  echo "Node Version: $(node -v)"
+  echo "Npm Version: $(npm -v)"
+}
+
+install_apps() {
+  apps="$GCLRC_HOME/macos/apps/"
+  cd $apps
+  for app in *; do
+    if [ ! -d "/Applications/$app" ]; then
+      cp -R "$app" "/Applications/$app"
+    fi
+  done
+
+  defaults write com.google.Chrome ExternalProtocolDialogShowAlwaysOpenCheckbox -bool true
+}
+
+set_go_proxy() {
+  go env -w GO111MODULE=on
+  go env -w GOPROXY=https://goproxy.io,direct
+
+}
+
+set_pip_alias() {
+  echo "set alias pip..."
+  p3="$(which pip3)"
+  echo "$p3, $(which pip)"
+  if [ -f "$p3" ]; then
+    echo "linking..."
+    p0="/usr/local/bin/pip"
+    if [ -f "$p0" ]; then
+      rm "$p0"
+    fi
+    cp "$p3" "$p0"
+    ls -al "$p0"
+  else
+    echo "set failed."
+  fi
+}
+
+fix_eaf_doom() {
+  dir="$HOME/emacs-application-framework"
+  build="$HOME/.emacs.d/.local/straight/build-29.0.50/eaf"
+  cd $dir
+  pwd
+  for file in *; do
+    if [ "$file" != "eaf.el" ]; then
+      echo "Linking: $file"
+      ln -s "$dir/$file" "$build/$file"
+    fi
+  done
+  ls "$build"
+}
+
+case "$1" in
+  "fix-eaf-doom") fix_eaf_doom ;;
+  "pip-alias") set_pip_alias ;;
+  "go-proxy") set_go_proxy ;;
+  "install-apps") install_apps ;;
+  "mac-workflow") set_mac_workflows ;;
+  "node-lib") set_node_lib ${@:2} ;;
+  "deno-config") set_deno_config ${@:2} ;;
+  "fonts") set_fonts ${@:2} ;;
+  "push") push_all ${@:2} ;;
+  "init-mu4e") init_mu4e_dir ;;
+  "links") set_soft_links ;;
+  "alfred") set_alfred_workflows ${@:2} ;;
+  "cnpm-github") set_cnpm_github ;;
+  "git-user") set_git_user ;;
+  "github-proxy") set_github_proxy ;;
+  "unset-github-proxy") unset_github_proxy ;;
+  "brew-mirror-qh")
+    set_brew_mirror \
+      https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git \
+      https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git \
+      https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles
+    ;;
+  "brew-mirror-kd")
+    set_brew_mirror \
+      https://mirrors.ustc.edu.cn/brew.git \
+      https://mirrors.ustc.edu.cn/homebrew-core.git \
+      https://mirrors.ustc.edu.cn/homebrew-bottles
+    ;;
+  *) /bin/sh $GCLRC_HOME/.help/gset ;;
+esac
+
+echo "DONE..."

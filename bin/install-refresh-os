@@ -1,0 +1,370 @@
+#!/bin/bash
+
+# - References:
+# https://github.com/driesvints/dotfiles
+#
+
+NC='\033[0m'
+UGreen='\033[4;32m' # Green
+Yellow='\033[0;33m' # Yellow
+Red='\033[0;31m'    # Red
+Green='\033[0;32m'  # Green
+On_Green='\033[42m' # Green
+BRed='\033[1;31m'   # Red
+On_Red='\033[41m'   # Red
+BIN=/usr/local/bin
+
+printlink() {
+    echo -e "${UGreen}$1${NC}"
+}
+bgred() {
+    echo -e "${On_Red}$1${NC}"
+}
+bggreen() {
+    echo -e "${On_Green}$1${NC}"
+}
+printgreen() {
+    echo -e "${Green}$1${NC}"
+}
+printred() {
+    echo -e "${Red}$1${NC}"
+}
+printwarn() {
+    echo -e "${Yellow}$1${NC}"
+}
+testdir() {
+    if [ ! -d "$1" ]; then
+        mkdir -p "$1"
+    fi
+}
+
+printgreen "Setting up my mac..."
+printgreen "Setting up my mac..."
+printgreen "Setting up my mac..."
+
+MAIL=$HOME/Mail
+GITHUB=$HOME/github
+testdir $GITHUB
+testdir $MAIL/qq
+testdir $MAIL/gmail
+
+trap "echo -e '\n\n$(bgred "BYE!\nBYE!")';exit 0" SIGINT
+
+echo
+printwarn "Confirm the steps below finished before installation:"
+
+echo "
+1. Download and install VPN tools
+
+   $(printlink "https://download.hkss.online/ClashX.dmg")
+
+   Subscribe VPN node list by click this link:
+
+   $(printlink "clash://install-config?url=https://protalv1.clsnetwork.co/link/SNwvve8UAjMvUNza?mu=4")
+
+   and turn on VPN.
+2. Generate SSH key
+
+   $ ssh-keygen -t rsa -b 4096 -C 'gccll.love@gmail'
+
+   $ cat ~/.ssh/.id_rsa.pub
+
+   copy the result to $(printlink "https://code.aliyun.com") and $(printlink "https://github.com")
+
+   or download your private ssh/ to ~/.ssh.
+
+   $(printlink "https://code.aliyun.com/wyu/dotdat/tree/master/.ssh")
+
+3. Squirrel & Rime installed ?
+
+   $(printlink "https://rime.im/download/")
+
+   or install by brew:
+
+   $ brew install --cask squirrel
+"
+read -n1 -p "Input y or n to continue or exit if you dont ready？" confirm
+echo
+if [ "$confirm" == "y" ]; then
+    printgreen "Already ready, continue..."
+    echo
+else
+    printred "Maybe, not ready, please finish the steps upon."
+    exit -1
+fi
+
+i=0
+
+rmfd() {
+    if [ -e "$1" ]; then
+        rm -rf "$1"
+        printwarn "[$(bgred "DELETE")] $1"
+    fi
+}
+
+ptt() {
+    i=$((i + 1))
+    printgreen "$i) $1"
+    echo
+}
+
+running() {
+    echo "Running..."
+}
+
+DOTDIR="$HOME/.gclrc"
+
+ptt "Check for Oh My Zsh and install if we don't have it."
+which omz
+if test ! $?; then
+    running
+    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/HEAD/tools/install.sh)"
+fi
+
+ptt "Check for Homebrew and install if we don't have it."
+if test ! $(which brew); then
+    running
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>$HOME/.zprofile
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
+if test ! $(which mac); then
+    running
+    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/guarinogabriel/mac-cli/master/mac-cli/tools/install)"
+fi
+
+ptt "Check for my dotfiles cloned or not, if not clone it into $DOTDIR"
+if test ! -d "$DOTDIR"; then
+    running
+    ptt "Installing private dotfiles to $HOME/.gclrc(this is my dotfile directory.)"
+    git clone "git@code.aliyun.com:wyu/dotdat.git" "$DOTDIR"
+
+    ptt "Remove $HOME/.zshrc and symlinks the $DOTDIR/.zshrc"
+    rmfd $HOME/.zshrc
+    ln -s $DOTDIR/.zshrc $HOME/.zshrc
+    ln -s $DOTDIR/mu4e/mbsyncrc ~/.mbsyncrc
+    ln -s $DOTDIR/mu4e/msmtprc ~/.msmtprc
+    ln -s $DOTDIR/.hammerspoon ~/.hammerspoon
+    ln -s $DOTDIR/.netrc ~/.netrc
+    ln -s $DOTDIR/.mpdconf ~/.mpdconf
+fi
+
+ptt "Check for all our dependencies with bundle installed or not..."
+STATUS="$HOME/.installed-tools-list"
+if [ -z "$(cat $STATUS | grep "brewlist")" ]; then
+    running
+    brew update
+    brew tap homebrew/bundle
+    brew bundle --file $DOTDIR/Brewfile
+
+    mysql -u root -e "ALTER USER root@localhost IDENTIFIED WITH mysql_native_password BY 'password'; FLUSH PRIVILEGES;"
+
+    ptt "Installing tools with HomeBrew..."
+    brew install \
+        wget fd fzf ripgrep rg m-cli autojump sdcv jq pngpaste \
+        gnuplot pipx rust-analyzer pandoc glslang graphviz bcal \
+        pkg-config poppler automake clang-format texmacs texlab \
+        aspell xdotool mpd mpc httpie aria2 pass w3m msmtp isync \
+        offlineimap mu openssl deno gdb delve qrencode shfmt shellcheck \
+        krita pyqt5
+
+    brew link openssl --force
+    brew link fd
+    $(brew --prefix)/opt/fzf/install
+    echo "brewlist" >>$STATUS
+fi
+
+ptt "Check for npm and install tools with it..."
+if test ! $(which npm); then
+    running
+    ptt "$(bggreen 'npm'), $(bggreen 'cnpm')"
+    curl -qL https://www.npmjs.com/install.sh | sh
+    npm install -g cnpm
+    cnpm -g install yarn opencc js-beautify indium \
+        editorconfig jest vmd tsun indium ba64 http-server \
+        expo-cli browser-sync pnpm stylelint
+fi
+
+ptt "Check for nvm and install node with it..."
+which nvm
+if test ! $?; then
+    running
+    ptt "> $(bggreen 'nvm'), $(bggreen 'node')"
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+    nvm install --lts
+    $DOTFILES/bin/gset node-lib
+    echo "Node Version: $(node -v)"
+fi
+
+ptt "Check for python env & tools..."
+if test ! $(which pipenv); then
+    running
+    pipx pipenv ensurepath
+    ln -s $HOME/.local/pipx/venvs/pipenv $BIN/pipenv
+    pip install -U pytest sshx buku grip black pyflakes isort
+    sudo easy_install nose
+    ln -s "$(which grip)" $BIN/grip
+    $DOTDIR/bin/gset pip-alias
+    GOBIN=$GOPATH/bin
+    ln -s $GOPATH/bin/gocode $BIN/gocode
+    ln -s $GOPATH/bin/gomodifytags $BIN/gomodifytags
+    ln -s $GOPATH/bin/gotests $BIN/gotests
+    ln -s $GOPATH/bin/gore $BIN/gore
+    ln -s $GOPATH/bin/guru $BIN/guru
+
+fi
+
+ptt "Check for golang env & tools..."
+if test ! $(which go); then
+    running
+    brew install go
+    export PATH=$PATH:$(go env GOPATH)/bin
+    export GOPATH=$(go env GOPATH)
+    export GOPROXY=https://goproxy.cn
+    go get -u github.com/nsf/gocode
+    ln -s $GOPATH/bin/gocode /usr/local/bin/gocode
+    go env -w GO111MODULE=on
+    go env -w GOPROXY=https://goproxy.io,direct
+    go get -u github.com/fatih/gomodifytags \
+        github.com/nsf/gocode \
+        github.com/cweill/gotests/... \
+        github.com/motemen/gore/cmd/gore
+fi
+
+ptt "Check for getent command on MacOS..."
+GETENT="/usr/local/bin/getent"
+if [ ! -f "$GETENT" ]; then
+    running
+    cp $DOTDIR/bin/getent $GETENT
+    chmod +x $GETENT
+fi
+
+ptt "Check for hugo(a blog tool) and install it..."
+if test ! $(which hugo); then
+    running
+    git clone --depth=1 https://github.com/gohugoio/hugo.git $HOME/hugo
+    cd $HOME/hugo
+    go install --tags extended
+fi
+
+ptt "Check from Rime input method and install it..."
+DYLIB="/Library/Input Methods/Squirrel.app/Contents/Frameworks/librime.1.dylib"
+LIBRARY=$HOME/Library
+PLUM=$LIBRARY/plum
+RIME=$LIBRARY/Rime
+if test ! -f "$DYLIB"; then
+    running
+    brew install --cask squirrel
+    sudo cp $DYLIB /usr/local/lib/
+    rmfd $PLUM
+    cd $LIBRARY
+    git clone --depth 1 https://github.com/rime/plum.git
+    cd $PLUM
+    bash rime-install
+    bash rime-install wubi pinyin-simp
+    rmfd $RIME
+    cd $LIBRARY
+    git clone git@code.aliyun.com:gccll/my-rime-config.git $RIME
+fi
+
+ptt "Check for Emacs@29 and install it..."
+EMACS="/usr/local/Cellar/emacs-plus@29"
+if [ ! -d $EMACS ]; then
+    running
+    brew tap d12frosted/emacs-plus
+    brew install emacs-plus@$29 \
+        --with-mailutils \
+        --with-xwidgets \
+        --with-imagemagick \
+        --with-native-comp
+fi
+
+ptt "Check for Doom Emacs and install it..."
+DOOM=$HOME/.doom.d
+DOTEMACS=$HOME/.emacs.d
+if [ ! -d $DOOM ]; then
+    running
+    rmfd $DOTEMACS
+    git clone --depth 1 https://github.com/hlissner/doom-emacs $DOTEMACS
+    git clone git@github.com:gcclll/.doom.d.git $DOOM --recurse-submodules
+    cd $DOOM
+    $DOTEMACS/bin/doom -y install
+    ln -s $DOTEMACS/bin/doom /usr/local/bin/doom
+    $DOTEMACS/bin/doom -y sync
+    $DOTEMACS/bin/doom env -o $DOOM/env
+fi
+
+# ptt "Installing PHP extensions with PECL..."
+# pecl install imagick redis swoole
+
+# ptt "Installing global Composer packages..."
+# /usr/local/bin/composer global require laravel/installer laravel/valet beyondcode/expose
+
+# ptt "Installing Laravel Valet..."
+# $HOME/.composer/vendor/bin/valet install
+
+clonerepos() {
+    REPOS="$DOTDIR/.repositories"
+    grep '^[^#]' $REPOS >/tmp/test
+    REPOS=/tmp/test
+    if test ! -f "$REPOS"; then
+        echo "Can not find $REPOS file."
+        exit -1
+    fi
+
+    cat $REPOS | while read line; do
+        if [ -z "$line" ]; then
+            continue
+        fi
+
+        OLDIFS=$IFS
+        IFS="|"
+        array=($line)
+        IFS=$OLDIFS
+        i=0
+        LEN=${#array[@]}
+        if [ $LEN -lt 3 ]; then
+            # 0 - full clone, 1 - clone depth=1
+            printwarn "[ERROR] Repo line format: [https://|git@]github.com/vuejs/vue-next.git|dir|parentdir|[01]"
+            continue
+        fi
+        REPO=${array[0]}
+        DIR=${array[1]}
+        PDIR=${array[2]}
+        DEPTH=${array[3]}
+
+        if [ -n "$PDIR" ]; then
+            PDIR="$HOME/github/$PDIR"
+        else
+            PDIR="$HOME/github"
+        fi
+
+        if [ ! -d "$PDIR" ]; then
+            mkdir -p $PDIR
+        fi
+        DIR="$PDIR/$DIR"
+
+        # existed, do not clone repeatly
+        if [ -d "$DIR" ]; then
+            echo "[$(printwarn "EXISTED")] $DIR"
+            # cd "$DIR" && git pull
+            continue
+        fi
+
+        if [ "$DEPTH" == "0" ]; then
+            git clone "$REPO" "$DIR"
+        else
+            git clone --depth=1 "$REPO" "$DIR"
+        fi
+        echo "---------------------------------------------------------------"
+        echo
+    done
+}
+
+ptt "Cloning repositories if someone has not cloned..."
+clonerepos
+echo
+
+printwarn "Don't forget to run \`source $HOME/.zshrc\` or restart the terminal !"

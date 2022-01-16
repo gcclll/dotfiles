@@ -16,7 +16,7 @@ alias pinfo='echo -e "=== alias p ===
    pstop   = top
 "'
 
-alias pip="pip3"
+# alias pip="pip3"
 alias pipiu="pip install --user"
 
 

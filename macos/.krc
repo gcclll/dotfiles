@@ -4,3 +4,5 @@
 
 alias kilsh="kill -s HUP"     # kill process   
 alias kila="killall"
+alias killfinder="killall finder"
+alias killchrome="ps ux | grep '[C]hrome Helper --type=renderer' | grep -v extension-process | tr -s ' ' | cut -d ' ' -f2 | xargs kill"

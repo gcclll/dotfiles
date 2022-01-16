@@ -1,0 +1,2 @@
+INSERT INTO members (lname,fname,address,city,state,zip) VALUES
+('Xuew', 'Gudwj', '789 main st.', 'Chicago', 'BA', '60601');

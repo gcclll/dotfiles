@@ -65,7 +65,7 @@ PassCmd "cat ~/.mypasswd/qq"
 AuthMechs LOGIN
 SSLType IMAPS
 SSLVersions TLSv1.2
-CertificateFile /etc/ssl/certs/ca-certificates.crt
+# CertificateFile /etc/ssl/certs/ca-certificates.crt
 
 # REMOTE
 IMAPStore qq-remote
@@ -111,62 +111,3 @@ Channel qq-trash
 Channel qq-sent
 Channel qq-drafts
 
-
-# SUNLIGHT ================================================================================
-
-# ACCOUNT INFORMATION
-IMAPAccount sunlight
-# Address to connect to
-Host imap.exmail.qq.com
-User simon.li@sunlight-tech.com
-# PassCmd "gpg -q --for-your-eyes-only --no-tty -d ~/.gclrc/mu4e/mbsyncpass-common.gpg"
-PassCmd "cat ~/.mypasswd/common"
-AuthMechs LOGIN
-SSLType IMAPS
-SSLVersions TLSv1.2
-CertificateFile /etc/ssl/certs/ca-certificates.crt
-
-# REMOTE
-IMAPStore sunlight-remote
-Account sunlight
-
-# LOCLA
-MaildirStore sunlight-local
-Path ~/Mail/sunlight/
-Inbox ~/Mail/sunlight/inbox
-# SubFolders Verbatim
-
-Channel sunlight-inbox
-Far :sunlight-remote:
-Near :sunlight-local:
-Patterns "INBOX"
-Create Both
-Expunge Both
-SyncState *
-
-Channel sunlight-trash
-Far :sunlight-remote:"Deleted Messages"
-Near :sunlight-local:"trash"
-Create Both
-Expunge Both
-SyncState *
-
-Channel sunlight-sent
-Far :sunlight-remote:"Sent Messages"
-Near :sunlight-local:"sent"
-Create Both
-Expunge Both
-SyncState *
-
-Channel sunlight-drafts
-Far :sunlight-remote:"Drafts"
-Near :sunlight-local:"drafts"
-Create Both
-Expunge Both
-SyncState *
-
-Group sunlight
-Channel sunlight-inbox
-Channel sunlight-trash
-Channel sunlight-sent
-Channel sunlight-drafts

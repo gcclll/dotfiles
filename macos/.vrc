@@ -16,8 +16,8 @@ echo "   vbpcjs     = shl/vue-cli.sh pro cjs <name> 生产模式"
 echo ""
 '
 
-alias vslrc="vim $GCLRC_HOME/macos/.sunlightrc"
 alias vica="yarn create @vitejs/app"
 alias viat="yarn add -D tailwindcss@latest postcss@latest autoprefixer@latest && \
 npx tailwindcss init -p
 "
+alias vue-create-nuxt="npx nuxi init nuxt3-app"

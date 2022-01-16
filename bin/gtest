@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# array=(1 2 3 4)
+# echo "${#array[@]}"
+which nvm
+if test ! $(which hugo); then
+    echo "xxxx"
+else
+    echo "yyyy"
+fi

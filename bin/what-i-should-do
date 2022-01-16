@@ -1,0 +1,11 @@
+#!/bin/bash
+
+source $GCLRC_HOME/shell/utils
+
+echo -e "
+1. xcode
+2. git, brew
+3. nvm, node, npm, cnpm
+4. zsh
+5. macos apps
+"

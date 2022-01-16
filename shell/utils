@@ -100,3 +100,42 @@ git_clone_lib() {
 git_clone_depth1() {
     git_clone_lib "$1" "$2" depth
 }
+
+cp_dir_files() {
+    src="$1"
+    dir="$2"
+    if [ ! -d "$src" ] || [ ! -d "$dir" ]; then
+        echo "src or target is not a directory."
+        exit -1
+    fi
+
+    cd $src
+    for file in *; do
+        target="$dir/$file"
+        if [ -f "$target" ]; then
+            continue
+        fi
+
+        if [ -f "$file" ]; then
+            cp $file $target
+        fi
+    done
+    echo "DONE."
+
+}
+
+echo-link() {
+    if [ $# -lt 1 ]; then
+        color_red "Link URL required!"
+        exit -1
+    fi
+    url="$1"
+    hint=""
+    if [ $# -lt 2 ]; then
+        hint="$url"
+    else
+        hint="$2"
+    fi
+
+    printf '\033[4;32m\e]8;;'$url'\e\\'$hint'\e]8;;\e\\\033[0m\n'
+}

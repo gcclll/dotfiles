@@ -1,0 +1,19 @@
+#!/bin/bash
+
+help() {
+    echo "you can find help in $GCLRC_HOME/.help/ directory with specify file name."
+}
+
+if [ $# -lt 1 ]; then
+    help
+    exit -1
+fi
+
+FILENAME="$1"
+FILE="$GCLRC_HOME/.help/$FILENAME"
+
+if [ -f "$FILE" ]; then
+    /bin/sh "$FILE"
+else
+    help
+fi
