@@ -3,8 +3,8 @@
 http_url_cnpm="https://github.com.cnpmjs.org"
 git_url_cnpm="git@github.com.cnpmjs.org"
 
-http_url_fast="https://hub.fastgit.org"
-git_url_fast="git@hub.fastgit.org"
+http_url_fast="https://hub.fastgit.xyz"
+git_url_fast="git@ssh.fastgit.xyz"
 
 http_url_gc="https://gitclone.com/github.com"
 git_url_gc="git@gitclone.com/github.com"
