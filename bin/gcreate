@@ -1,0 +1,23 @@
+#!/bin/bash
+
+create-vitesse() {
+    npx degit gcclll/vitesse "$1"
+}
+
+create-vitecamp() {
+    npx degit nekobc1998923/vitecamp "$1"
+}
+
+help() {
+    echo "
+1. create-vitesse
+2. create-vitecamp
+
+HELP!!!!!"
+}
+
+case "$1" in
+    vitesse) create-vitesse ${@:2} ;;
+    vitecamp) create-vitecamp ${@:2} ;;
+    *) help ;;
+esac

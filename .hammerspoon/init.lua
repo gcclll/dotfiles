@@ -3,38 +3,21 @@
 -- https://github.com/zzamboni/dot-hammerspoon/blob/master/init.org.
 -- You should make any changes there and regenerate it from Emacs org-mode using C-c C-v t
 
-hs.logger.defaultLogLevel="info"
-
-hyper       = {"cmd","alt","ctrl"}
 shift_hyper = {"cmd","alt","ctrl","shift"}
 ctrl_cmd    = {"cmd","ctrl"}
 mash        = {"⌘", "⌥", "⌃"}
+hyper       = mash
 
 col = hs.drawing.color.x11
 
-work_logo = hs.image.imageFromPath(hs.configdir .. "/img/cheng.png")
+local log = hs.logger.new('init.lua', 'debug')
 
-local function toggleApplication(name)
-  local app = hs.application.find(name)
-  if not app or app:isHidden() then
-    hs.application.launchOrFocus(name)
-  elseif hs.application.frontmostApplication() ~= app then
-    app:activate()
-  else
-    app:hide()
-  end
-end
+-- Use Control+` to reload Hammerspoon config
+hs.hotkey.bind(mash, 'r', nil, function()
+  hs.reload()
+end)
 
-hs.hotkey.bind(mash, "c", function() toggleApplication("Google Chrome") end)
-hs.hotkey.bind(mash, "d", function() toggleApplication("Dash") end)
-hs.hotkey.bind(mash, "f", function() toggleApplication("Finder") end)
-hs.hotkey.bind(mash, "g", function() toggleApplication("SourceTree") end)
-hs.hotkey.bind(mash, "m", function() toggleApplication("Mail") end)
-hs.hotkey.bind(mash, "p", function() toggleApplication("System Preferences") end)
-hs.hotkey.bind(mash, "s", function() toggleApplication("Spotify") end)
-hs.hotkey.bind(mash, "t", function() toggleApplication("iTerm2") end)
-
-hs.grid.setGrid'3x3'
+hs.grid.setGrid('3x3')
 hs.grid.setMargins("0,0")
 hs.window.animationDuration = 0
 
@@ -79,8 +62,27 @@ hs.hotkey.bind(mash, "0", function() hs.alert.show("Hyper: Command + Option + Co
 \
 up(↑) down(↓) left(←) right(→) \
 \
-grid(,234) next screen(/) max(<space>) min(.)\
+grid(g,234) next screen(/) max(<space>) min(.)\
+\
+capture(t)\
 "); end)
+
+org_capture_path = os.getenv("HOME").."/.hammerspoon/files/org-capture.lua"
+script_file = io.open(org_capture_path, "w")
+script_file:write([[local win = hs.window.frontmostWindow()
+local o,s,t,r = hs.execute("~/.emacs.d/bin/org-capture", true)
+if not s then
+  print("Error when running org-capture: "..o.."\n")
+end
+win:focus()
+]])
+script_file:close()
+
+hs.hotkey.bindSpec({mash, "t"},
+  function ()
+    hs.task.new("/bin/bash", nil, { "-l", "-c", "/usr/local/bin/hs "..org_capture_path }):start()
+  end
+)
 
 hs.loadSpoon("SpoonInstall")
 hs.loadSpoon("ModalMgr")
@@ -102,6 +104,19 @@ if string.len(hswhints_keys[2]) > 0 then
 end
 
 local cmodal
+
+-- Ctrl + Alt
+Install:andUse("AppLauncher", {
+  hotkeys = {
+    c = "Calendar",
+    d = "Dash",
+    e = "Emacs",
+    f = "Finder",
+    i = "iTerm",
+    n = "Notes",
+    w = "WeChat"
+  }
+})
 
 ----------------------------------------------------------------------------------------------------
 -- resizeM modal environment
@@ -165,59 +180,7 @@ Install:andUse("WindowHalfsAndThirds",
                }
 )
 
--- Register resizeM with modal supervisor
-hsresizeM_keys = hsresizeM_keys or {"alt", "R"}
-if string.len(hsresizeM_keys[2]) > 0 then
-  spoon.ModalMgr.supervisor:bind(hsresizeM_keys[1], hsresizeM_keys[2], "Enter resizeM Environment", function()
-                                   -- Deactivate some modal environments or not before activating a new one
-                                   spoon.ModalMgr:deactivateAll()
-                                   -- Show an status indicator so we know we're in some modal environment now
-                                   spoon.ModalMgr:activate({"resizeM"}, "#B22222")
-  end)
-end
-
-function appID(app)
-  return hs.application.infoForBundlePath(app)['CFBundleIdentifier']
-end
-
--- chromeBrowser = appID('/Applications/Google Chrome.app')
-
--- DefaultBrowser = chromeBrowser
--- WorkBrowser = chromeBrowser
-
--- GmailApp = appID('~/Applications/Epichrome/Gmail.app')
--- WikiApp = appID('~/Applications/Epichrome/Wiki.app')
--- CollabApp = WorkBrowser
--- SmcaApp = WorkBrowser
--- OpsGenieApp = WorkBrowser
--- TeamsApp = appID('/Applications/Microsoft Teams.app')
-
--- Install:andUse("URLDispatcher", {
---                  config = {
---                    url_patterns = {
---                      -- { "https?://wiki%.swisscom%.com",     WikiApp }
---                    },
---                    url_redir_decoders = {
---                      { "Fix broken Preview anchor URLs",
---                        "%%23", "#", false, "Preview" },
---                    },
---                    default_handler = DefaultBrowser
---                  },
---                  start = true
---                  -- loglevel = 'debug'
--- })
-
-Install:andUse("WindowScreenLeftAndRight",
-               {
-                 config = {
-                   animationDuration = 0
-                 },
-                 hotkeys = 'default',
---                 loglevel = 'debug'
-               }
-)
-
-myGrid = { w = 6, h = 4 }
+myGrid = { w = 4, h = 4 }
 Install:andUse("WindowGrid",
                {
                  config = { gridGeometries =
@@ -233,142 +196,19 @@ Install:andUse("ToggleScreenRotation",
                }
 )
 
--- Install:andUse("HSaria2",
---                {
---                  fn = function (s)
---                    -- First we need to connect to aria2 rpc host
---                    hsaria2_host = hsaria2_host or "http://localhost:6700/jsonrpc"
---                    hsaria2_secret = hsaria2_secret or "token"
---                    s:connectToHost(hsaria2_host, hsaria2_secret)
-
---                    hsaria2_keys = hsaria2_keys or {"alt", "D"}
---                    if string.len(hsaria2_keys[2]) > 0 then
---                      spoon.ModalMgr.supervisor:bind(hsaria2_keys[1], hsaria2_keys[2], 'Toggle aria2 Panel', function() s:togglePanel() end)
---                    end
---                  end
---                }
--- )
-
-org_capture_path = os.getenv("HOME").."/.hammerspoon/files/org-capture.lua"
-script_file = io.open(org_capture_path, "w")
-script_file:write([[local win = hs.window.frontmostWindow()
-local o,s,t,r = hs.execute("~/.emacs.d/bin/org-capture", true)
-if not s then
-  print("Error when running org-capture: "..o.."\n")
+-- Register resizeM with modal supervisor
+hsresizeM_keys = hsresizeM_keys or {"ctrl", "f12"}
+if string.len(hsresizeM_keys[2]) > 0 then
+  spoon.ModalMgr.supervisor:bind(hsresizeM_keys[1], hsresizeM_keys[2], "Enter resizeM Environment", function()
+                                   -- Deactivate some modal environments or not before activating a new one
+                                   spoon.ModalMgr:deactivateAll()
+                                   -- Show an status indicator so we know we're in some modal environment now
+                                   spoon.ModalMgr:activate({"resizeM"}, "#B22222")
+  end)
 end
-win:focus()
-]])
-script_file:close()
-
-hs.hotkey.bindSpec({hyper, "t"},
-  function ()
-    hs.task.new("/bin/bash", nil, { "-l", "-c", "/usr/local/bin/hs "..org_capture_path }):start()
-  end
-)
-
-----------------------------------------------------------------------------------------------------
--- Register lock screen
-hslock_keys = hslock_keys or {"alt", "L"}
-if string.len(hslock_keys[2]) > 0 then
-    spoon.ModalMgr.supervisor:bind(hslock_keys[1], hslock_keys[2], "Lock Screen", function()
-        hs.caffeinate.lockScreen()
-    end)
-end
-
-----------------------------------------------------------------------------------------------------
--- Register AClock
-if spoon.AClock then
-    hsaclock_keys = hsaclock_keys or {"alt", "T"}
-    if string.len(hsaclock_keys[2]) > 0 then
-        spoon.ModalMgr.supervisor:bind(hsaclock_keys[1], hsaclock_keys[2], "Toggle Floating Clock", function() spoon.AClock:toggleShow() end)
-    end
-end
-
--- ----------------------------------------------------------------------------------------------------
--- -- Register browser tab typist: Type URL of current tab of running browser in markdown format. i.e. [title](link)
--- hstype_keys = hstype_keys or {"alt", "V"}
--- if string.len(hstype_keys[2]) > 0 then
---     spoon.ModalMgr.supervisor:bind(hstype_keys[1], hstype_keys[2], "Type Browser Link", function()
---         local safari_running = hs.application.applicationsForBundleID("com.apple.Safari")
---         local chrome_running = hs.application.applicationsForBundleID("com.google.Chrome")
---         -- if #safari_running > 0 then
---         --     local stat, data = hs.applescript('tell application "Safari" to get {URL, name} of current tab of window 1')
---         --     if stat then hs.eventtap.keyStrokes("[" .. data[2] .. "](" .. data[1] .. ")") end
---         if #chrome_running > 0 then
---             local stat, data = hs.applescript('tell application "Google Chrome" to get {URL, title} of active tab of window 1')
---             -- Markdown Format
---             -- if stat then hs.eventtap.keyStrokes("[" .. data[2] .. "](" .. data[1] .. ")") end
---             -- Org Format
---             if stat then hs.eventtap.keyStrokes("[[" .. data[1] .. "][" .. data[2] .. "]]") end
---         end
---     end)
--- end
-
--- Install:andUse("AClock",
---                {
---                  config = {
---                    format = "%H:%M"
---                  },
---                  fn = function(s)
---                    hsaclock_keys = hsaclock_keys or {"alt", "T"}
---                    if string.len(hsaclock_keys[2]) > 0 then
---                      spoon.ModalMgr.supervisor:bind(hsaclock_keys[1], hsaclock_keys[2], "Toggle Floating Clock", function() s:toggleShow() end)
---                    end
---                  end
-
---                  -- start = true
---                }
--- )
-
-Install:andUse("Hammer",
-               {
-                 -- repo = 'zzspoons',
-                 config = { auto_reload_config = true },
-                 hotkeys = {
-                   config_reload = {hyper, "r"},
-                   toggle_console = {hyper, "y"}
-                 },
---                 fn = BTT_restart_Hammerspoon,
-                 start = true
-               }
-)
-
-Install:andUse("Caffeine", {
-                 start = true,
-                 hotkeys = {
-                   toggle = { hyper, "1" }
-                 },
---                 fn = BTT_caffeine_widget,
-})
-
-Install:andUse("ColorPicker",
-               {
-                 -- 太卡了
-                 disable = true,
-                 hotkeys = {
-                   show = { hyper, "z" }
-                 },
-                 config = {
-                   show_in_menubar = false,
-                 },
-                 start = true,
-               }
-)
-
--- Install:andUse("EjectMenu", {
---                  config = {
---                    eject_on_lid_close = false,
---                    eject_on_sleep = true,
---                    show_in_menubar = false,
---                    notify = true,
---                  },
---                  hotkeys = { ejectAll = { hyper, "=" } },
---                  start = true,
--- --                 loglevel = 'debug'
--- })
 
 ----------------------------------------------------------------------------------------------------
 -- Finally we initialize ModalMgr supervisor
 spoon.ModalMgr.supervisor:enter()
 
-hs.alert('Hammerspoon config Reload!')
+hs.notify.new({title='Hammerspoon', informativeText='Ready to rock 🤘'}):send()

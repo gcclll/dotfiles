@@ -1,0 +1,58 @@
+:PROPERTIES:
+:ID:       e2bc5e53-a5f7-4aed-b0b1-644183b2932e
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: org_mode
+#+HTML_HEAD: <meta name="category" content="emacs"/>
+#+HTML_HEAD: <meta name="tags" content="org"/>
+#+TITLE: org-mode
+
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+* code block
+
+** reference other code block
+
+*引用本文的其它代码*
+
+被引用的代码块:
+#+name: reactive
+#+begin_src js
+function reactive(target) {
+  console.log(target, '...')
+}
+#+end_src
+
+文中引用者，语法 ~<<reactive>>~ :
+
+#+begin_src js :noweb yes
+<<reactive>>
+
+// 调用 reactive
+reactive({ a: 1 })
+#+end_src
+
+#+RESULTS:
+: { a: 1 } ...
+: undefined
+
+#+begin_tip
+注意点：引用都需要指定 doc:noweb 参数为 =yes= 。
+#+end_tip
+
+* foot notes
+
+number foot notes[fn:1]
+
+named foot notes[fn:named]
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:
+
+* FootNotes
+
+[fn:1] I am a number footnote.
+
+[fn:named] I am a named footnote.

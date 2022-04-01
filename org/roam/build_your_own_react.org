@@ -1,0 +1,13 @@
+:PROPERTIES:
+:ID:       293eb7ed-0b86-4a5c-acc2-ea5b26e92326
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: build_your_own_react
+#+HTML_HEAD: <meta name="category" content="react"/>
+#+TITLE: Build your own react
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+* COMMENT Local Variables :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

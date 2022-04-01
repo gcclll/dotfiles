@@ -11,8 +11,14 @@ alias gleet="cd $HOME/github/mine/make-leetcode"
 alias gpleet="gleet && gpush"
 alias gvue="cd $HOME/github/vue/vue-next"
 alias gblog="cd $BLOG_HOME"
+alias gblog2="cd $HOME/github/mine/blog.cheng92.com"
+
 alias geven="cd $BLOG_HOME/themes/even"
 alias gpblog="gblog && gpush"
+alias gpblog2="gblog2 && gpush"
+
+alias gpall="gpdot && gpdoom && gpblog && gpblog2"
+
 alias gpeven="geven && gpush"
 
 alias gbeven="cd $BLOG_HOME/themes/even"

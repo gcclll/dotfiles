@@ -1,0 +1,28 @@
+:PROPERTIES:
+:ID:       95666e03-38b5-4ad4-b50f-ef40f6cc36d8
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: collections
+#+TITLE: collections
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+* Vue Eco
+
+[[https://github.com/antfu/vitesse][antfu/vitesse: 🏕 Opinionated Vite Starter Template]]
+
+<green:Include ElementPlus & Pinia>:
+
+[[https://github.com/nekobc1998923/vitecamp][nekobc1998923/vitecamp: A zero-config Vue3 Starter template includes Vite2、Vue3 and TypeScript]]
+
+** how to start a vite project ?
+
+[[https://vitejs.dev/guide/#scaffolding-your-first-vite-project][Getting Started | Vite]]
+
+* Others
+
+生成网站的 scroll to top 按钮: [[https://www.scrolltotop.com/][Free Scroll to Top Buttons]]。
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

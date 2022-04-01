@@ -1,10 +1,6 @@
 #!/bin/bash
 
-# array=(1 2 3 4)
-# echo "${#array[@]}"
-which nvm
-if test ! $(which hugo); then
-    echo "xxxx"
-else
-    echo "yyyy"
-fi
+content=$(cat /tmp/input.txt)
+echo "line 1" >/tmp/input.txt
+echo "$content" >>/tmp/input.txt
+cat /tmp/input.txt

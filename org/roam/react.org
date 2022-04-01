@@ -1,0 +1,14 @@
+:PROPERTIES:
+:ID:       c7622fa4-b827-4496-a53f-f5564d662af9
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: react
+#+TITLE: React
+badge: GCCLL | Homepage | green | / | gnu-emacs>
+
+Hello 💖x  React !!!
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

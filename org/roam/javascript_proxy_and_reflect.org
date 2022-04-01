@@ -1,0 +1,12 @@
+:PROPERTIES:
+:ID:       cc2b98c6-21d9-488c-9a05-8485a36c1e01
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: javascript_proxy_and_reflect
+#+TITLE: JavaScript Proxy And Reflect
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

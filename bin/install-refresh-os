@@ -4,6 +4,9 @@
 # https://github.com/driesvints/dotfiles
 #
 
+DOTDIR="$HOME/.gclrc"
+LOGFILE=$DOTDIR/log/install-refresh-os.log
+
 NC='\033[0m'
 UGreen='\033[4;32m' # Green
 Yellow='\033[0;33m' # Yellow
@@ -112,7 +115,8 @@ running() {
     echo "Running..."
 }
 
-DOTDIR="$HOME/.gclrc"
+# app links
+# open https://github.com/macports/macports-base/releases/download/v2.7.1/MacPorts-2.7.1-12-Monterey.pkg
 
 ptt "Check for Oh My Zsh and install if we don't have it."
 which omz
@@ -140,15 +144,6 @@ if test ! -d "$DOTDIR"; then
     running
     ptt "Installing private dotfiles to $HOME/.gclrc(this is my dotfile directory.)"
     git clone "git@code.aliyun.com:wyu/dotdat.git" "$DOTDIR"
-
-    ptt "Remove $HOME/.zshrc and symlinks the $DOTDIR/.zshrc"
-    rmfd $HOME/.zshrc
-    ln -s $DOTDIR/.zshrc $HOME/.zshrc
-    ln -s $DOTDIR/mu4e/mbsyncrc ~/.mbsyncrc
-    ln -s $DOTDIR/mu4e/msmtprc ~/.msmtprc
-    ln -s $DOTDIR/.hammerspoon ~/.hammerspoon
-    ln -s $DOTDIR/.netrc ~/.netrc
-    ln -s $DOTDIR/.mpdconf ~/.mpdconf
 fi
 
 ptt "Check for all our dependencies with bundle installed or not..."
@@ -176,17 +171,6 @@ if [ -z "$(cat $STATUS | grep "brewlist")" ]; then
     echo "brewlist" >>$STATUS
 fi
 
-ptt "Check for npm and install tools with it..."
-if test ! $(which npm); then
-    running
-    ptt "$(bggreen 'npm'), $(bggreen 'cnpm')"
-    curl -qL https://www.npmjs.com/install.sh | sh
-    npm install -g cnpm
-    cnpm -g install yarn opencc js-beautify indium \
-        editorconfig jest vmd tsun indium ba64 http-server \
-        expo-cli browser-sync pnpm stylelint
-fi
-
 ptt "Check for nvm and install node with it..."
 which nvm
 if test ! $?; then
@@ -195,7 +179,27 @@ if test ! $?; then
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
     nvm install --lts
     $DOTFILES/bin/gset node-lib
+    $DOTFILES/bin/gset node-bin
     echo "Node Version: $(node -v)"
+fi
+
+ppt "Check for port and install with it..."
+which port
+if test ! $?; then
+    sudo port install recoll
+fi
+
+ptt "Check for npm and install tools with it..."
+if test ! $(which npm); then
+    running
+    ptt "$(bggreen 'npm'), $(bggreen 'cnpm')"
+    curl -qL https://www.npmjs.com/install.sh | sh
+    npm install -g cnpm
+    cnpm -g install yarn opencc js-beautify indium \
+        editorconfig jest vmd tsun indium ba64 http-server \
+        expo-cli browser-sync pnpm stylelint @volar/server \
+        mermaid.cli atomic-algolia magic-string estree-walker \
+        acorn rollup
 fi
 
 ptt "Check for python env & tools..."
@@ -203,7 +207,7 @@ if test ! $(which pipenv); then
     running
     pipx pipenv ensurepath
     ln -s $HOME/.local/pipx/venvs/pipenv $BIN/pipenv
-    pip install -U pytest sshx buku grip black pyflakes isort
+    pip3 install -U pytest sshx buku grip black pyflakes isort
     sudo easy_install nose
     ln -s "$(which grip)" $BIN/grip
     $DOTDIR/bin/gset pip-alias
@@ -214,6 +218,8 @@ if test ! $(which pipenv); then
     ln -s $GOPATH/bin/gore $BIN/gore
     ln -s $GOPATH/bin/guru $BIN/guru
 
+    pip3 install sphinx-autobuild sphinx_rtd_theme recommonmark sphinx_markdown_tables \
+        beautifulsoup4 html5lib Pygments
 fi
 
 ptt "Check for golang env & tools..."
@@ -274,7 +280,7 @@ EMACS="/usr/local/Cellar/emacs-plus@29"
 if [ ! -d $EMACS ]; then
     running
     brew tap d12frosted/emacs-plus
-    brew install emacs-plus@$29 \
+    brew install emacs-plus@29 \
         --with-mailutils \
         --with-xwidgets \
         --with-imagemagick \
@@ -307,8 +313,8 @@ fi
 
 clonerepos() {
     REPOS="$DOTDIR/.repositories"
-    grep '^[^#]' $REPOS >/tmp/test
-    REPOS=/tmp/test
+    grep '^[^#]' $REPOS >/tmp/test__1
+    REPOS=/tmp/test__1
     if test ! -f "$REPOS"; then
         echo "Can not find $REPOS file."
         exit -1
@@ -366,5 +372,7 @@ clonerepos() {
 ptt "Cloning repositories if someone has not cloned..."
 clonerepos
 echo
+
+$DOTFILES/bin/gset links 2>$LOGFILE
 
 printwarn "Don't forget to run \`source $HOME/.zshrc\` or restart the terminal !"

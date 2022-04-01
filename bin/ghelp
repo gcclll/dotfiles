@@ -6,7 +6,7 @@ help() {
 
 if [ $# -lt 1 ]; then
     help
-    exit -1
+    exit 1
 fi
 
 FILENAME="$1"

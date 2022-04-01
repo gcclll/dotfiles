@@ -36,3 +36,7 @@ alias tailf="tail -f"     # 实时监控文件内容变化
 # tree
 alias tree1="tree -L 1"
 alias treen="tree -L"
+alias treeid="tree -I \"node_modules|dist\""
+
+# tidy
+alias tidy=/usr/local/bin/tidy

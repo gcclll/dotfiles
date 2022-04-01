@@ -1,0 +1,141 @@
+* Inbox
+** TODO [#A] [[https://www.bilibili.com/video/BV1nt41197uJ?from=search&seid=13798269317990732913][高中数学]] :math:daily:
+
+[[../math/senior-high-school.org]]
+
+Progress: https://www.bilibili.com/video/BV1nt41197uJ?p=8
+
+** DONE [#B] 聚合数据接口学习，记录
+CLOSED: [2021-08-04 Wed 20:36]
+
+[[~/blog/cheng92.com/content/post/awesome.org]]
+
+** DONE [#B] [[https://github.com/federicotdn/verb][verb]], maybe replace the restclient ? :emacs:
+CLOSED: [2021-08-04 Wed 20:36]
+** CANCELLED [#B] code [[https://github.com/ralesi/ranger.el][ranger-mode]] hydra/body :emacs:
+CLOSED: [2021-08-10 Tue 16:51]
+** DONE [#C] 练习 evil-mode 下 gs... 操作等按键，提高操作效率
+CLOSED: [2021-08-04 Wed 20:36]
+
+[[https://www.cheng92.com/emacs/doom-emacs-with-org/#practices-evil][Practices -> Evil-mode]]
+
+** CANCELLED [#C] 研究 acornjs/corn, acornjs/acorn-jsx :javascript:
+CLOSED: [2021-08-04 Wed 20:36]
+
+[[https://github.com/acornjs/acorn][GitHub - acornjs/acorn: A small, fast, JavaScript-based JavaScript parser]]
+
+js 解析器，babel/parser 就是基于这个实现的。
+* Interesting
+** [ ] [[http://www.alloyteam.com/nav/][Web前端导航]]  :link:web:
+** [ ] [[https://github.com/jackfrued/Python-100-Days][GitHub - jackfrued/Python-100-Days: Python - 100天从新手到大师]]  :link:web:
+** IDEA [[https://github.com/song940/input-event.git][GitHub - song940/input-event: Read and parse input device(like mouse, keyboar...]] :link:web:
+** IDEA [[https://pie.dev/#/][httpbin.org]] api test :link:web:
+** CANCELLED [[https://app.circleci.com/pipelines/github/vuejs/vue-cli/779/workflows/17d7d7c4-7605-4588-878a-ddb3a6d37102/jobs/24147]] :link:web:
+CLOSED: [2021-08-04 Wed 20:37]
+干啥的？？？
+** HOLD [[https://github.com/aculich/.emacs.d/blob/master/init.el][emacs configuration(latex)]] :idea:
+* Emacs
+** TODO Email in Emacs :emacs:
+** TODO [[https://www.youtube.com/playlist?list=PLX2044Ew-UVVv31a0-Qn3dA6Sd_-NyA1n][Learning Emacs]] :emacs:
+** TODO [[https://www.youtube.com/playlist?list=PLX2044Ew-UVV0CNIrlst0MkKbu85O7_QT][learning org-mode]] :emacs:
+** DONE [[https://github.com/emacs-mirror/emacs/blob/master/lisp/autoinsert.el][autoinsert]] templates :emacs:
+CLOSED: [2021-08-10 Tue 16:49]
+** DONE [#A] [[https://github.com/aculich/.emacs.d/blob/master/init.el][awesome configuration for latex]] :emacs:
+CLOSED: [2021-07-29 Thu 10:10]
+:LOGBOOK:
+CLOCK: [2021-07-29 Thu 10:48]--[2022-01-08 Sat 14:04] => 3915:16
+:END:
+* Tasks
+** TODO learning shell programming :shell:
+SCHEDULED: <2021-08-28 Sat>
+:LOGBOOK:
+CLOCK: [2021-07-28 Wed 11:09]--[2021-07-28 Wed 23:34] => 12:25
+:END:
+
+[[/Volumes/wyu/vbooks/2.linux/2.l4-Linux命令行与shell脚本编程大全++第3版.pdf]]
+
+[[~/.gclrc/xminds/shell-programming.xmind]]
+* Web
+** TODO learning apache echarts :web:javascript:echarts:
+ [[file:~/github/mine/cheng92.com/content/web/apache-echarts-demos.org::+EMAIL: Lee ZhiCheng<gccll.love@gmail.com>]]
+** DONE [[https://dom.spec.whatwg.org/#mutationobserver][MutationObserver]] :web:javascript:
+CLOSED: [2021-09-08 Wed 17:37]
+ [[file:~/blog/cheng92.com/content/web/javascript-api-MutationObserver.org::*方法][方法]]
+** TODO https://github.com/trekhleb/javascript-algorithms :web:javascript:
+** TODO https://github.com/lydiahallie/javascript-questions :web:javascript:
+** DONE [[https://dev.w3.org/html5/pf-summary/obsolete.html#concept-marquee-on][marquee study]] :web:html:
+CLOSED: [2021-08-10 Tue 16:51]
+:BACKLINKS:
+[2022-01-09 Sun 17:22] <- [[file:~/.doom.d/examples/test-org.org::*org-super-links][org-super-links]]
+[2022-01-09 Sun 17:22] <- [[file:~/.doom.d/examples/test-org.org::*org-super-links][org-super-links]]
+[2022-01-09 Sun 17:22] <- [[file:~/.doom.d/examples/test-org.org::*org-super-links][org-super-links]]
+:END:
+
+[[~/blog/cheng92.com/content/web/html-marquee-tag.org]]
+
+[[https://www.cheng92.com/web/html-marquee-tag]]
+** TODO textContent, innerHTML, innerText 区别 :web:html:
+ [[file:~/blog/cheng92.com/content/web/html-spec-whatwg-st.org::*Element textContent, innerHTML, innerText][Element textContent, innerHTML, innerText]]
+ [[~/blog/cheng92.com/content/web/html-spec-whatwg-st.org]]
+* Vue
+** TODO vite change log :web:vue:vite:
+ [[file:~/github/mine/cheng92.com/content/vue/vue-vite-changelog.org::+TITLE: vite 更新日记\[TODO\]]]
+** TODO update log >3.2.0 :web:vue:
+ [[file:~/blog/cheng92.com/content/vue/vue-update-log-03-32x.org::*3.2.1 (2021-08-09)][3.2.1 (2021-08-09)]]
+** TODO vue-next 异步组件原理和使用 :web:vue:
+:BACKLINKS:
+[2022-01-09 Sun 17:07] <- [[file:~/.doom.d/examples/test-org.org::*org-super-links][org-super-links]]
+:END:
+ [[file:~/blog/cheng92.com/content/vue/vue-teardown-17-async-component.org::TODO]]
+** TODO vue-router-next source code read, drawer mind map :web:vue:
+ [[file:~/github/vue/vue-router-next/src/router.ts::): void {]]
+ [[~/.gclrc/xminds/vue-eco.xmind]]
+** TODO [[https://github.com/vuejs/vue-next/commit/8610e1c9e23a4316f76fb35eebbab4ad48566fbf][vue defineCustomElement api]] :web:vue:
+ [[file:~/blog/cheng92.com/content/vue/vue-update-log-02-320.org::*Features][Features]]
+** TODO v-memo :web:vue:
+ [[file:~/blog/cheng92.com/content/vue/vue-teardown-5-directives.org::#v-memo][file:~/blog/cheng92.com/content/vue/vue-teardown-5-directives.org::#v-memo]] [[/Users/simon/blog/cheng92.com/content/vue/vue-teardown-5-directives.org]]
+** TODO vue effect scope [[https://github.com/vuejs/vue-next/commit/f5617fc3bb8fd33927b2567622ac4f8b43f9b5d5][f5617fc]] :web:vue:
+ [[file:~/blog/cheng92.com/content/vue/vue-teardown-15-effect-scope.org][file:~/blog/cheng92.com/content/vue/vue-teardown-15-effect-scope.org]]
+** TODO style v-deep, v-slotted 原理 :web:vue:
+** CANCELLED 添加 expose 测试 :web:vue:
+CLOSED: [2021-08-10 Tue 16:54]
+ [[file:~/blog/cheng92.com/content/vue/vue-teardown-11-expose.org::TODO 测试...]]
+** DONE setup(props, context) 的 context 是什么？
+CLOSED: [2021-08-10 Tue 16:54]
+ [[file:~/github/vue/vue-next/packages/runtime-core/src/component.ts::} else {]]
+ #+begin_src typescript
+{
+  attrs: instance.attrs,
+  slots: instance.slots,
+  emit: instance.emit,
+  expose
+}
+#+end_src
+
+setup 如何被调用的？
+
+#+begin_src typescript
+const setupResult = callWithErrorHandling(
+  setup,
+  instance,
+  ErrorCodes.SETUP_FUNCTION,
+  [__DEV__ ? shallowReadonly(instance.props) : instance.props, setupContext]
+)
+// => setup(instance.props, setupContext)
+#+end_src
+
+** TODO 组件 options 是如何被处理的:question: :web:vue:
+ [[file:~/blog/cheng92.com/content/vue/vue-teardown-12-options.org::*]]
+** TODO Transition 源码分析 :web:vue:
+[[~/blog/cheng92.com/content/vue/vue-teardown-9-transition.org]]
+
+** TODO teardown 10 SFC style parse :web:vue:
+
+[[https://github.com/vuejs/vue-next/commit/49bc2e4db568d4f9fa2ccfe4e22c792cfc02651a][Related Commit 288ae0a]]
+
+[[~/blog/cheng92.com/content/vue/vue-teardown-10-SFC-style.org]]
+** TODO vue update log 1 :web:vue:
+ [[file:~/blog/cheng92.com/content/vue/vue-update-log-01.org::#bug306][file:~/blog/cheng92.com/content/vue/vue-update-log-01.org::#bug306]]
+* React
+* Notes
+* [[id:e101ddec-39c7-479f-ba7f-13cd368adea3][Private List]]

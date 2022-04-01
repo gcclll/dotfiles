@@ -1,0 +1,51 @@
+:PROPERTIES:
+:ID:       a10d6fd1-893b-4ed4-967d-d57388ba6525
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: shell_basis
+#+HTML_HEAD: <meta name="category" content="shell"/>
+#+HTML_HEAD: <meta name="tags" content="basis"/>
+#+TITLE: shell basis
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+
+* =${}= 删除
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: reg-delete
+:END:
+
+- ~#~ 从左边算起第一个
+- ~%~ 从右边算起第一个
+- ~##~ 从左边算起最后一个
+- ~%%~ 从右边算起最后一个
+- ~*~ 表示要删除的内容
+
+
+~#~: 从左边开始， ~%~: 从右边开始
+
+#+begin_src sh :results output
+# 从左边起最后一个 / 开始, 删除它及它之前的所有字符 => "file.txt"
+var1=/path/to/file.txt
+echo ${var1##*/}
+# 从左边起第一个 to 开始, 删除它及它之前的所有字符 => "/path2/to/file.txt"
+var2=/path1/to/path2/to/file.txt
+echo ${var2#*to}
+# 从右边起最后一个 to 开始，删除它及它之后的所有字符 => "/path1/"
+echo ${var2%%to*}
+# 从右边起第一个 to 开始，删除它及它之后的所有字符 => "/path1/to/path2/"
+echo ${var2%to*}
+#+end_src
+
+#+RESULTS:
+: file.txt
+: /path2/to/file.txt
+: /path1/
+: /path1/to/path2/
+
+
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

@@ -1,0 +1,5 @@
+:PROPERTIES:
+:ID:       bde3c8b6-f03d-4273-b50d-e69a8373f1ef
+:END:
+#+title: test
+test roam capture

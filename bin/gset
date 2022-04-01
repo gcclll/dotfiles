@@ -4,12 +4,26 @@ source $GCLRC_SHELL/utils
 
 ALI="$HOME/github/aliyun"
 FONTS="$HOME/Library/Fonts"
+LOCBIN="/usr/local/bin"
+OPTBIN="/opt/local/bin"
+
+test_rm() {
+  if [ -e "$1" ]; then
+    rm -rf "$1"
+  fi
+}
 
 test_ln() {
-  if [ -f "$2" ]; then
-    rm -f $2
+  if [ ! -e "$1" ]; then
+    echo "no source target..."
+    exit -1
   fi
-  ln -sv $1 $2
+
+  if [ -e "$2" ]; then
+    rm -rf "$2"
+  fi
+
+  ln -sv "$1" "$2"
 }
 
 set_brew_mirror() {
@@ -84,15 +98,43 @@ set_mac_workflows() {
 
 }
 
+rc=~/.gclrc
 set_soft_links() {
-  rc=~/.gclrc
   test_ln $rc/.zshrc ~/.zshrc
   test_ln $rc/mu4e/mbsyncrc ~/.mbsyncrc
   test_ln $rc/mu4e/msmtprc ~/.msmtprc
   test_ln $rc/.hammerspoon ~/.hammerspoon
   test_ln $rc/.netrc ~/.netrc
   test_ln $rc/.mpdconf ~/.mpdconf
+  test_ln $rc/config/.npmrc ~/.npmrc
+  test_ln $HOME/github/mine/blog.cheng92.com $HOME/.my-blog
+  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-local.setup $rc/org/hugo_setup.org
+  test_ln $rc/config/.env-blog $HOME/github/mine/blog.cheng92.com/.env
+
+  ver="$(node -v)"
+  lib="$HOME/.nvm/versions/node/${ver}/lib/node_modules"
+
+  test_ln $lib ~/.nlib
+
+  # link command
+  if [ -e "$OPTBIN/tidy" ]; then
+    sudo rm -f $OPTBIN/tidy
+  fi
+  sudo ln -sv $rc/bin/gtidy $OPTBIN/tidy
+
   source ~/.zshrc
+}
+
+use_readtheorg() {
+  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg.setup $rc/org/hugo_setup.org
+}
+
+use_my_readtheorg() {
+  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-my.setup $rc/org/hugo_setup.org
+}
+
+use_local_readtheorg() {
+  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-local.setup $rc/org/hugo_setup.org
 }
 
 init_mu4e_dir() {
@@ -155,6 +197,16 @@ set_node_lib() {
   echo "Npm Version: $(npm -v)"
 }
 
+set_node_bin() {
+  ver="$(node -v)"
+  echo "Node Version: $ver"
+  bin="$HOME/.nvm/versions/node/${ver}/bin"
+  if [ -d "$bin" ]; then
+    sudo ln -s "$bin" "/usr/local/nbin"
+    ls -al /usr/local | grep "nbin"
+  fi
+}
+
 install_apps() {
   apps="$GCLRC_HOME/macos/apps/"
   cd $apps
@@ -204,13 +256,29 @@ fix_eaf_doom() {
   ls "$build"
 }
 
+set_blog_alias() {
+  BLOG="$HOME/github/mine/cheng92.com"
+  if [ ! -d "$BLOG" ]; then
+    echo "$BLOG not existed!"
+    exit -1
+  fi
+
+  ln -s "$BLOG" "$HOME/.d"
+  ls -al "$HOME/.d"
+}
+
 case "$1" in
+  "useorg") use_readtheorg ;;
+  "usemyorg") use_my_readtheorg ;;
+  "uselocalorg") use_local_readtheorg ;;
+  "blog-alias") set_blog_alias ;;
   "fix-eaf-doom") fix_eaf_doom ;;
   "pip-alias") set_pip_alias ;;
   "go-proxy") set_go_proxy ;;
   "install-apps") install_apps ;;
   "mac-workflow") set_mac_workflows ;;
   "node-lib") set_node_lib ${@:2} ;;
+  "node-bin") set_node_bin ${@:2} ;;
   "deno-config") set_deno_config ${@:2} ;;
   "fonts") set_fonts ${@:2} ;;
   "push") push_all ${@:2} ;;

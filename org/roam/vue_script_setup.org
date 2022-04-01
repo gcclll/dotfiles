@@ -1,0 +1,161 @@
+:PROPERTIES:
+:ID:       1037e29e-a2c1-4a29-a346-1575d2ea6369
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: vue_script_setup
+#+HTML_HEAD: <meta name="category" content="vue"/>
+#+HTML_HEAD: <meta name="tags" content="setup"/>
+#+TITLE: vue script setup
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+
+* 说明
+
+涉及的源码包： [[https://github.com/vuejs/vue-next/tree/master/packages/compiler-sfc][compiler-sfc]], [[https://github.com/vuejs/vue-next/tree/master/packages/compiler-core][compiler-core]]。
+
+SFC ~<script setup>~ 的编译相关代码在 [[https://github.com/vuejs/vue-next/blob/master/packages/compiler-sfc/src/compileScript.ts][packages/compiler-sfc/src/compileScript.ts]]
+
+使用到的第三方插件 ：
+
+[[https://babeljs.io/docs/en/babel-parser][@babel/parser->parse]] 解析出 AST
+
+#+begin_src js :results code
+const { parse } = require(process.env.HOME+'/.nlib/@babel/parser')
+
+const ast = parse(`
+const foo = 100, bar = 200;
+function baz() {
+  console.log(foo + bar)
+}
+`)
+const program = ast.program
+console.log('>>> foo 变量声明 AST\n', program.body[0].declarations[0]);
+// console.log('>>> bar 变量声明 AST\n', program.body[0].declarations[1]);
+console.log('>>> baz 函数声明 AST\n', program.body[1]);
+#+end_src
+
+#+begin_details 结果
+#+begin_src js
+>>> foo 变量声明 AST
+ Node {
+  type: 'VariableDeclarator',
+  start: 7,
+  end: 16,
+  loc: SourceLocation {
+    start: Position { line: 2, column: 6, index: 7 },
+    end: Position { line: 2, column: 15, index: 16 },
+    filename: undefined,
+    identifierName: undefined
+  },
+  id: Node {
+    type: 'Identifier',
+    start: 7,
+    end: 10,
+    loc: SourceLocation {
+      start: [Position],
+      end: [Position],
+      filename: undefined,
+      identifierName: 'foo'
+    },
+    name: 'foo'
+  },
+  init: Node {
+    type: 'NumericLiteral',
+    start: 13,
+    end: 16,
+    loc: SourceLocation {
+      start: [Position],
+      end: [Position],
+      filename: undefined,
+      identifierName: undefined
+    },
+    extra: { rawValue: 100, raw: '100' },
+    value: 100
+  }
+}
+>>> baz 函数声明 AST
+ Node {
+  type: 'FunctionDeclaration',
+  start: 29,
+  end: 72,
+  loc: SourceLocation {
+    start: Position { line: 3, column: 0, index: 29 },
+    end: Position { line: 5, column: 1, index: 72 },
+    filename: undefined,
+    identifierName: undefined
+  },
+  id: Node {
+    type: 'Identifier',
+    start: 38,
+    end: 41,
+    loc: SourceLocation {
+      start: [Position],
+      end: [Position],
+      filename: undefined,
+      identifierName: 'baz'
+    },
+    name: 'baz'
+  },
+  generator: false,
+  async: false,
+  params: [],
+  body: Node {
+    type: 'BlockStatement',
+    start: 44,
+    end: 72,
+    loc: SourceLocation {
+      start: [Position],
+      end: [Position],
+      filename: undefined,
+      identifierName: undefined
+    },
+    body: [ [Node] ],
+    directives: []
+  }
+}
+undefined
+#+end_src
+#+end_details
+
+[[https://github.com/Rich-Harris/magic-string][magic-string]] 字符串替换
+
+#+begin_src js :exports both
+const MagicString = require(process.env.HOME+'/.nlib/magic-string')
+
+const log = console.log
+const s = new MagicString('problems = 99')
+
+log('替换变量名 -> ', s.overwrite(0, 8, 'answer').toString())
+log('替换变量值 -> ', s.overwrite(11, 13, '42').toString())
+log('前后加内容 -> ', s.prepend('var ').append(';').toString())
+const map = s.generateMap({
+  source: 'source.js',
+  file: 'converted.js.map',
+  includeContent: true
+}) // generates a v3 sourcemap
+
+log('生产 source map -> ', map.toString())
+#+end_src
+
+[[https://github.com/Rich-Harris/estree-walker][estree-walker]] AST 树遍历
+
+#+begin_src js
+const walk = require('estree-walker').walk
+const acorn = require('acorn')
+
+const ast = acorn.parse(`const foo = 100`)
+walk(ast, {
+  enter(node, parent, prop, index) {
+    console.log('enter>>>', node, parent, prop, index);
+  },
+  leave(node, parent, prop, index) {
+    console.log('leave>>>', node, parent, prop, index);
+  }
+})
+#+end_src
+
+
+* COMMENT Local Variables :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

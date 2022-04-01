@@ -1,0 +1,2202 @@
+:PROPERTIES:
+:ID:       82acaa2e-9913-4c5b-83d9-57ac24698449
+:ROAM_REFS: osb-links
+:END:
+#+SETUPFILE: ~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: emacs_org_special_src_blocks
+#+HTML_HEAD: <meta name="category" content="emacs"/>
+#+HTML_HEAD: <meta name="tags" content="org"/>
+#+TITLE: Emacs org-special-block-extras
+
+<badge: GCCLL | Homepage | green | / | tinder>
+
+Examples: [[https://alhassy.github.io/ElispCheatSheet/CheatSheet.pdf][PDF Viewer]] 或 [[https://alhassy.github.io/org-special-block-extras/][org-special-block-extras]]
+
+refs: [[(start)]]
+
+* Minimal working example
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: min-example
+:END:
+
+#+begin_parallel
+[[color:orange][Are you excited to learn some Lisp?]] [[blue:Yes!]]
+
+Pop-quiz: How does doc:apply work?
+#+end_parallel
+
+#+begin_details Answer
+link-here:solution
+Syntactically, ~(apply f '(x0 ... xN)) = (f x0 ... xN)~.
+
+[[remark:Musa][Ain't that cool?]]
+
+#+begin_spoiler aqua
+That is, [[color:magenta][we can ((apply)) a function to a list of arguments!]]
+#+end_spoiler
+
+#+end_details
+
+#+html: <br>
+#+begin_box
+octoicon:report Note that kbd:C-x_C-e evaluates a Lisp form!
+#+end_box
+
+#+LATEX_HEADER: \usepackage{multicol}
+#+LATEX_HEADER: \usepackage{tcolorbox}
+#+latex: In the LaTeX output, we have a glossary.
+
+show:GLOSSARY
+
+* 各种链接
+
+[[kbd:xboldcolor]]  =*<pink: super neato stuff>*= -> *<pink: super neato stuff>*
+
+[[kbd:xlinkhere]] 本地锚点: link-here:test-link-here-links 点击后注意 URL ~#~ 后面
+内容的变化。
+
+[[kbd:xicon]] octoicon:home 会显示一个主页 Icon doc:o-link/octoicon 。
+
+[[kbd:xbadge]] ~<badge: Emacs | is awesome | blue |
+https://www.google.com/search?q=hello%20world | gnu-emacs>~ 导出成 <badge: Emacs | is awesome | blue | https://www.google.com/search?q=hello%20world | gnu-emacs>
+
+[[kbd:xdoc]]  ~doc:thread-first~ 在 [[id:aa445529-4f0e-48d8-833f-12c149603ca6][Documentations]] 中声明过的，鼠标放上去会显示对应的说明。
+
+doc:thread-first Lisp 函数定义
+
+doc:family English 含义
+
+doc:Hussain 个人文档描述
+* Blocks
+
+** 链接(link)
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section
+:END:
+
+*** red:margin
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-margin
+:END:
+
+=something[[margin:][documentation for something]] is important!!!=
+
+=something[[margin:][documentation for something]] is important!!
+
+会在 something 右上角生成一个圆圈，类似 doc 的显示其文档描述。
+
+#+begin_details Example:  "Links, without and with explict lables"
+ This [[margin:][hola and *woah* ]] works!
+
+ This [[margin:look!][hola]] works!
+
+--------------------------------------------------------------------------------
+*Source:*
+#+begin_src org
+ This [[margin:][hola and *woah* ]] works!
+
+ This [[margin:look!][hola]] works!
+#+end_src
+#+end_details
+#+html: <br>
+
+#+begin_details Example:  "在语句中间，使用 #+begin_margin, 没有 label"
+
+ Hello this
+ #+begin_margin
+ Extra details about whatever it is I'm talking about.
+ #+end_margin
+ is super neat!
+
+--------------------------------------------------------------------------------
+*Source:*
+
+#+begin_src org :tangle no
+ Hello this
+ #+begin_margin
+ Extra details about whatever it is I'm talking about.
+ #+end_margin
+ is super neat!
+#+end_src
+#+end_details
+#+html: <br>
+
+#+begin_details Example:  "在语句中间，使用 #+begin_margin, 有 label(this)"
+ Hello
+ #+begin_margin this
+ Extra details about whatever it is I'm talking about.
+ #+end_margin
+ is super neat!
+
+--------------------------------------------------------------------------------
+*Source:*
+#+begin_src org :tangle no
+ Hello
+ #+begin_margin this
+ Extra details about whatever it is I'm talking about.
+ #+end_margin
+ is super neat!
+#+end_src
+
+#+end_details
+#+html: <br>
+
+@@html:<span id="marquee-in-margin"></span>@@
+margin 中还可以包含 html 元素，比如： ~<marquee>~ 标签，让文档更加丰富:
+#+begin_details "★ Example: A ‘margin’ with an ‘export’ in the middle" :title-color orange
+ An HTML “marquee”
+ #+begin_margin
+ An example is best:
+ #+begin_export html
+ <marquee>Catch me if you can!</marquee>
+ #+end_export
+ It is pronounced “mar key”.
+ #+end_margin
+ is a scrolling piece of text.
+
+--------------------------------------------------------------------------------
+*Source:*
+#+begin_src org
+ An HTML “marquee”
+ ,#+begin_margin
+ An example is best:
+ ,#+begin_export html
+ <marquee>Catch me if you can!</marquee>
+ ,#+end_export
+ It is pronounced “mar key”.
+ ,#+end_margin
+ is a scrolling piece of text.
+#+end_src
+#+end_details
+#+html: <br>
+
+#+begin_details Example: Brief code snippet in tooltip/margin
+It's a
+#+begin_margin simple
+/Proof Sketch:/ “Squint” your eyes to see ~zero : ℕ~ and ~nothing : Maybe ℕ~ as
+essentially the same, and “squint” your eyes to see that ~suc~ is essentially the
+same as ~just~.
+
+More formally, here's one direction:
+#+begin_src haskell :tangle no
+to : Maybe ℕ → ℕ
+to nothing  = zero
+to (just n) = suc n
+  #+end_src
+
+The rest is an arduous exercise if you don't know what's going on.
+#+end_margin
+exercise to show that ℕ is fixedpoint of ~Maybe~.
+--------------------------------------------------------------------------------
+*Source:*
+#+begin_src org
+It's a
+,#+begin_margin simple
+/Proof Sketch:/ “Squint” your eyes to see ~zero : ℕ~ and ~nothing : Maybe ℕ~ as
+essentially the same, and “squint” your eyes to see that ~suc~ is essentially the
+same as ~just~.
+
+More formally, here's one direction:
+,#+begin_src haskell :tangle no
+to : Maybe ℕ → ℕ
+to nothing  = zero
+to (just n) = suc n
+,#+end_src
+
+The rest is an arduous exercise if you don't know what's going on.
+,#+end_margin
+exercise to show that ℕ is fixedpoint of ~Maybe~.
+#+end_src
+#+end_details
+#+html: <br>
+
+#+begin_details "★ Example: Lengthy ‘margin’ with multiple code blocks!" :title-color orange
+It's a
+#+begin_margin simple
+  We show that there is an /isomorphism/; i.e., a non-lossy protocol between ~Maybe ℕ~
+  and ~ℕ~ in stages.
+
+  First, let's recall the definitions ... in Agda ...
+  #+begin_src haskell :tangle no :tangle no
+data Maybe (A : Set) : Set₁ where
+  nothing : Maybe A
+  just    : A → Maybe A
+
+data ℕ : Set where
+  zero : ℕ
+  suc  : ℕ → ℕ
+   #+end_src
+
+  We can show ~Maybe ℕ ≅ ℕ~ by writing two functions...
+  #+begin_src haskell :tangle no
+to : Maybe ℕ → ℕ
+to nothing = zero
+to (just n) = suc n
+
+from : ℕ → Maybe ℕ
+from zero = nothing
+from (suc n) = just n
+  #+end_src
+
+  ...and, finally, checking that the two functions undo each other...
+  #+begin_src emacs-lisp :tangle no
+to∘from : ∀ {n} →  to (from n)  ≡  n
+to∘from n = {! try it! }
+
+from∘to : ∀ {m} →  from (to m)  ≡  m
+from∘to m = {! try it! }
+  #+end_src
+
+
+  This is “simple”, but involved!
+   #+end_margin
+exercise to show that ℕ is fixedpoint of ~Maybe~.
+--------------------------------------------------------------------------------
+*Source:*
+#+begin_src org :tangle no
+It's a
+,#+begin_margin simple
+We show that there is an /isomorphism/; i.e., a non-lossy protocol between ~Maybe ℕ~
+and ~ℕ~ in stages.
+
+First, let's recall the definitions ... in Agda ...
+,#+begin_src haskell :tangle no :tangle no
+data Maybe (A : Set) : Set₁ where
+  nothing : Maybe A
+  just    : A → Maybe A
+
+data ℕ : Set where
+  zero : ℕ
+  suc  : ℕ → ℕ
+,#+end_src
+
+We can show ~Maybe ℕ ≅ ℕ~ by writing two functions...
+,#+begin_src haskell :tangle no
+to : Maybe ℕ → ℕ
+to nothing = zero
+to (just n) = suc n
+
+from : ℕ → Maybe ℕ
+from zero = nothing
+from (suc n) = just n
+,#+end_src
+
+...and, finally, checking that the two functions undo each other...
+,#+begin_src emacs-lisp
+to∘from : ∀ {n} →  to (from n)  ≡  n
+to∘from n = {! try it! }
+
+from∘to : ∀ {m} →  from (to m)  ≡  m
+from∘to m = {! try it! }
+,#+end_src
+
+This is “simple”, but involved!
+,#+end_margin
+exercise to show that ℕ is fixedpoint of ~Maybe~.
+#+end_src
+#+end_details
+#+html: <br>
+
+# HTML Setup -- I want the code in the tooltips to look nice :-)
+#+html:      <style> code, pre {color: black; background-color:Snow;} </style>
+#+html:      <style> pre.tooltip {color: black; background-color:Snow;} </style>
+
+在包含代码块的 tooltips 中增加下面的样式可以让其显示的更友好
+#+begin_src org :tangle no
+#+html:      <style> pre.tooltip {color: black; background-color:Snow;} </style>
+#+end_src
+# #+html:      <style> code, pre {color: black; background-color:Snow;}</style>
+
+*** red:show
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-show
+:END:
+
+直接调用 emacs 中的变量，用这个变量的值替换在当前位置。
+
+如：
+
+=show:user-full-name= = show:user-full-name
+
+=show:emacs-version= = show:emacs-version
+
+#+html: <br>
+#+begin_details show 代码实现 :title-color green
+#+begin_src emacs-lisp
+(o-deflink show
+  "Yield the value of the expression O-LABEL, with =GLOSSARY= being a reserved name.
+
+Example uses:
+
+    show:user-full-name
+
+    <show: (* 2 (+ 3 4 (- pi))) >
+
+
+Note that there is `elisp' links with Emacs, out of the box.
+However, they only serve to evaluate Lisp expressions; for example,
+to make “link buttons” that do useful things, as follows.
+
+   [[elisp:(find-file user-init-file)][Init]]
+
+In particular, `elisp' links do not export the value of their expression.
+That is what we accomplish with this new `show' link type."
+  [:face '(:underline "green")
+   :let (o-value (if (equal o-label "GLOSSARY")
+                     (pp-to-string (mapcar #'cl-second o--docs-actually-used))
+                   (pp-to-string (eval (car (read-from-string o-label)))))
+         o-expr (if (equal o-label "GLOSSARY")
+                    (concat "GLOSSARY ---i.e., o--docs-actually-used"
+                            "\n\nWe erase the glossary not on the first export, but on the second export."
+                            "\nThe first export collects all citations, which are used in the second export.")
+                  o-label))
+  :help-echo (format
+              (concat "Upon export, the following will be placed literally"
+                      "\n\t%s"
+                      "\nWhich is the value of the expression:\n\t%s")
+              o-value
+              o-expr)]
+  (cond ((not (equal o-label "GLOSSARY")) o-value)
+
+       ;; Otherwise O-LABEL is glossary, which we print in HTML & LaTeX
+       ((equal 'html o-backend)
+          (s-join " "
+                  (--map
+                   (format "<abbr class=\"tooltip\" title=\"%s\">%s</abbr>"
+                           (o-html-export-preserving-whitespace (cl-third it))
+                           (cl-second it))
+                   ;; Ignore duplicates; i.e., entries with the same name/title.
+                   (cl-remove-duplicates o--docs-actually-used
+                                         :test (lambda (x y) (cl-equalp (cl-second x) (cl-second y)))))))
+       (t (s-join "\n\n"
+                  (cl-loop for (label name doc)
+                           in o--docs-actually-used
+                           collect
+                           (format
+                           (concat "\\vspace{1em}\\phantomsection"
+                                   "\\textbf{%s}\\quad"
+                                   "\\label{o-glossary-%s}"
+                                   "%s See page "
+                                   "\\pageref{org-special-block-extras"
+                                   "-glossary-declaration-site-%s}")
+                           name
+                           o-label
+                           (when doc
+                             (thread-last doc ;; preserve whitespace
+                               (s-replace "&" "\\&") ;; Hack!
+                               (s-replace "  " " \\quad ")
+                               (s-replace "\n" " \\newline{\\color{white}.}")))
+                           o-label))))))
+#+end_src
+#+end_details
+
+*** [[red:kbd]]
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-kbd
+:END:
+
+
+一般用于组合键 ~[[kbd:C-c_C-c]]~ [[kbd:C-c_C-c]]
+
+可以直接使用 =kbd:C-c_C-c= kbd:C-c_C-c 不需要加上 =[[...]]=
+
+如果不想用下划线需要用 =<>= 包起来，如： ~<kbd:C-c C-c>~ <kbd:C-c C-c> 也是一样的
+
+还可以自己指定提示内容： ~[[kbd:C-c_C-c][我是C-c C-c 组合键的说明提示信息]]~ [[kbd:C-c_C-c][我是C-c C-c 组合键的说明提示信息]]
+
+#+begin_details kbd 的实现
+#+begin_src emacs-lisp
+(o-deflink kbd
+        "Show keysequence O-LABEL in a nice grey button-like font, along with a tooltip of its documentation, if any.
+
+Such links do not get folded in [[bracket]] style, and are rendered as buttons within Emacs.
+
+Moreover, O-LABEL may use ‘_’ in-lieu of spaces or [[bracket]] link notation.
+
+Examples:
+    [[kbd:C-x C-s]]
+≈ <kbd: C-x C-s>
+≈ kbd:C-x_C-s"
+        [:display 'full
+        :let (the-label  (s-trim (s-replace "_" " " o-label))
+                            lisp-func  (ignore-errors (cl-second (help--analyze-key (kbd the-label) the-label)))
+                            tooltip    (or o-description (ignore-errors (documentation lisp-func)) "")
+                            tooltip?   (not (equal tooltip ""))
+                            style      (if tooltip? "border-color: red" "")
+                            keystrokes (format "<kbd style=\"%s\">%s</kbd>" style the-label))
+        ;; o-description is always nil when it comes to deciding the :face.
+        :face (list :inherit 'custom-button :box (if tooltip? "red" t))
+        :help-echo (format "%s ∷ %s\n%s" the-label (or lisp-func "") tooltip)]
+        (if (equal o-backend 'latex)
+            (format "\\texttt{%s}" the-label)
+            (if tooltip?
+                ;; The style=⋯ is to remove the underlying caused by <abbr>.
+                (format "<abbr class=\"tooltip\" style=\"border: none; text-decoration: none;\" title=\"%s ∷ %s<br>%s\">%s</abbr>"
+                        the-label (or lisp-func "") (o-html-export-preserving-whitespace tooltip)
+                        keystrokes)
+            keystrokes)))
+#+end_src
+
+下面的样式规则可以用来主 keystorkes 更好的显示。
+
+#+begin_src emacs-lisp
+(defvar o--kbd-html-setup nil
+"Has the necessary keyboard styling HTML beeen added?")
+
+(unless o--kbd-html-setup
+(setq o--kbd-html-setup t)
+(setq org-html-head-extra
+(concat org-html-head-extra
+"
+<style>
+/* From: https://endlessparentheses.com/public/css/endless.css */
+/* See also: https://meta.superuser.com/questions/4788/css-for-the-new-kbd-style */
+kbd
+{
+-moz-border-radius: 6px;
+-moz-box-shadow: 0 1px 0 rgba(0,0,0,0.2),0 0 0 2px #fff inset;
+-webkit-border-radius: 6px;
+-webkit-box-shadow: 0 1px 0 rgba(0,0,0,0.2),0 0 0 2px #fff inset;
+background-color: #f7f7f7;
+border: 1px solid #ccc;
+border-radius: 6px;
+box-shadow: 0 1px 0 rgba(0,0,0,0.2),0 0 0 2px #fff inset;
+color: #333;
+display: inline-block;
+font-family: 'Droid Sans Mono', monospace;
+font-size: 80%;
+font-weight: normal;
+line-height: inherit;
+margin: 0 .1em;
+padding: .08em .4em;
+text-shadow: 0 1px 0 #fff;
+word-spacing: -4px;
+
+box-shadow: 2px 2px 2px #222; /* MA: An extra I've added. */
+}
+</style>")))
+#+end_src
+
+测试：
+#+begin_src emacs-lisp
+(deftest "It becomes <kbd> tags, but final symbol non-ascii *may* be ignored"
+[kbd direct-org-links]
+(⇝ (⟰ "kbd:C-u_80_-∀") "<p>\n<kbd style=\"\">C-u 80</kbd>_-∀</p>"))
+
+(deftest "[[It]] becomes <kbd> tags"
+[kbd square-org-links]
+(⇝ (⟰ "[[kbd:C-u_80_-]]") "<p>\n<kbd style=\"\">C-u 80 -</kbd></p>"))
+
+(deftest "<It> becomes <kbd> tags, and surrounding space is trimmed"
+[kbd angle-org-links]
+(⇝ (⟰ "<kbd: C-u 80 - >")  "<p>\n<kbd style=\"\">C-u 80 -</kbd></p>"))
+
+(deftest "It has a tooltip documenting the underlying Lisp function, when possible"
+[kbd tooltip]
+(⇝ (⟰ "<kbd: M-s h .>")
+
+    "<abbr class=\"tooltip\""
+    (* anything)
+    "Highlight each instance of the symbol at point.<br>Uses the
+    next face from ‘hi-lock-face-defaults’ without
+    prompting,<br>unless you use a prefix argument.<br>Uses
+    ‘find-tag-default-as-symbol-regexp’ to retrieve the symbol
+    at point.<br><br>This uses Font lock mode if it is enabled;
+    otherwise it uses overlays,<br>in which case the
+    highlighting will not update as you type.&emsp;The
+    Font<br>Lock mode is considered ''enabled'' in a buffer if
+    its ‘major-mode’<br>causes ‘font-lock-specified-p’ to return
+    non-nil, which means<br>the major mode specifies support for
+    Font Lock."
+    (* anything)
+    "<kbd style=\"border-color: red\">M-s h .</kbd></abbr>"))
+#+end_src
+#+end_details
+
+*** [[red:doc]]
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-doc
+:END:
+
+
+文档类型，内容定义在 [[id:aa445529-4f0e-48d8-833f-12c149603ca6][Documentations]] 中, 如： doc:s-replace-all
+
+也可以通过 ~#+begin_documentation doc-name :label label-name~ 来定义文档内容。
+
+#+begin_documentation doc-name :label label-name
+I am a test documentation... !!!
+#+end_documentation
+
+之后可以 =doc:label-name= doc:label-name 也可以 =[[doc:label-name][自定义显示内容
+替换label-name]]= [[doc:label-name][自定义显示内容
+替换label-name]]
+
+或者没有 =label-name= 时候直接使用 =doc-name=, =doc:doc-name=, doc:doc-name, 当没有
+=label-name= 时，它其实也是有值的，默认是 =doc-name= 将空格替换成 '_'(下划线)，更多
+可以查看 doc:o--documentation 。
+
+#+begin_box Full Example :background-color custard
+#+latex_header: \newunicodechar{π}{\ensuremath{\pi}}
+
+_User enters …_
+#+begin_src org
+,#+begin_documentation Existential Angst :label "ex-angst"
+A negative feeling arising from freedom and responsibility.
+
+Also known as
+1. /Existential Dread/, and
+2. *Existential Anxiety*.
+
+Perhaps a distraction, such as [[https://www.w3schools.com][visiting W3Schools]], may help ;-)
+
+Then again, ~coding~ can be frustrating at times, maybe have
+a slice of pie with maths by reading “$e^{i×π} + 1 = 0$” as a poem ;-)
+,#+end_documentation
+#+end_src
+
+#+begin_documentation Existential Angst :label ex-angst
+A negative feeling arising from freedom and responsibility.
+
+Also known as
+1. /Existential Dread/, and
+2. *Existential Anxiety*.
+
+Perhaps a distraction, such as [[https://www.w3schools.com][visiting W3Schools]], may help ;-)
+
+Then again, ~coding~ can be frustrating at times, maybe have
+a slice of pie with maths by reading “$e^{i×π} + 1 = 0$” as a poem ;-)
+#+end_documentation
+
+_Then…_ =doc:ex-angst= gives us doc:ex-angst,
+or using a description: [[doc:ex-angst][“existence is pain”?]]
+( ~[[doc:ex-angst][“existence is pain”?]]~ )
+
+:Labelless_example:
+#+begin_documentation Existential Angsty
+A negative feeling arising from freedom and responsibility.
+
+bye
+#+end_documentation
+
+doc:Existential_Angsty
+:End:
+#+end_box
+
+#+html: <br>
+#+begin_box :background-color green
+org-special-src-blocks 包的作者自己的 documentation library:
+
+badge:Htmlized|Org|green|https://alhassy.github.io/org-special-block-extras/documentation.org.html
+or
+badge:Pretty|HTML|green|https://alhassy.github.io/org-special-block-extras/documentation.html.
+#+end_box
+#+html: <br>
+
+*** [[red:colour]]
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-colour
+:END:
+
+
+带颜色文字， ~[[blue:content]]~
+
+如： [[blue:blue]], [[red:red]], [[green:green]]
+
+可以执行 ~M-x: list-colors-display~ 查看有哪些支持的颜色。
+
+可结合删除线等使用，如： +[[red:delete line]]+, /[[red:italic]]/, _[[red:underline]]_, *[[red:bold]]*
+
+也可以使用 ~[[color:#eee][this is content]]~ 来指定其它的颜色值, [[color:#66EE33][this is content]] 。
+
+*** [[red:remark]]
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-ssection-remark
+:END:
+
+
+~[[remark:Author][content]]~
+
+如： [[remark:Jasim][Hello, where are you?]]
+
+带 replace 的 remark: ~[[remark:Qasim][/‘j’/ #+replacewith: /‘q’/]]~
+
+[[remark:Qasim][/‘j’/ #+replacewith: /‘q’/]]
+
+*** [[red:ref]]
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-ref
+:END:
+
+
+一种代码块中的锚点链接
+
+在代码块中的行后面增加 ~ref:name~ ，如： [[(start)]] 然后使用 ~[[(name)]]~ 可生成链接直
+接定位到代码块中的那一行，非常方便。
+
+*** red:link-here
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-link-here
+:END:
+
+
+创建一个错点链接 link-here:name, 点击它后注意链接变成了
+
+http://127.0.0.1:8080/posts/emacs_org_special_src_blocks.html#name
+
+点击该链接会转向 URL =#name=, 一般配合 octoicon:x 图标来使用， $x$ 可以是
+=home, link, mail, report, tag, clock= 中的任意一个： octoicon:home,
+octoicon:link, octoicon:mail, octoicon:report, octoicon:tag, octoicon:clock
+
+#+begin_details 上面 6 种 icons 的实现方式 :title-color green
+下面的 SVGs 来自 https://primer.style/octicons/
+
+#+begin_src emacs-lisp
+(defvar
+    o--supported-octoicons
+    (-partition 2
+                '(
+                home
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16
+16\" width=\"16\" height=\"16\"><path fill-rule=\"evenodd\"
+d=\"M16 9l-3-3V2h-2v2L8 1 0 9h2l1 5c0 .55.45 1 1 1h8c.55 0
+1-.45 1-1l1-5h2zm-4 5H9v-4H7v4H4L2.81 7.69 8 2.5l5.19 5.19L12
+14z\"></path></svg>"
+
+                link
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16
+16\" width=\"16\" height=\"16\"><path fill-rule=\"evenodd\"
+d=\"M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69
+3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10
+5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0
+2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5
+0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55
+13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z\"></path></svg>"
+
+                mail
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 14
+16\" width=\"14\" height=\"16\"><path fill-rule=\"evenodd\"
+d=\"M0 4v8c0 .55.45 1 1 1h12c.55 0 1-.45
+1-1V4c0-.55-.45-1-1-1H1c-.55 0-1 .45-1 1zm13 0L7 9 1 4h12zM1
+5.5l4 3-4 3v-6zM2 12l3.5-3L7 10.5 8.5 9l3.5 3H2zm11-.5l-4-3
+4-3v6z\"></path></svg>"
+
+                report
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16
+16\" width=\"16\" height=\"16\"><path fill-rule=\"evenodd\"
+d=\"M0 2a1 1 0 011-1h14a1 1 0 011 1v9a1 1 0 01-1 1H7l-4
+4v-4H1a1 1 0 01-1-1V2zm1 0h14v9H6.5L4 13.5V11H1V2zm6
+6h2v2H7V8zm0-5h2v4H7V3z\"></path></svg>"
+
+                tag
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 15
+16\" width=\"15\" height=\"16\"><path fill-rule=\"evenodd\"
+d=\"M7.73 1.73C7.26 1.26 6.62 1 5.96 1H3.5C2.13 1 1 2.13 1
+3.5v2.47c0 .66.27 1.3.73 1.77l6.06 6.06c.39.39 1.02.39 1.41
+0l4.59-4.59a.996.996 0 000-1.41L7.73 1.73zM2.38
+7.09c-.31-.3-.47-.7-.47-1.13V3.5c0-.88.72-1.59
+1.59-1.59h2.47c.42 0 .83.16 1.13.47l6.14 6.13-4.73
+4.73-6.13-6.15zM3.01 3h2v2H3V3h.01z\"></path></svg>"
+
+                clock
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 14
+16\" width=\"14\" height=\"16\"><path fill-rule=\"evenodd\"
+d=\"M8 8h3v2H7c-.55 0-1-.45-1-1V4h2v4zM7 2.3c3.14 0 5.7 2.56
+5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 011.3 8c0-3.14 2.56-5.7
+5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14
+7-7-3.14-7-7-7z\"></path></svg>"))
+
+    "An association list of supported OctoIcons.
+
+Usage: (cadr (assoc 'ICON o--supported-octoicons))")
+#+end_src
+
+#+begin_src emacs-lisp
+(o-deflink octoicon
+            "Show an OctoIcon: home, link, mail, report, tag, clock"
+            [:help-echo "Show an OctoIcon: home, link, mail, report, tag, clock"]
+            (unless (member (intern o-label) '(home link mail report tag clock))
+                (error "octoicon:%s ⇒ This label is not supported!" o-label))
+            (if (not (equal o-backend 'html))
+                ""
+                (s-collapse-whitespace
+                (cadr (assoc (intern o-label)
+                            o--supported-octoicons)))))
+
+(o-deflink link-here
+            "Export a link to the current location in an Org file."
+            [:help-echo (format "This is a local anchor link named “%s”" path)]
+            (if (not (equal o-backend 'html))
+                ""
+                (format (s-collapse-whitespace
+                        "<a class=\"anchor\" aria-hidden=\"true\" id=\"%s\"
+        href=\"#%s\">%s</a>")
+                        o-label o-label (cadr (assoc 'link
+                                                    o--supported-octoicons)))))
+#+end_src
+
+#+begin_org-demo
+link-here:example-location (Click the icon and see the URL has changed!)
+#+end_org-demo
+
+#+html: <br>
+#+begin_box 测试
+#+begin_src emacs-lisp
+(deftest "It works as expected: We have an anchor with the given ID, and the default SVG chain icon."
+  [link:here]
+  (⇝ (⟰ "link-here:example-location (Click the icon and see the URL has changed!)")
+     "<a class=\"anchor\" aria-hidden=\"true\" id=\"example-location\" href=\"#example-location\"><svg"
+     (* anything)
+     "</svg></a> (Click the icon and see the URL has changed!)"
+     (* anything)))
+#+end_src
+#+end_box
+
+#+end_details
+
+*** red:badge
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: link-section-badge
+:END:
+
+
+=badge:left|right|right-bg-color|right-link-url|left-icon=
+
+或
+
+=[[badge:left|right|right-bg-color|right-link-url|left-icon]]=
+
+至少要有 =left= 和 =right=, 即 =badge:left|right=, badge:left|right, 当有
+=right-link-url= 时右边是可点击的。
+
+[[https://shields.io/][Shields.io: Quality metadata badges for open source projects]]
+
+badge:wiki|github|informational|here|wikipedia
+
+[[../assets/img/badges.png]]
+
+github 仓库的 badge 生成：
+
+[[https://github.com/dwyl/repo-badges][GitHub - dwyl/repo-badges: Use repo badges (build passing, coverage, etc) in your readme/markdown file to signal code quality in a project.]]
+
+自定义 badge:
+
+[[https://shields.io/category/build][Shields.io: Quality metadata badges for open source projects]]
+
+#+html: <br>
+#+begin_org-demo
+What are badges?
+
+badge:Let_me_google_that|for_you!|orange|https://lmgtfy.app/?q=badge+shields.io&iie=1|Elixir
+
+or
+
+[[badge: Let me google that | for you! |orange|https://lmgtfy.app/?q=badge+shields.io&iie=1 |Elixir]]
+
+or
+
+badge:Let_me_*not*_google_that|for_you
+#+end_org-demo
+#+html: <br>
+
+#+begin_details 测试 :title-color
+#+begin_src emacs-lisp
+(deftest "It works when all 5 arguments are provided"
+  [badge]
+  (⇝ (⟰ "badge:Let_me_google_that|for_you!|orange|https://lmgtfy.app/?q=badge+shields.io&iie=1|Elixir")
+     "<a href=\"https://lmgtfy.app/?q=badge+shields.io&iie=1\">"
+     "<img src=\"https://img.shields.io/badge/Let_me_google_that-for_you%21-orange?logo=Elixir\"></a>"))
+
+(deftest "It works when we use [[link]] syntax with generous spaces and newlines"
+  [badge]
+  (⇝ (⟰ "[[badge: Let me google that | for you! | orange |
+         https://lmgtfy.app/?q=badge+shields.io&iie=1|Elixir]]")
+
+     "<a href=\"https://lmgtfy.app/?q=badge+shields.io&iie=1\">"
+     (* anything)
+     "<img src=\"https://img.shields.io/badge/Let%20me%20google%20that-for%20you%21-orange?logo=Elixir\">"))
+
+(deftest "It works when only the first 2 arguments are provided; asterisks are passed unaltered into the first argument"
+  [badge]
+  (⇝ (⟰ "badge:Let_me_*not*_google_that|for_you")
+     "<img src=\"https://img.shields.io/badge/Let_me_%2Anot%2A_google_that-for_you-nil?logo=nil\">"))
+
+(deftest "It works when all 5 arguments are provided - URL ‘here’ makes it a local link"
+  [badge]
+  (⇝ (⟰ "badge:key|value|informational|here|Elixir")
+     "<a id=\"key\" href=\"#key\">"
+     "<img src=\"https://img.shields.io/badge/key-value-informational?logo=Elixir\"></a>"))
+
+(deftest "We can use spaces, commas, dashes, and percentage symbols in the first argument"
+  [badge]
+  (⇝ (⟰ "badge:example_with_spaces,_-,_and_%|points_right_here|orange|here")
+     "<a id=\"example_with_spaces,_-,_and_%\" href=\"#example_with_spaces,_-,_and_%\">"
+     "<img src=\"https://img.shields.io/badge/example_with_spaces%2C_--%2C_and_%25-points_right_here-orange?logo=nil\"></a>"))
+
+(deftest "It works when only first 2 arguments are given: Default colour & logo are green & no logo shown"
+  [badge]
+  (⇝ (⟰ "badge:key|value")
+     "<img src=\"https://img.shields.io/badge/key-value-nil?logo=nil\">"))
+
+(deftest "When only a key is provided, the value slot is shown as an empty green stub"
+  [badge]
+  (⇝ (⟰ "badge:key")
+     "<img src=\"https://img.shields.io/badge/key--nil?logo=nil\">"))
+
+(deftest "When only a value is provided, only the value is shown in a default green ---no stub for the missing key, yay"
+  [badge]
+  (⇝ (⟰ "badge:|value")
+        "<img src=\"https://img.shields.io/badge/-value-nil?logo=nil\">"))
+
+
+(deftest "It's only a green stub when provided with an empty key and empty value"
+  [badge]
+  (⇝ (⟰ "badge:||green")
+     "<img src=\"https://img.shields.io/badge/--green?logo=nil\">"))
+
+(deftest "It's only a green stub when we use a totally [[badge:]]"
+  [badge]
+  (⇝ (⟰ "[[badge:]]")
+     "<img src=\"https://img.shields.io/badge/--nil?logo=nil\">"))
+
+#+end_src
+#+end_details
+#+html: <br>
+
+#+begin_details 更多样例 :title-color green
+- badge:key|value|informational|here|Elixir <=
+=badge:key|value|informational|here|Elixir= 点击之后会跳转到 =#key= 锚点处。
+
+- badge:example_with_spaces,_-,_and_%|points_right_here|orange|here <= =badge:example_with_spaces,_-,_and_%|points_right_here|orange|here=
+
+- badge:key|value <= =badge:key|value=
+
+- badge:empty_value||informational <= =badge:empty_value||informational= 没有
+  value 的情况
+
+- badge:|value <= =badge:|value= 没有 key 的情况
+
+- badge: ||green <= =badge:||green= 没 key 也没 value, 或 [[badge:]] <= =[[badge:]]=
+
+#+end_details
+#+html: <br>
+
+#+begin_details 通用语法 :title-color green
+reddit-subscribe-to:exact-name-of-a-subreddit
+
+github-stars:gcclll/blog.cheng92.com
+
+github-watchers:gcclll/blog.cheng92.com
+
+github-forks:gcclll/blog.cheng92.com
+
+github-followers:gcclll
+
+twitter-follow:gccll_love
+
+tweet:https://blog.cheng92.com
+
+#+begin_example
+badge:your_key|its_neato_value|some_url|a_logo_as_shown_below
+
+[[badge: your key | its neato value | some url | a logo as shown below]]
+
+reddit-subscribe-to:exact-name-of-a-subreddit
+
+github-stars:user-name/repository-name
+
+github-watchers:user-name/repository-name
+
+github-forks:user-name/repository-name
+
+github-followers:user-name
+
+twitter-follow:user-name
+
+tweet:url
+#+end_example
+#+end_details
+#+html: <br>
+
+#+begin_details 颜色样例 :title-color green
+#+html: <br>
+#+begin_org-demo
++ badge:|red|red badge:|critical|critical
++ badge:|blue|blue badge:|informational|informational
++ badge:|brightgreen|brightgreen badge:|success|success
++ badge:|orange|orange badge:|important|important
++ badge:|lightgrey|lightgrey badge:|inactive|inactive
++ badge:|green|green
++ badge:|yellowgreen|yellowgreen
++ badge:|yellow|yellow
++ badge:|blueviolet|blueviolet
++ badge:|ff69b4|ff69b4
++ badge:|9cf|9cf
++ ...
+
+Consult https://htmlcolorcodes.com/ to see the HEX code of any other colour you
+wish to use; e.g., badge:|1d8348|1d8348
+#+end_org-demo
+
+#+end_details
+#+html: <br>
+
+#+macro: showicon badge:||grey||$1  $1
+
+#+begin_details badge icons :title-color green
+#+begin_parallel 4 :bar t
+ + “Fire” ::
+   - {{{showicon(Elixir)}}}
+   - {{{showicon(tinder)}}}
+   - {{{showicon(codeigniter)}}}
+   - {{{showicon(prometheus)}}}
+   - {{{showicon(sparkpost)}}}
+
+--------------------------------------------------------------------------------
+
+ + “Messaging” ::
+    - {{{showicon(quip)}}}
+    - {{{showicon(WeChat)}}}
+    - {{{showicon(google-hangouts)}}}
+    - {{{showicon(hackhands)}}}
+    - {{{showicon(google-messages)}}}
+    - {{{showicon(Slack)}}}
+    # Tor badge:||grey|here|Tor
+
+--------------------------------------------------------------------------------
+
+ + “Emacs” ::
+    - {{{showicon(gnu-emacs)}}}
+    - {{{showicon(spacemacs)}}}
+    - {{{showicon(vim)}}}
+    - {{{showicon(neovim)}}}
+    - {{{showicon(gnu)}}}
+    - {{{showicon(github)}}}
+    - {{{showicon(acm)}}}
+    - {{{showicon(wikipedia)}}}
+    - {{{showicon(microsoft-excel)}}}
+    - {{{showicon(microsoft-word)}}}
+    - {{{showicon(dropbox)}}}
+    - {{{showicon(google-scholar)}}}
+    - {{{showicon(google)}}}
+    - {{{showicon(google-translate)}}}
+    - {{{showicon(ghost)}}}
+    - {{{showicon(helm)}}}
+    - {{{showicon(apache-openoffice)}}}
+    - {{{showicon(buffer)}}}
+    - {{{showicon(adobe-fonts)}}}
+    - {{{showicon(google-calendar)}}}
+
+--------------------------------------------------------------------------------
+
+ + “Social” ::
+    - {{{showicon(google-cast)}}}
+    - {{{showicon(youtube)}}}
+    - {{{showicon(discord)}}}
+    - {{{showicon(facebook)}}}
+    - {{{showicon(google-hangouts)}}}
+    - {{{showicon(whatsapp)}}}
+    - {{{showicon(skype)}}}
+      # - {{{showicon(arxive)}}}
+    - {{{showicon(reddit)}}}
+    - {{{showicon(stack-overflow)}}}
+    - {{{showicon(stack-exchange)}}}
+    - {{{showicon(linkedin)}}}
+    - {{{showicon(twitter)}}}
+    - {{{showicon(jabber)}}}
+
+--------------------------------------------------------------------------------
+
+ + “Lightbulb” ::
+    - {{{showicon(lighthouse)}}}
+    - {{{showicon(google-keep)}}}
+    - {{{showicon(minds)}}}
+
+--------------------------------------------------------------------------------
+
+ + “Programming” ::
+     - {{{showicon(git)}}}
+     - {{{showicon(ruby)}}}
+     - {{{showicon(scala)}}}
+     - {{{showicon(OCaml)}}}
+     - {{{showicon(javascript)}}}
+     - {{{showicon(gnu-bash)}}}
+     - {{{showicon(powershell)}}}
+     - {{{showicon(LaTeX)}}}
+     - {{{showicon(java)}}}
+     - {{{showicon(kotlin)}}}
+     - {{{showicon(haskell)}}}
+     - {{{showicon(coffeescript)}}}
+     - {{{showicon(purescript)}}}
+     - {{{showicon(rust)}}}
+     - {{{showicon(typescript)}}}
+     - {{{showicon(css3)}}}
+     - {{{showicon(python)}}}
+     - {{{showicon(c)}}}
+     - {{{showicon(clojure)}}}
+     - {{{showicon(lua)}}}
+     - {{{showicon(adobe-acrobat-reader)}}}
+     - {{{showicon(perl)}}}
+    # c-+-+              badge:||grey|here|c-+-+
+    # c#                 badge:||grey|here|c#
+
+--------------------------------------------------------------------------------
+
+ + “Miscellaneous” ::
+     - {{{showicon(read-the-docs)}}}
+     - {{{showicon(buy-me-a-coffee)}}}
+     - {{{showicon(gimp)}}}
+     - {{{showicon(mega)}}}
+     - {{{showicon(nintendo-3ds)}}}
+     - {{{showicon(paypal)}}}
+     - {{{showicon(pinboard)}}}
+     - {{{showicon(mocha)}}}
+     - {{{showicon(Gitea)}}}
+     - {{{showicon(instacart)}}}
+     - {{{showicon(openStreetMap)}}}
+     - {{{showicon(amazon)}}}
+     - {{{showicon(svg)}}}
+     - {{{showicon(rss)}}}
+     - {{{showicon(swagger)}}}
+     - {{{showicon(pastebin)}}}
+     - {{{showicon(skyliner)}}}
+     - {{{showicon(iTunes)}}}
+     - {{{showicon(gulp)}}}
+     - {{{showicon(leaflet)}}}
+     - {{{showicon(youtube-gaming)}}}
+     - {{{showicon(GIMP)}}}
+     - {{{showicon(atom)}}}
+
+   # pokemon            badge:||grey|here|pokemon
+   #                     badge:||grey|here|1001-track-lists
+   #                     badge:||grey|here|auda-city
+   #                     badge:||grey|here|dribble
+#+end_parallel
+#+end_details
+#+html: <br>
+
+#+macro: withsrc  $1 @@html:<details><summary>src</summary>@@ ~$1~ @@html:</details>@@
+#+begin_details 流行的通用库 badges :title-color green
+# +begin_org-demo :style sequential
+
++ {{{withsrc(badge:Emacs|23/26/28|green|https://www.gnu.org/software/emacs|gnu-emacs)}}}
++ {{{withsrc(badge:Org|9.3.6|blue|https://orgmode.org|gnu)}}}
++ {{{withsrc([[badge:org-special-block-extras|1.0|informational|https://alhassy.github.io/org-special-block-extras/README.html|Gnu-Emacs][org-special-block-extras badge]])}}}
+  # + twitter:https://github.com/alhassy/org-special-block-extras
++ {{{withsrc([[badge:melpa|pending|critical|https://github.com/alhassy/emacs.d#use-package-the-start-of-initel|github][melpa badge]])}}}
++ {{{withsrc([[badge:docs|literate|success|https://github.com/alhassy/emacs.d#what-does-literate-programming-look-like|read-the-docs][read-the-docs badge]])}}}
+  {{{withsrc(badge:wiki|github|informational|here|wikipedia)}}}
++ {{{withsrc(badge:code_coverage|88%|green|here|codecov)}}}
+  {{{withsrc(badge:build|passing|success|here|azure-pipelines)}}}
++ {{{withsrc(badge:author|musa_al-hassy|purple|https://alhassy.github.io/|nintendo-3ds)}}}
++ {{{withsrc(badge:author|musa_al-hassy|purple|https://alhassy.github.io/|gimp)}}}
++ {{{withsrc([[badge:license|GNU_3|informational|https://www.gnu.org/licenses/gpl-3.0.en.html|read-the-docs][gnu 3 license badge]])}}}
++ {{{withsrc(badge:issue_tracking|github|informational|here|github)}}}
++ {{{withsrc(badge:help_forum|discourse|informational|here|discourse)}}}
++ {{{withsrc(badge:social_chat|gitter|informational|https://gitter.im/explore|gitter)}}}
++ {{{withsrc(badge:Maintained?|yes|success)}}}
+  {{{withsrc(badge:Maintained?|no|critical)}}}
+  {{{withsrc(badge:No_Maintenance_Intended|×|critical|http://unmaintained.tech/)}}}
++ {{{withsrc(badge:website|up|success)}}}
+  {{{withsrc(badge:website|down|critical)}}}
++ {{{withsrc(badge:Ask_me|anything|1abc9c)}}}
+  {{{withsrc(badge:contributions|welcome|green|https://github.com/alhassy/org-special-block-extras/issues)}}}
++
+  # Org macro args are delimited by ‘,’!
+  # Wont show correctly: {{{withsrc(badge:Made_with|Python,_LaTeX,_MathJax,_and_Emacs_Org-mode|1f425)}}}
+  badge:Made_with|Python,_LaTeX,_MathJax,_and_Emacs_Org-mode|1f425
+  @@html: <details><summary>src</summary>@@
+  ~badge:Made_with|Python,_LaTeX,_MathJax,_and_Emacs_Org-mode|1f425~
+  @@html: </details>@@
+
+# +end_org-demo
+#+end_details
+
+** 替换内容(rename)
+
+Define a block
+[[doc:o--rename][rename]] so that the following examples behave as shown.
+
+#+begin_details Hints
+1. It can be done in less than 10 lines of Lisp.
+2. First, try to doc:s-replace-all the substitution
+   ~'(("Allah" . "God") ("Yacoub". "Jacob") ("Yusuf" . "Joseph"))~
+   only.
+3. Then take out such hard-coded substitutions … these functions /may/ be helpful:
+   doc:--map / doc:-map, doc:s-split, doc:s-trim
+#+end_details
+
+#+html: <br>
+#+begin_box Examples
+
+# This…
+#+begin_example org
+,#+begin_rename "Allah to God, Yacoub to Jacob, Yusuf to Joseph"
+Quran 12-4: *_Yusuf_* said to his father ( _*Yacoub*_ ), /“O my father, indeed I have seen (in a dream) eleven
+stars and the sun and the moon; I saw them prostrating to me.”/
+,#+end_rename
+#+end_example
+Yields…
+#+begin_rename "Allah to God, Yacoub to Jacob, Yusuf to Joseph"
+Quran 12-4: *_Yusuf_* said to his father ( _*Yacoub*_ ), /“O my father, indeed I have seen (in a dream) eleven
+stars and the sun and the moon; I saw them prostrating to me.”/
+#+end_rename
+
+--------------------------------------------------------------------------------
+#+begin_org-demo :style sequential
+
+[[rename:Pharaoh to Firaun, Joseph to Yusuf][Genesis 41-17: Pharaoh said unto Joseph, /In my dream, behold, I stood upon the
+bank of the river/ …]]
+
+#+end_org-demo
+
+#+end_box
+
+#+html: <br>
+
+#+begin_solution
+#+begin_src emacs-lisp
+(o-defblock rename (list "") nil
+  "Perform the given LIST of substitutions on the text.
+The LIST is a comma separated list of ‘to’ separated symbols.
+In a link, no quotes are needed."
+  (s-replace-all
+   (--map (cons (car it) (cadr it))
+          (--map (s-split " to " (s-trim it))
+                 (s-split "," list)))
+   contents))
+#+end_src
+
+#+RESULTS:
+
+
+
+#+end_solution
+
+** 挡板(spoiler)
+
+可以通过 ~#+begin_spoiler :left "[" :right "]"~ 的 left&right 属性来修改左右两边匹
+配符号，在符号内的内容会被一个纯色的 div 盖住，当鼠标放上去的时候显示真正的内容。
+
+~$+begin_spoiler pink~ 后面加上颜色名，可直接修改纯色 div 的背景色。
+
+# Warning: Enabling the following ruins the beautiful kbd:𝒳 styling, upon export.
+# +html_head: <style>
+# +html_head: .spoiler {color: grey; background-color:grey;}
+# +html_head: .spoiler:hover {color: black; background-color:white;}
+# +html_head: <style>
+# Example use: <span class="spoiler"> test </span>
+
+Define a block [[doc:o--spoiler][spoiler]] so that the following examples behave as shown.
+
+#+begin_details Hints
+1. It can be done in less than 10 lines of Lisp.
+2. You will need the following style setup …
+   #+begin_example org
+#+html_head: <style>
+#+html_head: .spoiler {color: grey; background-color:grey;}
+#+html_head: .spoiler:hover {color: black; background-color:white;}
+#+html_head: <style>
+# Example use: <span class="spoiler"> test </span>
+   #+end_example
+3. /Escape/ HTML snippets by enclosing them in ~@@html: … @@~ ---as discussed above
+   in the introduction to special blocks.
+4. The functions  doc:s-replace-regexp and doc:regexp-quote /may/ be useful.
+#+end_details
+
+#+html: <br>
+#+begin_box Examples
+#+begin_parallel :bar t
+#+begin_example org
+#+begin_spoiler
+((Yusuf)) said to his father ((Yacoub)), /“O my father, indeed I have seen
+((eleven stars)) and ((the sun and the moon)); I saw them prostrating to me.”/
+#+end_spoiler
+#+end_example
+
+#+begin_spoiler
+((Yusuf)) said to his father ((Yacoub)), /“O my father, indeed I have seen
+((eleven stars)) and ((the sun and the moon)); I saw them prostrating to me.”/
+#+end_spoiler
+
+#+columnbreak:
+#+html: <br>
+
+#+begin_example org
+#+begin_spoiler :left "[" :right "]"
+[Yusuf] said to his father [Yacoub], /“O my father, indeed I have seen
+[eleven stars] and [the sun and the moon]; I saw them prostrating to me.”/
+#+end_spoiler
+#+end_example
+
+#+begin_spoiler :left "[" :right "]"
+[Yusuf] said to his father [Yacoub], /“O my father, indeed I have seen
+[eleven stars] and [the sun and the moon]; I saw them prostrating to me.”/
+#+end_spoiler
+
+#+end_parallel
+#+end_box
+
+#+html: <br>
+#+begin_solution
+Rather than having auxiliary ~#+html_head:~ styling settings, we have moved the
+styling information to the ~defblock~ declaration /and/ are using the main argument
+to colour the spoiler ---which defaults to grey ;-)
+
+--------------------------------------------------------------------------------
+
+For example, the next segment of text is in a block ~#+begin_spoiler pink~ ...
+#+begin_spoiler pink
+((Yusuf)) said to his father ((Yacoub)), /“O my father, indeed I have seen
+((eleven stars)) and ((the sun and the moon)); I saw them prostrating to me.”/
+#+end_spoiler
+
+Whereas, the following begins with ~#+begin_spoiler orange~ ...
+#+begin_spoiler orange
+((Yusuf)) said to his father ((Yacoub)), /“O my father, indeed I have seen
+((eleven stars)) and ((the sun and the moon)); I saw them prostrating to me.”/
+#+end_spoiler
+
+--------------------------------------------------------------------------------
+
+#+begin_src emacs-lisp
+(o-defblock spoiler (color "grey") (left "((" right "))")
+  "Hide text enclosed in double parens ((like this)) as if it were spoilers.
+   LEFT and RIGHT may be other kinds of delimiters.
+   The main argument, COLOR, indicates which color to use.
+
+For LaTeX, this becomes “fill in the blanks”, with the answers
+in the footnotes."
+  (if (equal backend 'latex)
+      (s-replace-regexp
+       (concat (regexp-quote left) "\\(.*?\\)" (regexp-quote right))
+       "@@latex:\\\\fbox{\\\\phantom{\\1}}\\\\footnote{\\1}@@"
+       contents)
+  (-let [id (gensym)]
+    (concat
+     ;; In HTML, a ‘style’ can be, technically, almost anywhere...
+     (format
+      "<style> #%s {color: %s; background-color:%s;}
+       #%s:hover {color: black; background-color:white;} </style>
+       " id color color id)
+     (s-replace-regexp
+      (concat (regexp-quote left) "\\(.*?\\)" (regexp-quote right))
+      (format "@@html:<span id=\"%s\"> \\1 </span>@@" id)
+      contents)))))
+#+end_src
+
+#+RESULTS:
+| :export | (lambda (label description backend) (s-replace-all `((@@ . )) (o--spoiler backend (or description label) label :o-link? t))) | :help-echo | (lambda (window object position) (save-excursion (goto-char position) (-let* (((&plist :path :format :raw-link :contents-begin :contents-end) (cadr (org-element-context))) (description (when (equal format 'bracket) (copy-region-as-kill contents-begin contents-end) (substring-no-properties (car kill-ring))))) (format %s |
+
+
+There's actually a problem with this ‘solution’; can you find it?
+#+begin_spoiler
+Hint: ((Try the link form and see how it breaks!))
+#+end_spoiler
+#+end_solution
+
+JS 方式实现变色：
+#+begin_details
+:OnMouseOver_OnMouseOut_Approach:
+
+An alternative would be to use JS with mouse parameters; e.g.:
+
+#+begin_export html
+<a href="http://alhassy.github.io/"
+   style="background: pink; padding: 10px; cursor: pointer"
+   onMouseOver="this.style.color='#0F0'"
+   onMouseOut="this.style.color='#00F'" >Text</a>
+#+end_export
+
+Possibly using ID's as the current working solution above.
+:End:
+#+end_details
+
+** 问答(solution)
+
+#+begin_solution
+The answer is 2.
+
+If you're interested in such ‘fundamental’ questions, consider reading
+  Russel and Whitehead's /Principa Mathematica/ ;-)
+#+end_solution
+
+#+html: <br>
+#+begin_details 实现
+#+begin_src emacs-lisp
+(o-defblock solution
+  (title "Solution")
+  (reprimand "Did you actually try? Maybe see the ‘hints’ above!"
+   really "Solution, for real")
+  "Show the answers to a problem, but with a reprimand in case no attempt was made."
+  (o-thread-blockcall raw-contents
+                    (details really :title-color "red")
+                    (box reprimand :background-color "blue")
+                    (details title)))
+#+end_src
+#+end_details
+
+** 折叠(details) :xblockfold:
+
+[[kbd:xblockfold]]  ~$+begin_details~ 折叠块，里面可以嵌套其它 blocks.
+
+#+html: <br>
+#+begin_details 测试代码
+#+begin_src js
+function test() {
+  console.log('xxx')
+}
+
+test()
+#+end_src
+#+end_details
+
+修改标题颜色 ~:title-color "red"~
+#+begin_details NAME :title-color "red"
+#+begin_box name
+contents
+#+end_box
+#+end_details
+
+#+html: <br>
+#+begin_details 实现 :title-color green
+#+begin_src emacs-lisp
+(o-defblock details (title "Details") (title-color "green")
+  "Enclose contents in a folded up box, for HTML.
+
+For LaTeX, this is just a boring, but centered, box.
+
+By default, the TITLE of such blocks is “Details”
+and its TITLE-COLOR is green.
+
+In HTML, we show folded, details, regions with a nice greenish colour.
+
+In the future ---i.e., when I have time---
+it may be prudent to expose more aspects as arguments,
+such as ‘background-color’.
+"
+  (format
+   (pcase backend
+     (`latex "\\begin{quote}
+                  \\begin{tcolorbox}[colback=%s,title={%s},sharp corners,boxrule=0.4pt]
+                    %s
+                  \\end{tcolorbox}
+                \\end{quote}")
+     (_ "<details class=\"code-details\"
+                 style =\"padding: 1em;
+                          background-color: #e5f5e5;
+                          /* background-color: pink; */
+                          border-radius: 15px;
+                          color: hsl(157 75% 20%);
+                          font-size: 0.9em;
+                          box-shadow: 0.05em 0.1em 5px 0.01em  #00000057;\">
+                  <summary>
+                    <strong>
+                      <font face=\"Courier\" size=\"3\" color=\"%s\">
+                         %s
+                      </font>
+                    </strong>
+                  </summary>
+                  %s
+               </details>"))
+   title-color title contents))
+#+end_src
+#+end_details
+
+#+begin_example 给 header 增加 hover
+#+html: <style>  summary:hover {background:pink;} </style>
+#+end_example
+
+#+html: <br>
+#+html: <style>  summary:hover {background:pink;} </style>
+#+begin_details 增加 header hover 鼠标放上来试试 :title-color
+test...
+#+end_details
+
+** 源码-结果(org-demo) :xblocklr:
+
+[[kbd:xblocklr]] org-demo block, 左边源码，右边输出结果
+
+#+begin_org-demo
+/italics/ and _underline_
+
+$e^{i \times \pi} + 1 = 0$
+#+end_org-demo
+
+org-demo block, 上边源码，下边输出结果
+
+#+begin_org-demo :style seq
+/italics/ and _underline_
+
+$e^{i \times \pi} + 1 = 0$
+#+end_org-demo
+
+#+html: <br>
+#+begin_org-demo
+\[ \sin^2 x + \cos^2 x = \int_\pi^{\pi + 1} 1 dx = {3 \over 3} \]
+#+end_org-demo
+
+#+html: <br>
+#+begin_details 实现
+#+begin_src emacs-lisp
+(o-defblock org-demo nil (source "Source" result "Result"
+                        source-color "cyan" result-color "cyan"
+                        style "parallel"
+                        sep (if (equal backend 'html) "@@html:<p><br>@@" "\n\n\n\n")
+                        )
+  "Output the CONTENTS of the block as both parsed Org and unparsed.
+
+Label the source text by SOURCE and the result text by RESULT
+
+finally, the source-result fragments can be shown in a STYLE
+that is either “parallel” (default) or “sequential”.
+
+SEP is the separator; e.g., a rule ‘<hr>'.
+"
+  (-let [text (concat
+               ;; Source
+               (thread-last raw-contents
+                 (format (if (equal backend 'html)
+                             "<div ><pre class=\"src src-org\">%s</pre></div>"
+                           "\n\\begin{verbatim}\n%s\n\\end{verbatim}"))
+                 org-export
+                 (o--blockcall box source :background-color source-color)
+                 org-export)
+               ;; Separator
+               sep
+               ;; Result
+               (thread-last raw-contents
+                 (o--blockcall box result :background-color result-color)
+                 org-export))]
+
+   (if (equal style "parallel")
+       (o--blockcall parallel "2" :bar nil text)
+       (concat "#+end_export\n" text "\n#+begin_export"))))
+#+end_src
+#+end_details
+
+*** 调整显示范围
+
+ Using a mixture of ~\frac~ and ~\displaystyle~, define a block [[doc:o--tree][tree]] so that the
+ following examples behave as shown. Hint: doc:org-list-to-lisp and
+ doc:with-temp-buffer may be useful ;-)
+
+#+begin_box Programming ≈ Proving
+#+begin_parallel
+*Source*
+#+begin_src org :tangle no
+,#+begin_tree
+  + Function Application :: f(a) : B
+    - a : A
+    - f : A → B
+
+  + Modus Ponens :: q
+    - p
+    - p ⇒ q
+,#+end_tree
+#+end_src
+
+# +columnbreak:
+#+html: <p>
+
+*Result*
+#+begin_tree
++ Function Application :: f(a) : B
+  - a : A
+  - f : A → B
+
++ Modus Ponens :: q
+  - p
+  - p ⇒ q
+#+end_tree
+#+end_parallel
+#+end_box
+
+#+begin_solution
+#+begin_src emacs-lisp
+(defun o--list-to-math (lst)
+  "Get a result LST from ORG-LIST-TO-LISP and render it as a proof tree."
+  (cond
+   ((symbolp lst) "")
+   ((symbolp (car lst)) (o--list-to-math (cadr lst)))
+   (t
+    (-let* (((conclusion₀ children) lst)
+            ((name named?) (s-split " :: " conclusion₀))
+            (conclusion (or named? conclusion₀)))
+      (if (not children)
+          (if named? (format "\\frac{}{%s}[%s]" conclusion name) conclusion)
+        (format "\\frac{\\displaystyle %s}{%s}%s"
+                (s-join " \\qquad "
+                        (mapcar #'o--list-to-math children))
+                conclusion
+                (if named? (format "[\\text{%s}]" name) "")))))))
+
+(o-defblock tree (main-arg) nil
+  "Write a proof tree using Org-lists.
+
+To get
+
+         premises₀  …   premisesₙ
+       ────────────────────────────[ reason ]
+               conclusion
+
+You type
+
+       ,#+begin_tree
+       + reason :: conclusion
+         - premises₀
+         - premises₁
+         ⋮
+         - premisesₙ
+       ,#+end_tree
+
+Where each premisesᵢ may, recursively, also have named reasons
+and (indented) child premises of its own.
+
+If there are multiple trees, they are shown one after the other.
+
+The text in this block should be considered LaTeX;
+as such, Org markup is not recognised.
+
+A proof tree, derivation, is then just a deeply nested
+itemisation.  For instance, assuming P = Q(X), X = Y, Q(Y) = R,
+the following proves P = R.
+
+  ,#+begin_tree
+  + Trans :: P = R
+    - P = Q(X)
+      + ✓
+    - Trans :: Q(X) = R
+      + Trans :: Q(X) = Q(Y)
+        - Refl :: Q(X) = Q(X)
+          + ✓
+        - Leibniz :: Q(X) = Q(Y)
+          + X = Y
+            - ✓
+      + Sym :: Q(Y) = R
+        - R = Q(Y)
+          - ✓
+  ,#+end_tree"
+  (s-join "" (--map (format "\\[%s\\]"
+                                (o--list-to-math it))
+                        (cdr (with-temp-buffer
+                               (insert raw-contents)
+                               (goto-char (point-min))
+                               (org-list-to-lisp))))))
+#+end_src
+
+#+RESULTS:
+| :export | (lambda (label description backend) (s-replace-all `((@@ . )) (o--tree backend (or description label) label :o-link? t))) | :help-echo | (lambda (window object position) (save-excursion (goto-char position) (-let* (((&plist :path :format :raw-link :contents-begin :contents-end) (cadr (org-element-context))) (description (when (equal format 'bracket) (copy-region-as-kill contents-begin contents-end) (substring-no-properties (car kill-ring))))) (format %s |
+
+
+#+end_solution
+
+  For more on these ‘proof trees’, see [[https://cpb-us-w2.wpmucdn.com/u.osu.edu/dist/a/4597/files/2014/08/Natural_Logic-2epb48e.pdf][‘Natural Logic’ by Neil Tennant]].
+  # Out of print, but downloadable as a scanned PDF as the above link.
+
+\[\] (*/Warning!/* For MathJax to activate, you should have some math ~$...$~
+somewhere /besides/ the ~tree~ blocks; just ~\[\]~ suffices. )
+
+** 多列(parallel) :xblockcol:
+
+[[kbd:xblockcol]]
+
+#+begin_parallel 3 :bar yes-or-any-other-text
+Left
+
+Left
+
+#+columnbreak:
+
+Middle 1
+
+Middle 2
+
+#+columnbreak:
+
+Right
+
+Right
+
+#+end_parallel
+
+包含在 box 里面：
+#+begin_box 垂直平分的 blocks
+
+_模板_
+#+begin_src
+#+begin_parallel 2 :bar yes-or-any-other-text
+X
+
+#+columnbreak:
+
+Y
+
+Z
+#+end_parallel
+#+end_src
+
+_效果_
+#+begin_parallel 2 :bar yes-or-any-other-text
+X
+
+#+columnbreak:
+
+Y
+
+Z
+#+end_parallel
+#+end_box
+
+** 重复的内容(stutter) :xblockrep:
+
+[[kbd:xblockrep]]
+
+1. ~[[stutter:5][woah, I'm repeated 5 times!]]~
+2. ~#+begin_stutter n~ n 表示要重复多少次
+
+#+html:<br>
+#+begin_box 重复 stutter
+~[[stutter:5][woah, I'm repeated 5 times!]]~
+
+[[stutter:5][woah, I'm repeated 5 times!]]
+#+end_box
+
+#+html:<br>
+#+begin_box 重复的 blocks
+#+begin_src
+#+begin_stutter 2
+
+words
+
+more words
+#+end_stutter
+#+end_src
+
+#+begin_stutter 2
+
+words
+
+more words
+#+end_stutter
+#+end_box
+
+#+html: <br>
+#+begin_solution
+#+begin_src emacs-lisp
+(o-defblock stutter (reps 2) nil
+  "Output the CONTENTS of the block REPS many times"
+  (-let [num (if (numberp reps) reps (string-to-number reps))]
+    (s-repeat num contents)))
+#+end_src
+#+end_solution
+
+** 源码块中的锚点(ref:name)
+
+
+#+begin_src c -n -r
+int tot = 1;                    (ref:start)
+for (int i = 0; i != 10; i++)   (ref:loop)
+   tot *= i;                    (ref:next)
+printf("The factorial of 10 is %d", tot);
+#+end_src
+
+注意右边的 ~(ref:start)~
+
+#+begin_example
+int tot = 1;                    \(\ref:start)
+for (int i = 0; i != 10; i++)   \(\ref:loop)
+   tot *= i;                    \(\ref:next)
+printf("The factorial of 10 is %d", tot);
+#+end_example
+
+然后在文章中可通过 ~[[(start)]]~ 在当前位置([[(start)]])生成一个链接，点击链接可以跳到指
+定的位置，在 org-file 中可光标在链接上的时候回车会直接跳转到代码中指定行。
+
+如果增的 ~-r~ 选项 ~[[(name)]]~ 中的 name 会变成代码中对应的行数字，如： ~(start)~
+导出后变成 ~(1)~ 。
+** 备注(remark)
+
+ “Editor Comments” are intended to be top-level first-class comments in an
+ article that are inline with the surrounding text and are delimited in such a
+ way that they are visible but drawing attention.  I first learned about this
+ idea from Wolfram Kahl ---who introduced me to Emacs many years ago.  We
+# implement editor comments as special blocks named [[doc:o--remark][remark]].
+
+#+begin_src org :tangle no :tangle no
+ In LaTeX, a =remark= appears inline with the text surrounding it.
+ ,#+begin_remark Bobert
+ org-mode is dope, yo!
+ ,#+replacewith:
+ Org-mode is essentially a path toward enlightenment.
+ ,#+end_remark
+ Unfortunately, in the HTML rendition, the =remark= is its own paragraph and thus
+ separated by new lines from its surrounding text.
+#+end_src
+
+#+begin_box Results
+ In LaTeX, an =remark= appears inline with the text surrounding it.
+ #+begin_remark Bobert
+ org-mode is dope, yo!
+ #+replacewith:
+ Org-mode is essentially a path toward enlightenment.
+ #+end_remark
+
+ 导出成 HTML 之后，上面的每一行都被渲染成了 ~<p>~ 标签，所以独占了一行，不是很美观。
+#+end_box
+
+#+html: <br>
+#+begin_details Example: 没有任何选项
+ #+begin_remark
+ /Please/ *change* _this_ section to be more, ya know, professional.
+ #+end_remark
+
+--------------------------------------------------------------------------------
+*Source:*
+#+begin_src org :tangle no
+ #+begin_remark
+ /Please/ *change* _this_ section to be more, ya know, professional.
+ #+end_remark
+#+end_src
+#+end_details
+
+#+begin_details Example: 只提供作者名
+ #+begin_remark Bobert
+ /Please/ *change* _this_ section to be more, ya know, professional.
+ #+end_remark
+
+ #+latex: \vspace{1em}\noindent
+--------------------------------------------------------------------------------
+*Source:*
+
+#+begin_src org
+ #+begin_remark Bobert
+ /Please/ *change* _this_ section to be more, ya know, professional.
+ #+end_remark
+#+end_src
+
+#+end_details
+
+#+begin_details Example: 没有内容
+#+begin_remark Bobert
+#+end_remark
+#+end_details
+
+#+latex: \iffalse
+#+begin_details "Example: With a “#+replacewith:” clause"
+ #+begin_remark
+ The two-dimensional notation; e.g., $\sum_{i = 0}^n i^2$
+ #+replacewith:
+ A linear one-dimensional notation; e.g.,
+ $(\Sigma i : 0..n \;\bullet\; i^2)$
+ #+end_remark
+--------------------------------------------------------------------------------
+*Source:*
+#+begin_src org :tangle no
+ ,#+begin_remark
+ The two-dimensional notation; e.g., $\sum_{i = 0}^n i^2$
+ ,#+replacewith:
+ A linear one-dimensional notation; e.g.,
+ $(\Sigma i : 0..n \;\bullet\; i^2)$
+ ,#+end_remark
+#+end_src
+#+end_details
+
+#+latex: \fi
+#+latex: \vspace{1em}\noindent
+#+begin_details Example: Possibly “malformed” replacement clauses
+
+Forgot the thing to be replaced…
+
+#+begin_remark
+#+replacewith:
+A linear one-dimensional notation; e.g.,
+$(\Sigma i : 0..n \;\bullet\; i^2)$
+#+end_remark
+
+--------------------------------------------------------------------------------
+
+Forgot the new replacement thing…
+
+#+begin_remark
+ The two-dimensional notation; e.g., $\sum_{i = 0}^n i^2$
+ #+replacewith:
+#+end_remark
+
+--------------------------------------------------------------------------------
+
+Completely lost one's train of thought…
+#+begin_parallel
+ #+begin_remark
+ #+replacewith:
+ #+end_remark
+
+#+columnbreak:
+*Source:*
+
+#+begin_src org :tangle no
+ ,#+begin_remark
+ ,#+replacewith:
+ ,#+end_remark
+#+end_src
+#+end_parallel
+
+#+end_details
+
+#+begin_details Example: Terse remarks via links
+
+#+begin_parallel :bar t
+~[[edcomm:Jasim][Hello, where are you?]]~
+
+#+html: <br>
+[[remark:Jasim][Hello, where are you?]]
+#+end_parallel
+-------
+#+begin_parallel :bar t
+ The =#+replacewith:= switch ---and usual Org markup--- also works with these
+ links: @@html: <br>@@ ~[[remark:Qasim][/‘j’/ #+replacewith: /‘q’/]]~
+
+#+html: <br>
+ [[remark:Qasim][/‘j’/ #+replacewith: /‘q’/]]
+#+end_parallel
+
+#+html: <br>
+#+begin_src org
+\#+begin_box Example: Terse remarks via links
+
+\#+begin_parallel :bar t
+~[[edcomm:Jasim][Hello, where are you?]]~
+
+#+html: <br>
+[[remark:Jasim][Hello, where are you?]]
+\#+end_parallel
+-------
+\#+begin_parallel :bar t
+ The =#+replacewith:= switch ---and usual Org markup--- also works with these
+ links: @@html: <br>@@ ~[[remark:Qasim][/‘j’/ #+replacewith: /‘q’/]]~
+
+#+html: <br>
+ [[remark:Qasim][/‘j’/ #+replacewith: /‘q’/]]
+\#+end_parallel
+\#+end_box
+#+end_src
+#+end_details
+
+所有的 comments, remarks 都可以通过在文件头增加下面一行隐藏：
+
+#+begin_example org
+#+bind: o-hide-editor-comments t
+#+end_example
+
+同时需要开启：
+#+begin_src emacs-lisp
+(setq org-export-allow-bind-keywords t)
+#+end_src
+
+** test
+
+#+begin_example org
+The sum of the first $n$ natural numbers is $\sum_{i = 0}^n i = {n × (n + 1)
+\over 2}$. Note that $n × (n + 1)$ is even.
+[[rremark:Jasim Jameson][Why are you taking about “$\mathsf{even}$” here?]]
+#+begin_rremark Bobbert Barakallah :signoff "Thank-you for pointing this out!" :color green
+I was trying, uh ...
+
+Yeah, to explain that ${\large n × (n + 1) \over 2}$ is always an integer.
+#+end_rremark
+
+Hence, we only need to speak about whole numbers.
+[[rremark:][Then please improve your transition sentences.]]
+#+end_example
+
+
+#+begin_quote
+The sum of the first $n$ natural numbers is $\sum_{i = 0}^n i = {n × (n + 1)
+\over 2}$. Note that $n × (n + 1)$ is even.
+[[rremark:Jasim Jameson][Why are you taking about “$\mathsf{even}$” here?]]
+#+begin_rremark Bobbert Barakallah :signoff "Thank-you for pointing this out!" :color green
+I was trying, uh ...
+
+Yeah, to explain that ${\large n × (n + 1) \over 2}$ is always an integer.
+#+end_rremark
+
+Hence, we only need to speak about whole numbers.
+[[rremark:][Then please improve your transition sentences.]]
+#+end_quote
+
+#+begin_src emacs-lisp
+(thread-blockcall raw-contents
+                  (box name)
+                  (details (upcase name) :title-color "green")
+#+end_src
+* Latex
+
+:Fails_idea:
+Larger example:
+#+begin_mathjax
+red:\Sigma
+#+end_mathjax
+:End:
+
+#+latex: \vspace{1em}
+
+Latex 语法增加颜色(~{\color{red} x}~)： ${\color{red}x}$
+
+block 类型： ~latex_definitions~
+
+ #+begin_details ‘latex-definitions’ Implementation
+  #+begin_src emacs-lisp
+(o-defblock latex-definitions nil nil
+  "Declare but do not display the CONTENTS according to the BACKEND."
+  (format (pcase backend
+            ('html "<p style=\"display:none\">\\[%s\\]</p>")
+            (_ "%s"))
+          raw-contents))
+  #+end_src
+
+  #+RESULTS:
+
+ :OLD:
+  #+begin_src emacs-lisp :tangle no
+(defun o--latex-definitions (backend contents)
+  "Declare but do not display the CONTENTS according to the BACKEND."
+  (cl-loop for (this that) in (-partition 2 '("<p>" ""
+                                           "</p>" ""
+                                           "\\{" "{"
+                                           "\\}" "}"))
+        do (setq contents (s-replace this that contents)))
+  (format (pcase backend
+            ('html "<p style=\"display:none\">\\[%s\\]</p>")
+            (_ "%s"))
+          contents))
+  #+end_src
+
+  - Org escapes ~{,}~ in LaTeX export, so we need to ‘unescape’ them.
+   This is clearly a hack.
+  :End:
+ #+end_details
+
+ #+latex: \iffalse
+
+~#+begin_latex-definitions~ 定义左括号和右括号:
+#+begin_latex-definitions
+\def\LL{\color{violet}(}
+\def\RR{\color{violet})}
+#+end_latex-definitions
+
+#+begin_src org
+\def\LL{\color{violet}(}
+\def\RR{\color{violet})}
+#+end_src
+
+然后就可以使用 ~\LL a + 1 \RR~ 语法来得到一个带有颜色 Latex 中的括号 $\LL$ 和 $\RR$
+
+#+begin_org-demo :source-color white :result-color white
+$$
+ {\color{teal}\bigoplus}
+_{   {\color{violet} x}
+    = {\color{red} a}}
+^{\color{cyan} b}
+    {\color{brown}{\,f\, x}}
+\quad=\quad
+            {\color{brown}{f\,\LL  {\color{red} a} \RR}}
+\;{\color{teal}\oplus}\; {\color{brown}{f \, \LL a + 1 \RR }}
+\;{\color{teal}\oplus}\; {\color{brown}{f \, \LL a + 2 \RR }}
+\;{\color{teal}\oplus}\; \cdots
+\;{\color{teal}\oplus}\; {\color{brown}{f \, \LL {\color{cyan} b} \RR}}
+$$
+
+| [[teal:⊕]]   | /Loop sequentially with loop-bodies fused using [[teal:⊕][⊕]]/ |
+| /[[violet:x]]/ | /Use [[violet:x][x]] as the name of the current element/         |
+| /[[red:a]]/    | /Start with [[violet:x][x]] being [[red:a][a]]/                             |
+| /[[cyan:b]]/   | /End with [[violet:x][x]] being [[cyan:b][b]]/                               |
+| /[[color:brown][f x]]/      | /At each [[violet:x][x]] value, compute [[color:brown][f x]]/                     |
+
+# Note that /[[color:brown][f x]]/ is obtained by =/[[color:brown][f x]]/.=
+#+end_org-demo
+
+ #+latex: \fi
+
+ --------------------------------------------------------------------------------
+
+:Verbatim_pasted_from_the_above_THIS_link:
+MathJax 不会处理包含 HTML 标签的 math
+
+#+begin_export html
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+CommonHTML: {
+    styles: {
+    //
+    // remove CSS for '.mjx-math *'
+    //
+    '.mjx-math *': {
+        display: null,
+        '-webkit-box-sizing': null,
+        '-moz-box-sizing': null,
+        'box-sizing': null,
+        'tex-align': null
+    },
+    //
+    // add CSS for .mjx-math span instead
+    //
+    '.mjx-math span': {
+        display: 'inline-block',
+        '-webkit-box-sizing': 'context-box !important',
+        '-moz-box-sizing': 'context-box !important',
+        'box-sizing': 'context-box !important',
+        'tex-align': 'left'
+    },
+    //
+    // override display for .mjx-char spans
+    //
+    'span.mjx-char': {
+        display: 'block'
+    }
+    }
+}
+});
+MathJax.Hub.Register.StartupHook("TeX Jax Ready", function () {
+var MML = MathJax.ElementJax.mml;
+var TEX = MathJax.InputJax.TeX;
+TEX.Definitions.macros.insertHTML = 'InsertHTML';
+TEX.Parse.Augment({
+    InsertHTML: function (name) {
+    var html = this.GetArgument(name).replace(/^\s*<!--\s*/,'').replace(/\s*-->\s*$/,'');
+    var span = MathJax.HTML.Element('mjx-reset', {style: {display:'inline-block'}});
+    span.innerHTML = html;  // serious security risk if users can enter math
+    span.setAttribute("xmlns","http://www.w3.org/1999/xhtml");
+    var mml = MML["annotation-xml"](MML.xml(span)).With({encoding:"application/xhtml+xml",isToken:true});
+    this.Push(MML.semantics(mml));
+    }
+});
+});
+</script>
+<script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS_CHTML" defer></script>
+
+<div style="xfont-size: 150%">
+$$x + \left(\,\insertHTML{<!--
+<table width="100" height="100"
+style="display:inline-table; vertical-align:-.25em; background:red; border:5px solid green;
+box-sizing:border-box !important">
+<tr><td style="text-align:center">abc</td></tr>
+</table>
+-->}\,\right) + y$$
+</div>
+
+
+$$x+\left(\insertHTML{<!--
+<i>this</i> is <b>html</b>
+-->}\right)+y$$
+#+end_export
+:End:
+
+#+latex: \vspace{1em}
+[[color:orange][Going forward,]] it would be nice to easily have our colour links work within
+a mathematical special block.
+
+#+latex: \vspace{1em}
+[[color:orange][Moreover,]] it would be nice to extend the =color= block type to take multiple
+arguments, say, =c₁ c₂ … cₙ= such that:
+
+ | /n/ | Behaviour                                                                          |
+ |---+------------------------------------------------------------------------------------|
+ | 0 | No colouring; likewise if no arguments altogether                                  |
+ | 1 | Colour all entries using the given colour c₁                                       |
+ | /n/ | Paragraph --region separated by a new line-- =i= is coloured by =cₖ= where =k = i mod n= |
+
+ Besides having a colourful article, another usage I envision for this
+ generalisation would be when rendering text in multiple languages; e.g., use red
+ and blue to interleave Arabic poetry with its English translation.
+
+
+* link here head
+@@html:<span id="test-link-here-links"></span>@@
+
+badge:Thanks|for_reading
+tweet:https://github.com/gcclll/blog.cheng92.com
+badge:|buy_me_a_coffee|gray|https://www.cheng92.com|buy-me-a-coffee
+
+* org-html-themes
+
+支持的 block
+
+#+begin_example
+$('.note').before("<p class='admonition-title note'>Note</p>");
+    $('.seealso').before("<p class='admonition-title seealso'>See also</p>");
+    $('.warning').before("<p class='admonition-title warning'>Warning</p>");
+    $('.caution').before("<p class='admonition-title caution'>Caution</p>");
+    $('.attention').before("<p class='admonition-title attention'>Attention</p>");
+    $('.tip').before("<p class='admonition-title tip'>Tip</p>");
+    $('.important').before("<p class='admonition-title important'>Important</p>");
+    $('.hint').before("<p class='admonition-title hint'>Hint</p>");
+    $('.error').before("<p class='admonition-title error'>Error</p>");
+    $('.danger').before("<p class='admonition-title danger'>Danger</p>");
+});
+#+end_example
+
+#+begin_note
+note
+#+end_note
+#+html: <br>
+
+#+begin_seealso
+see also
+#+end_seealso
+#+html: <br>
+
+#+begin_warning
+warning
+#+end_warning
+#+html: <br>
+
+#+begin_important
+important
+#+end_important
+#+html: <br>
+
+#+begin_caution
+caution
+#+end_caution
+#+html: <br>
+
+#+begin_attention
+attention
+#+end_attention
+#+html: <br>
+
+#+begin_tip
+tip
+#+end_tip
+#+html: <br>
+
+#+begin_hint
+hint
+#+end_hint
+#+html: <br>
+
+#+begin_error
+error
+#+end_error
+#+html: <br>
+
+#+begin_danger
+danger
+#+end_danger
+#+html: <br>
+
+
+* COMMENT Local Variables :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

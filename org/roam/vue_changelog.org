@@ -1,0 +1,3268 @@
+:PROPERTIES:
+:ID:       83dc97dc-8e1c-44b0-9254-dfecbb5a4629
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+filetags: :LOG3.0.5-8:
+#+HUGO_SLUG: vue_changelog
+#+HTML_HEAD: <meta name="category" content="vue"/>
+#+HTML_HEAD: <meta name="tags" content="CHANGELOG"/>
+#+LaTeX_HEADER: \usemintedstyle{monokai}
+#+TITLE: Vue ChangeLog
+
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+#+begin_box 说明
+https://github.com/vuejs/vue-next/blob/master/CHANGELOG.md
+
+本文只记录 doc:vue3 的一些重要更新点或重要的 BUG 修复，目的是为了对 doc:vue3 的
+持续关注，本人主要致力于 doc:vue3 技术栈的开发。
+#+end_box
+#+html: <br/><br/>
+
+* 3.2 All Important Changes
+
+- doc:v-on 支持 ~async...await~ handler link-here:von-async
+- ~vm = createApp({ ...}).mount(...)~ 返回的 vm 上取不到 ~expose({ foo: 1 })~ 出来的
+  属性， ~vm.foo === undefined~ link-here:expose-proxy
+- ~defineProps~ 支持解构操作 link-here:defineProps-destructure
+
+** [3.2.4] slots.default(a,b,c,...) 插槽使用支持多个参数
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: slot-args
+:END:
+
+
+slot.default(...args) 支持多个参数。
+
+  如： ~h('div', null, slots.default('a', 'b', 'c'))~
+
+  #+begin_src html
+<template>
+  <demo>
+    <template #default="a,b,c">{{a}}, {{b}}, {{c}}</template>
+  </demo>
+</template>
+
+// demo.js
+export default {
+  name: "Demo",
+  props: { ... },
+  render() {
+    return h('h1', null, this.$slots.default("a", "b", "c"))
+  }
+}
+  #+end_src
+
+  FIX:
+
+  #+begin_src diff
+ packages/runtime-core/src/componentSlots.ts
+@@ -63,15 +63,15 @@ const normalizeSlot = (
+  rawSlot: Function,
+  ctx: ComponentInternalInstance | null | undefined
+): Slot => {
+-  const normalized = withCtx((props: any) => {
++  const normalized = withCtx((...args: any[]) => {
+    if (__DEV__ && currentInstance) {
+      warn(
+        `Slot "${key}" invoked outside of the render function: ` +
+          `this will not track dependencies used in the slot. ` +
+          `Invoke the slot function inside the render function instead.`
+      )
+    }
+-    return normalizeSlotValue(rawSlot(props))
++    return normalizeSlotValue(rawSlot(...args))
+  }, ctx) as Slot
+  // NOT a compiled slot
+  ;(normalized as ContextualRenderFn)._c = false
+  #+end_src
+
+** v-bind style/class 被解析成了 ~[object Object]~ ?
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: fix-vbind-class
+:END:
+
+  问题([[yt:][SFC playground]])：
+
+  #+begin_src html
+<template>
+  <button :class="{ btn: true }">1</button>
+  <button v-bind="{ disabled: true }" :class="{ btn: true }">2</button>
+  <button :class="{ btn: true }" v-bind="{ disabled: true }">3</button>
+</template>
+
+<style>
+  .btn {
+    color: red;
+  }
+</style>
+  #+end_src
+
+  第 1，2 个按钮能正常解析出 ~btn~ 类名，但是第三个按钮的 class 变成了 ~[object Object]~
+
+  这要看下 [[https://github.com/vuejs/vue-next/tree/master/packages/runtime-core/src/vnode.ts][runtime-core/src/vnode.ts:mergeProps]] 中是如何对属性进行合并的：
+
+  它首先将第一个属性 extend 出来了，做为了一个基准对象，比如 btn3 就有了:
+
+  ~ret = { class: { btn: true } }~
+
+  然后进入 for 循环处理剩下的属性 ~{disabled: true}~, 最后发现走了最后一个
+
+  ~else if (key !== '')~ 所以最后的 ~ret = { class: { btn: true }, disabled: true }~
+
+  #+begin_src typescript
+export function mergeProps(...args: (Data & VNodeProps)[]) {
+  const ret = extend({}, args[0])
+  for (let i = 1; i < args.length; i++) {
+    const toMerge = args[i]
+    for (const key in toMerge) {
+      if (key === 'class') {
+        if (ret.class !== toMerge.class) {
+          ret.class = normalizeClass([ret.class, toMerge.class])
+        }
+      } else if (key === 'style') {
+        ret.style = normalizeStyle([ret.style, toMerge.style])
+      } else if (isOn(key)) {
+        const existing = ret[key]
+        const incoming = toMerge[key]
+        if (existing !== incoming) {
+          ret[key] = existing
+            ? [].concat(existing as any, incoming as any)
+            : incoming
+        }
+      } else if (key !== '') {
+        ret[key] = toMerge[key]
+      }
+    }
+  }
+  return ret
+}
+  #+end_src
+
+  runtime-core 阶段只是对 props 进行了 normalize 处理，真正 patch 的流程是：
+
+  runtime-core: renderer.ts:patchProps -> hostPatchProp = runtime-dom:patchProp.ts
+
+  最后 class 的 patch 是 runtime-dom/src/modules/class.ts:patchClass
+
+  #+begin_src typescript
+// compiler should normalize class + :class bindings on the same element
+// into a single binding ['staticClass', dynamic]
+export function patchClass(el: Element, value: string | null, isSVG: boolean) {
+  // directly setting className should be faster than setAttribute in theory
+  // if this is an element during a transition, take the temporary transition
+  // classes into account.
+  const transitionClasses = (el as ElementWithTransition)._vtc
+  if (transitionClasses) {
+    value = (value
+      ? [value, ...transitionClasses]
+      : [...transitionClasses]
+    ).join(' ')
+  }
+  if (value == null) {
+    el.removeAttribute('class')
+  } else if (isSVG) {
+    el.setAttribute('class', value)
+  } else {
+    el.className = value
+  }
+}
+  #+end_src
+
+  而这里面直接就是 ~setAttribute('class', value)~ 或 ~el.className = value~ 这就等于
+  是说一开始的 ~ret = { class: { btn: true }, disable: true }~ 中的 ~class: { btn:
+  true }~ 到这里 ~value = { btn: true }~ 最终被自动转成了 ~[obect Object]~
+
+  #+begin_comment
+    以上就是第三个按钮为什么 class 被解析成了 ~[object Object]~ 的由来。
+  #+end_comment
+
+  那么解决办法就是在 runtime-core 的 normalize 阶段就将 class 值对象处理成字符串，
+  如 [[https://github.com/vuejs/vue-next/commit/2bdee50a598456392541a8a4b451501e5df2d363][commit]] 所示。
+
+  #+begin_src diff
+packages/runtime-core/src/vnode.ts
+@@ -778,8 +778,8 @@ export function normalizeChildren(vnode: VNode, children: unknown) {
+}
+
+export function mergeProps(...args: (Data & VNodeProps)[]) {
+-  const ret = extend({}, args[0])
+-  for (let i = 1; i < args.length; i++) {
++  const ret: Data = {}
++  for (let i = 0; i < args.length; i++) {
+    const toMerge = args[i]
+    for (const key in toMerge) {
+      if (key === 'class') {
+  #+end_src
+
+  不用 extend 将第一个 prop 放入基准对象，都直接进入 for 被处理掉。
+
+  这个时候第一个 ~{class: { btn: true } }~ 会进入 ~normalizeClass([ret.class,
+  toMerge.class])~
+
+  [[https://github.com/vuejs/vue-next/tree/master/packages/shared/src/normalizeProp.ts][shared/src/normalizeProp.ts:normalizeClass(value: unknown)]]
+
+  此时检测到 class 是个对象最后被处理成 ~"btn"~ 字符串
+
+  #+begin_src typescript
+export function normalizeClass(value: unknown): string {
+  let res = ''
+  if (isString(value)) {
+    res = value
+  } else if (isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const normalized = normalizeClass(value[i])
+      if (normalized) {
+        res += normalized + ' '
+      }
+    }
+  } else if (isObject(value)) {
+    for (const name in value) {
+      if (value[name]) {
+        res += name + ' '
+      }
+    }
+  }
+  return res.trim()
+}
+
+
+  #+end_src
+** TODO EffectScope ?
+** deferredComputed
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: deferredComputed
+:END:
+
+
+#+begin_warn
+@@html:<p><strong>WARNING</strong></p>@@
+
+没有被暴露的 api ，只限 vue 内部 @vue/reactivity 使用。
+#+end_warn
+
+#+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../reactivity/dist/reactivity.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { reactive, effect, ref, deferredComputed } = value
+
+;(async function () {
+const tick = Promise.resolve()
+const src = ref(0)
+const c = deferredComputed(() => src.value)
+let i = 0
+const spy = (val) => {
+console.log("i = " + i++ + ', val = ' + val)
+}
+effect(() => spy(c.value))
+
+src.value = 1
+src.value = 2
+src.value = 3
+
+console.log('1: i = ' + i)
+await tick // to flush jobs
+console.log('2: i = ' + i)
+}())
+
+return ''
+#+end_src
+
+#+RESULTS:
+: i = 0, val = 0
+: 1: i = 1
+: ''i = 1, val = 3
+: 2: i = 2
+
+看个正常 computed 的例子:
+#+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../reactivity/dist/reactivity.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { reactive, effect, ref, computed } = value
+
+;(async function () {
+const tick = Promise.resolve()
+const src = ref(0)
+const c = computed(() => src.value)
+let i = 0
+const spy = (val) => {
+console.log("i = " + i++ + ', val = ' + val)
+}
+effect(() => spy(c.value))
+
+src.value = 1
+src.value = 2
+src.value = 3
+
+console.log('1: i = ' + i)
+await tick // to flush jobs
+console.log(': i = ' + i)
+}())
+
+return 2
+#+end_src
+
+#+RESULTS:
+: i = 0, val = 0
+: i = 1, val = 1
+: i = 2, val = 2
+: i = 3, val = 3
+: 1: i = 4
+: 2: i = 4
+
+对比两个结果会发现：
+
+正常的 computed 在 ~src.value~ 改变时每次都会执行 spy, 这是因为 ~computed(() =>
+src.value)~ 操作让 src track 了这个 ~() => src.value~ 因此只要值发生改变就会立即
+执行它，而对于计算属性 c 又依赖了 src.value 因此触发 c 重新计算，从而调用 spy。
+
+而在 deferredComputed 的实现中将 effect 加入到了 scheduler 异步队列中去执行，导
+致同步的代码没有执行结束之前是不会执行的，只要不重新计算 c.value 就不会改变。那
+么 effect spy 也就不会被执行，从而导致 spy 不会在 src.value 改变时被立即调用。
+
+但是在后面调用了 ~await nextTick()~ 之后会立即将 scheduler 的队列 flush 掉，此时才
+会去执行 compute 重新计算 c.value 的值，得到的也就是最后一次 src.value 的值(*要
+清楚一点 await 之前 src.value 是会发生改变的，只是不会触发重新计算*)，然后
+c.value 的改变会触发 ~effect(() => spy(c.value))~ 去执行。
+
+关于 scheduler 和 nextTick 可阅读这两文：
+
+[[/vue/vue-teardown-2-sheduler/][Vue3 功能拆解② Scheduler 渲染机制]]
+
+[[http://localhost:1313/vue/vue-mind-map-runtime-core-1/#scheduler][Vue3 源码头脑风暴之 7 ☞ runtime-core(1) - 若叶知秋 - scheduler 任务调度机制]]
+
+deferredComputed 源码如下：
+#+begin_src typescript
+// 只会将 effect 加入 job 队列，不会立即执行
+const scheduler = (fn: any) => {
+  queue.push(fn)
+  if (!queued) {
+    queued = true
+    tick.then(flush)
+  }
+}
+
+class DeferredComputedRefImpl<T> {
+  constructor(getter: ComputedGetter<T>) {
+    let compareTarget: any
+    let hasCompareTarget = false
+    let scheduled = false
+    this.effect = new ReactiveEffect(getter, (computedTrigger?: boolean) => {
+      if (this.dep) {
+        if (computedTrigger) {
+          compareTarget = this._value
+          hasCompareTarget = true
+        } else if (!scheduled) {
+          const valueToCompare = hasCompareTarget ? compareTarget : this._value
+          scheduled = true
+          hasCompareTarget = false
+          scheduler(() => {
+            if (this.effect.active && this._get() !== valueToCompare) {
+              triggerRefValue(this)
+            }
+            scheduled = false
+          })
+        }
+        // chained upstream computeds are notified synchronously to ensure
+        // value invalidation in case of sync access; normal effects are
+        // deferred to be triggered in scheduler.
+        for (const e of this.dep) {
+          if (e.computed) {
+            e.scheduler!(true /* computedTrigger */)
+          }
+        }
+      }
+      this._dirty = true
+    })
+    this.effect.computed = true
+  }
+
+  private _get() {
+    if (this._dirty) {
+      this._dirty = false
+      return (this._value = this.effect.run()!)
+    }
+    return this._value
+  }
+
+  get value() {
+    trackRefValue(this)
+    // the computed ref may get wrapped by other proxies e.g. readonly() #3376
+    return toRaw(this)._get()
+  }
+
+}
+#+end_src
+
+而对于 computed 就没那么多操作
+#+begin_src typescript
+class ComputedRefImpl<T> {
+  public dep?: Dep = undefined
+
+  private _value!: T
+  private _dirty = true
+  public readonly effect: ReactiveEffect<T>
+
+  public readonly __v_isRef = true
+  public readonly [ReactiveFlags.IS_READONLY]: boolean
+
+  constructor(
+    getter: ComputedGetter<T>,
+    private readonly _setter: ComputedSetter<T>,
+    isReadonly: boolean
+  ) {
+
+    this.effect = new ReactiveEffect(getter, () => { // scheduler
+      if (!this._dirty) {
+        this._dirty = true
+        triggerRefValue(this)
+      }
+    })
+    this[ReactiveFlags.IS_READONLY] = isReadonly
+  }
+
+  get value() {
+    // the computed ref may get wrapped by other proxies e.g. readonly() #3376
+    const self = toRaw(this)
+    trackRefValue(self)
+    if (self._dirty) {
+      self._dirty = false
+      self._value = self.effect.run()!
+    }
+    return self._value
+  }
+
+  set value(newValue: T) {
+    this._setter(newValue)
+  }
+}
+#+end_src
+** ReactiveEffect 从函数变成了一个 class
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ReactiveEffect2Class
+:END:
+
+#+begin_src typescript
+export class ReactiveEffect<T = any> {
+  active = true
+  deps: Dep[] = []
+
+  // can be attached after creation
+  computed?: boolean
+  allowRecurse?: boolean
+  onStop?: () => void
+  // dev only
+  onTrack?: (event: DebuggerEvent) => void
+  // dev only
+  onTrigger?: (event: DebuggerEvent) => void
+
+  constructor(
+    public fn: () => T,
+    public scheduler: EffectScheduler | null = null,
+    scope?: EffectScope | null
+  ) {
+    recordEffectScope(this, scope)
+  }
+
+  run() {
+    if (!this.active) {
+      return this.fn()
+    }
+    if (!effectStack.includes(this)) {
+      try {
+        effectStack.push((activeEffect = this))
+        enableTracking()
+
+        trackOpBit = 1 << ++effectTrackDepth
+
+        if (effectTrackDepth <= maxMarkerBits) {
+          initDepMarkers(this)
+        } else {
+          cleanupEffect(this)
+        }
+        return this.fn()
+      } finally {
+        if (effectTrackDepth <= maxMarkerBits) {
+          finalizeDepMarkers(this)
+        }
+
+        trackOpBit = 1 << --effectTrackDepth
+
+        resetTracking()
+        effectStack.pop()
+        const n = effectStack.length
+        activeEffect = n > 0 ? effectStack[n - 1] : undefined
+      }
+    }
+  }
+
+  stop() {
+    if (this.active) {
+      cleanupEffect(this)
+      if (this.onStop) {
+        this.onStop()
+      }
+      this.active = false
+    }
+  }
+}
+#+end_src
+
+依赖收集的时候：
+
+#+begin_src typescript
+export function effect<T = any>(
+  fn: () => T,
+  options?: ReactiveEffectOptions
+): ReactiveEffectRunner {
+  if ((fn as ReactiveEffectRunner).effect) {
+    fn = (fn as ReactiveEffectRunner).effect.fn
+  }
+
+  // 1. new instance
+  const _effect = new ReactiveEffect(fn)
+  if (options) {
+    extend(_effect, options)
+    if (options.scope) recordEffectScope(_effect, options.scope)
+  }
+  if (!options || !options.lazy) {
+    // 2. run
+    _effect.run()
+  }
+  const runner = _effect.run.bind(_effect) as ReactiveEffectRunner
+  runner.effect = _effect
+  return runner
+}
+#+end_src
+** 新增 ref 语法糖（$ref, $raw）
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: new-ref-sugar
+:END:
+
+新增 ref 语法糖：
+  1. ~$ref()~ 被解析成 ~_ref()~
+
+     如： ~let foo = $ref(1)~ => ~let foo = _ref(1)~
+
+    #+begin_src js
+const url =
+      process.env.VNEXT_PKG_RC + "/../compiler-sfc/dist/compiler-sfc.cjs.js";
+
+const value = require(url.replace("stb-", ""));
+const { compileScript, parse } = value;
+
+function compileSFCScript(src, options) {
+  const { descriptor } = parse(src)
+  return compileScript(descriptor, {
+    ...options,
+    id: 'xxxxxxx'
+  })
+}
+
+function compileWithRefSugar(src) {
+  return compileSFCScript(src, { refSugar: true })
+}
+
+const _ = (title, src) => {
+  const { content } = compileWithRefSugar(src)
+  console.log(title, '\n', content)
+}
+
+_('$ref declarations > ', `<script setup>
+    let foo = $ref()
+    let a = $ref(1)
+    let b = $ref({
+      count: 0
+    })
+    let c = () => {}
+    let d
+    </script>`)
+
+return 0;
+
+  #+end_src
+
+    #+RESULTS:
+    #+begin_example
+    $ref declarations >
+    import { ref as _ref } from 'vue'
+
+    export default {
+        setup(__props, { expose }) {
+        expose()
+
+        let foo = _ref()
+        let a = _ref(1)
+        let b = _ref({
+            count: 0
+        })
+        let c = () => {}
+        let d
+
+    const __returned__ = { foo, a, b, c, d }
+    Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true })
+    return __returned__
+    }
+
+    }
+    0
+    #+end_example
+* 3.2.23~29
+** Bug Fixes [1/1]
+- [X] runtime-core: handle initial undefined attrs ([[https://github.com/vuejs/core/issues/5017][#5017]]) ([[https://github.com/vuejs/core/commit/6d887aaf591cfa05d5fea978bbd87e3e502bfa86][6d887aa]]), closes [[https://github.com/vuejs/core/issues/5016][#5016]]
+
+  值为 =undefined= 的 attrs 在值发生变化时会被解析到 props 中去。
+
+  #+begin_src diff
+ packages/runtime-core/src/componentProps.ts
+@@ -369,7 +369,7 @@ function setFullProps(
+            continue
+          }
+        }
+-        if (value !== attrs[key]) {
++        if (!(key in attrs) || value !== attrs[key]) {
+          attrs[key] = value
+          hasAttrsChanged = true
+        }
+  #+end_src
+** Features [3/3]
+- [X] reactivity: support default value in toRef() ([[https://github.com/vuejs/core/commit/2db9c909c2cf3845f57b2c930c05cd6c17abe3b0][2db9c90]])
+
+  支持设置默认值： =toRef(obj, 'x', 1)=
+
+  #+begin_src diff
+packages/reactivity/src/ref.ts
+
+class ObjectRefImpl<T extends object, K extends keyof T> {
+-  constructor(private readonly _object: T, private readonly _key: K) {}
++  constructor(
++    private readonly _object: T,
++    private readonly _key: K,
++    private readonly _defaultValue?: T[K]
++  ) {}
+
+  get value() {
+-    return this._object[this._key]
++    const val = this._object[this._key]
++    return val === undefined ? (this._defaultValue as T[K]) : val
+  }
+  #+end_src
+- [X] support ref in v-for, remove compat deprecation warnings ([[https://github.com/vuejs/core/commit/41c18effea9dd32ab899b5de3bb0513abdb52ee4][41c18ef]])
+- [X] types/script-setup: add generic type to defineExpose ([[https://github.com/vuejs/core/issues/5035][#5035]]) ([[https://github.com/vuejs/core/commit/34985fee6b23018b6eb6322239db6165c1b0e273][34985fe]])
+  OLD:
+  #+begin_src html
+<script setup lang="ts">
+    import type { IMyComponent } from './MyComponent';
+
+    const publicAPI: IMyComponent = {
+        doSomething() {
+            // ...
+        },
+    };
+
+    defineExpose(publicAPI);
+</script>
+  #+end_src
+
+  NEW:
+  #+begin_src typescript
+defineExpose<IMyComponent>({
+    doSomething() {
+        // ...
+    },
+});
+
+  #+end_src
+* DONE 3.2.14~22 (2021-09-22 ~ 2021-11-15)
+CLOSED: [2021-11-25 Thu 22:08]
+
+这段时间的更新还是以修复 bug 为主的，另外更新了一个主要的特性 ~defineProps~ 支持解
+构。
+
+** Bug Fixes [10/10]
+- [X] compiler-sfc: fix local var access check for bindings in normal script ([[https://github.com/vuejs/vue-next/commit/6d6cc9091280ba132d92850f30db31c9152af599][6d6cc90]]), closes [[https://github.com/vuejs/vue-next/issues/4644][#4644]]
+
+  解决 ~script~ 和 ~script setup~ 一起用的时候找不到变量问题。
+  #+begin_src js
+ expect(() =>
+    compile(`
+        <script>const bar = 1</script>
+        <script setup>
+        defineProps({
+          foo: {
+            default: () => bar
+          }
+        })
+        </script>`)
+).not.toThrow(`cannot reference locally declared variables`)
+  #+end_src
+- [X] compiler-core: should treat attribute key as expression ([[https://github.com/vuejs/vue-next/issues/4658][#4658]]) ([[https://github.com/vuejs/vue-next/commit/7aa0ea06c822d84a1d43b40cf5643b983aae6d36][7aa0ea0]])
+
+  ~<template v-for="a in b" key="c"/>~ 中的 ~c~ 被解析成了变量 ~_ctx.c~ 问题。
+- [X] compiler-sfc: fix props codegen w/ leading import ([[https://github.com/vuejs/vue-next/commit/d4c04e979934b81a30467aa4b1e717175b9b2d80][d4c04e9]]), closes [[https://github.com/vuejs/vue-next/issues/4764][#4764]]
+
+  #+begin_src js
+<script setup>import { ref } from 'vue' // this line will cause an error
+ const props=defineProps({
+   foo:String
+ })
+
+const msg = ref('Hello World!')
+</script>
+
+<template>
+  <h1>{{ msg }}</h1>
+  <input v-model="msg">
+</template>
+  #+end_src
+- [X] compiler-sfc: support runtime Enum in normal script ([[https://github.com/vuejs/vue-next/issues/4698][#4698]]) ([[https://github.com/vuejs/vue-next/commit/f66d456b7a39db9dae7e70c28bb431ff293d8fef][f66d456]])
+
+  #+begin_src typescript
+   test('runtime Enum in normal script', () => {
+      const { content, bindings } = compile(
+        `<script lang="ts">
+          export enum D { D = "D" }
+          const enum C { C = "C" }
+          enum B { B = "B" }
+        </script>
+        <script setup lang="ts">
+        enum Foo { A = 123 }
+        </script>`
+      )
+      assertCode(content)
+      expect(bindings).toStrictEqual({
+        D: BindingTypes.SETUP_CONST,
+        C: BindingTypes.SETUP_CONST,
+        B: BindingTypes.SETUP_CONST,
+        Foo: BindingTypes.SETUP_CONST
+      })
+    })
+  #+end_src
+- [X] custom-element: fix custom element props access on initial render ([[https://github.com/vuejs/vue-next/commit/4b7f76e36a7fc650986a20eca258f7a5d912424f][4b7f76e]]), closes [[https://github.com/vuejs/vue-next/issues/4792][#4792]]
+
+  #+begin_src diff
+packages/runtime-dom/src/apiCustomElement.ts
+-      asyncDef().then(resolve)
++      asyncDef()
++        .then(resolve)
++        .then(() => this._update())
+  #+end_src
+- [X] custom-element: fix initial attr type casting for programmtically created elements ([[https://github.com/vuejs/vue-next/commit/3ca83179d1a798f65e4e70215c511e2f1b64adb6][3ca8317]]), closes [[https://github.com/vuejs/vue-next/issues/4772][#4772]]
+
+  [[https://codesandbox.io/s/musing-gates-n5wsn?file=/src/main.js][codesandbox.io]]
+- [X] runtime-core: add v-memo to built-in directives check ([[https://github.com/vuejs/vue-next/issues/4787][#4787]]) ([[https://github.com/vuejs/vue-next/commit/5eb72630a53a8dd82c2b8a9705c21a8075161a3d][5eb7263]])
+
+  将 ~memo~ 视为 vue 内置指令：
+
+  #+begin_src diff
+const isBuiltInDirective = /*#__PURE__*/ makeMap(
+-  'bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text'
++  'bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text,memo'
+)
+  #+end_src
+- [X] compiler-sfc: add type for props include Function in prod mode ([[https://github.com/vuejs/vue-next/issues/4938][#4938]]) ([[https://github.com/vuejs/vue-next/commit/9c42a1e2a3385f3b33faed5cdcc430bf8c1fc4b2][9c42a1e]])
+
+  #+begin_src html
+<script setup lang='ts'>
+
+import { onMounted } from 'vue'
+
+var props = withDefaults(defineProps<{f?: Function}>(),{f:()=>[1,2,3]})
+
+onMounted(()=>{
+  console.log("f:",props.f)
+})
+
+</script>
+  #+end_src
+- [X] compiler-sfc: externalRE support automatic http/https prefix url pattern ([[https://github.com/vuejs/vue-next/issues/4922][#4922]]) ([[https://github.com/vuejs/vue-next/commit/574070f43f804fd855f4ee319936ec770a56cef0][574070f]]), closes [[https://github.com/vuejs/vue-next/issues/4920][#4920]]
+
+  #+begin_src html
+<template>
+  <!-- other stuff -->
+  <img src="//via.placeholder.com/150" />
+  <!-- other stuff -->
+</template>
+  #+end_src
+- [X] runtime-core: improve dedupe listeners when attr fallthrough ([[https://github.com/vuejs/vue-next/issues/4912][#4912]]) ([[https://github.com/vuejs/vue-next/commit/b4eb7e3866d7dc722d93a48f4faae1696d4e7023][b4eb7e3]]), closes [[https://github.com/vuejs/vue-next/issues/4859][#4859]]
+
+  #+begin_src diff
+ packages/runtime-core/src/vnode.ts
+@@ -791,7 +791,10 @@ export function mergeProps(...args: (Data & VNodeProps)[]) {
+      } else if (isOn(key)) {
+        const existing = ret[key]
+        const incoming = toMerge[key]
+-        if (existing !== incoming) {
++        if (
++          existing !== incoming &&
++          !(isArray(existing) && existing.includes(incoming))
++        ) {
+          ret[key] = existing
+            ? [].concat(existing as any, incoming as any)
+            : incoming
+
+  #+end_src
+
+** Features [1/1]
+- [X] [3.2.20]compiler-sfc: <script setup> defineProps destructure transform ([[https://github.com/vuejs/vue-next/issues/4690][#4690]]) ([[https://github.com/vuejs/vue-next/commit/467e113b95a3c9c97f8dc309b61c0b2e3caba66f][467e113]])
+  @@html:<span id="defineProps-destructure"></span>@@
+
+  ~defineProps~ 支持解构操作。
+
+  ~<script setup>const { foo, bar } = defineProps(['foo', 'bar'])</script>~
+
+* 3.2.13
+CLOSED: [2021-10-20 Wed 16:39]
+** Bug Fixes [1/1]
+- [X] runtime-core: return the exposeProxy from mount ([[https://github.com/vuejs/vue-next/issues/4606][#4606]]) ([[https://github.com/vuejs/vue-next/commit/5aa425580808d0588aef12ead81c91f7147e1042][5aa4255]])
+  @@html:<span id="expose-proxy"></span>@@
+
+  问题：在 createApp().mount 返回的 vm 上找不到 vm.foo
+
+  FIX:
+
+  #+begin_src typescript
+export function getExposeProxy(instance: ComponentInternalInstance) {
+  if (instance.exposed) {
+    return (
+      instance.exposeProxy ||
+      (instance.exposeProxy = new Proxy(proxyRefs(markRaw(instance.exposed)), {
+        get(target, key: string) {
+          if (key in target) {
+            return target[key]
+          } else if (key in publicPropertiesMap) {
+            return publicPropertiesMap[key](instance)
+          }
+        }
+      }))
+    )
+  }
+}
+  #+end_src
+
+  test:
+
+  #+begin_src typescript
+  test('with mount', () => {
+    const Component = defineComponent({
+      setup(_, { expose }) {
+        expose({
+          foo: 1
+        })
+        return {
+          bar: 2
+        }
+      },
+      render() {
+        return h('div')
+      }
+    })
+    const root = nodeOps.createElement('div')
+    const vm = createApp(Component).mount(root) as any
+    expect(vm.foo).toBe(1)
+    expect(vm.bar).toBe(undefined)
+  })
+  #+end_src
+* 3.2.12
+CLOSED: [2021-10-20 Wed 16:24]
+** Bug Fixes [2/2]
+
+- [X] compiler-sfc: support nested await statements ([[https://github.com/vuejs/vue-next/issues/4458][#4458]]) ([[https://github.com/vuejs/vue-next/commit/ae942cdcd9bd686e7b0394c8e91e63a31ff8fb5d][ae942cd]]), closes [[https://github.com/vuejs/vue-next/issues/4448][#4448]]
+
+  ~<script>await (await 1)</script>~
+
+- [X] compiler-core: v-on inline async function expression handler ([[https://github.com/vuejs/vue-next/issues/4569][#4569]]) ([[https://github.com/vuejs/vue-next/commit/fc968d607b181db9d50cd4b30a8d7e4cc5fe9d2b][fc968d6]]), closes [[https://github.com/vuejs/vue-next/issues/4568][#4568]]
+  @@html:<span id="von-async"></span>@@
+
+  ~<div @click="async () => await foo()" />~
+* 3.2.4
+CLOSED: [2021-10-20 Wed 16:00]
+** Bug Fixes [1/1]
+- [X] [[#slot-args][runtime-core: ensure consistent arguments for tempalte and render funtion slot usage]] (644971e), closes #4367
+
+* 3.2.0-beta.8
+CLOSED: [2021-09-08 Wed 14:52]
+
+- *red:FIX* doc:v-memo 在 v-for 中使用时支持常量表达式 ~<div v-for="v in list"
+  v-memo="[count < 2 ? true : count]"/>~
+** Bug Fixes [8/8]
+- [X] v-memo: should work on v-for with constant expression ([[https://github.com/vuejs/vue-next/issues/4272][#4272]]) ([[https://github.com/vuejs/vue-next/commit/3b60358d0e0289298df7937983b3e06123f8eb3d][3b60358]]), closes [[https://github.com/vuejs/vue-next/issues/4246][#4246]]
+
+  v-memo 应用在 v-for 中加入表达式的支持
+  #+begin_src diff
+ packages/runtime-core/src/helpers/renderList.ts
+@@ -71,7 +71,7 @@ export function renderList(
+    }
+    ret = new Array(source)
+    for (let i = 0; i < source; i++) {
+-      ret[i] = renderItem(i + 1, i)
++      ret[i] = renderItem(i + 1, i, undefined, cached && cached[i])
+    }
+  } else if (isObject(source)) {
+    if (source[Symbol.iterator as any]) {
+  #+end_src
+
+  test:
+
+  #+begin_src typescript
+  test('on v-for /w constant expression ', async () => {
+    const [el, vm] = mount({
+      template: `<div v-for="item in 3"  v-memo="[count < 2 ? true : count]">
+          {{count}}
+        </div>`,
+      data: () => ({
+        count: 0
+      })
+    })
+    expect(el.innerHTML).toBe(`<div>0</div><div>0</div><div>0</div>`)
+
+    vm.count = 1
+    await nextTick()
+    // should not update
+    expect(el.innerHTML).toBe(`<div>0</div><div>0</div><div>0</div>`)
+
+    vm.count = 2
+    await nextTick()
+    // should update
+    expect(el.innerHTML).toBe(`<div>2</div><div>2</div><div>2</div>`)
+  })
+  #+end_src
+** Features [1/1]
+- [X] [[https://www.cheng92.com/vue/vue-teardown-17-async-component/][runtime-dom: support async component in defineCustomElement]] ([[https://github.com/vuejs/vue-next/commit/c421fb91b2bec047e665f8269e231bf89f9bfc93][c421fb9]]), closes [[https://github.com/vuejs/vue-next/issues/4261][#4261]]
+* 3.2.0-beta.7
+CLOSED: [2021-09-08 Wed 14:24]
+** Bug Fixes [4/4]
+- [X] reactivity: dereference nested effect scopes on manual stop ([[https://github.com/vuejs/vue-next/commit/1867591e7c54406e92575753dd77fffba17606a2][1867591]])
+
+  #+begin_src diff
+packages/reactivity/src/effectScope.ts
+@@ -1,3 +1,4 @@
++ import { remove } from '@vue/shared'
+import { ReactiveEffect } from './effect'
+import { warn } from './warning'
+
+@@ -8,10 +9,12 @@ export class EffectScope {
+  active = true
+  effects: (ReactiveEffect | EffectScope)[] = []
+  cleanups: (() => void)[] = []
++  parent: EffectScope | undefined
+
+  constructor(detached = false) {
+    if (!detached) {
+      recordEffectScope(this)
++      this.parent = activeEffectScope
+    }
+  }
+
+@@ -42,11 +45,14 @@ export class EffectScope {
+    }
+  }
+
+-  stop() {
++  stop(fromParent = false) {
+    if (this.active) {
+-      this.effects.forEach(e => e.stop())
++      this.effects.forEach(e => e.stop(true))
+      this.cleanups.forEach(cleanup => cleanup())
+      this.active = false
++      if (!fromParent && this.parent) {
++        remove(this.parent.effects, this)
++      }
+    }
+  }
+}
+  #+end_src
+
+  test:
+  #+begin_src typescript
+  it('should derefence child scope from parent scope after stopping child scope (no memleaks)', async () => {
+    const parent = new EffectScope()
+    const child = parent.run(() => new EffectScope())!
+    expect(parent.effects.includes(child)).toBe(true)
+    child.stop()
+    expect(parent.effects.includes(child)).toBe(false)
+  })
+  #+end_src
+- [X] shared: support custom .toString() in text interpolation again ([[https://github.com/vuejs/vue-next/issues/4210][#4210]]) ([[https://github.com/vuejs/vue-next/commit/9d5fd33d6dadf3186f7979d811dedf092f3ddcb7][9d5fd33]]), closes [[https://github.com/vuejs/vue-next/issues/3944][#3944]]
+  使用插值时候支持自定义的 ~toString()~
+- [X] suspense: fix dynamicChildren tracking when suspense root is a block itself ([[https://github.com/vuejs/vue-next/commit/51ee84fc6a5a1ab83cd02f17154803c47e65ae16][51ee84f]]), closes [[https://github.com/vuejs/vue-next/issues/4183][#4183]] [[https://github.com/vuejs/vue-next/issues/4198][#4198]]
+
+  #+begin_src diff
+ packages/runtime-core/src/components/Suspense.ts
+@@ -749,7 +749,7 @@ function normalizeSuspenseSlot(s: any) {
+    s = singleChild
+  }
+  s = normalizeVNode(s)
+-  if (block) {
++  if (block && !s.dynamicChildren) {
+    s.dynamicChildren = block.filter(c => c !== s)
+  }
+  return s
+  #+end_src
+** Features [2/2]
+- [X] server-renderer: decouple esm build from Node + improve stream API ([[https://github.com/vuejs/vue-next/commit/08672222c611a61f6359543aa202f0841d199bcb][0867222]]), closes [[https://github.com/vuejs/vue-next/issues/3467][#3467]] [[https://github.com/vuejs/vue-next/issues/3111][#3111]] [[https://github.com/vuejs/vue-next/issues/3460][#3460]]
+  @@html:<span id="0867222"></span>@@
+
+  移除 ~renderToSTream~, 添加 ~renderToNodeStream~, ~renderToWebStream~, ~renderToSimpleStream~
+  #+begin_src typescript
+export function renderToSimpleStream<T extends SimpleReadable>(
+  input: App | VNode,
+  context: SSRContext,
+  stream: T
+): T {
+  if (isVNode(input)) {
+    // raw vnode, wrap with app (for context)
+    return renderToSimpleStream(
+      createApp({ render: () => input }),
+      context,
+      stream
+    )
+  }
+
+  // rendering an app
+  const vnode = createVNode(input._component, input._props)
+  vnode.appContext = input._context
+  // provide the ssr context to the tree
+  input.provide(ssrContextKey, context)
+
+  Promise.resolve(renderComponentVNode(vnode))
+    .then(buffer => unrollBuffer(buffer, stream))
+    .then(() => {
+      stream.push(null)
+    })
+    .catch(error => {
+      stream.destroy(error)
+    })
+
+  return stream
+}
+
+// node 环境
+export function renderToNodeStream(
+  input: App | VNode,
+  context: SSRContext = {}
+): Readable {
+  const stream: Readable = __NODE_JS__
+    ? new (require('stream').Readable)()
+    : null
+
+  return renderToSimpleStream(input, context, stream)
+}
+
+// web 环境
+export function renderToWebStream(
+  input: App | VNode,
+  context: SSRContext = {}
+): ReadableStream {
+    // check
+
+  const encoder = new TextEncoder()
+  let cancelled = false
+
+  return new ReadableStream({
+    start(controller) {
+      renderToSimpleStream(input, context, {
+        push(content) {
+          if (cancelled) return
+          if (content != null) {
+            controller.enqueue(encoder.encode(content))
+          } else {
+            controller.close()
+          }
+        },
+        destroy(err) {
+          controller.error(err)
+        }
+      })
+    },
+    cancel() {
+      cancelled = true
+    }
+  })
+}
+  #+end_src
+
+  测试：
+  #+begin_src typescript
+import { createApp, h, defineAsyncComponent } from 'vue'
+import { ReadableStream } from 'stream/web'
+import { renderToWebStream } from '../src'
+
+test('should work', async () => {
+  const Async = defineAsyncComponent(() =>
+    Promise.resolve({
+      render: () => h('div', 'async')
+    })
+                                    )
+  const App = {
+    render: () => [h('div', 'parent'), h(Async)]
+  }
+
+  const stream = renderToWebStream(createApp(App), {}, ReadableStream)
+
+  const reader = stream.getReader()
+
+  let res = ''
+  await reader.read().then(function read({ done, value }): any {
+    if (!done) {
+      res += value
+      return reader.read().then(read)
+    }
+  })
+
+  expect(res).toBe(`<!--[--><div>parent</div><div>async</div><!--]-->`)
+})
+  #+end_src
+* 3.2.0-beta.6
+CLOSED: [2021-09-08 Wed 13:54]
+
+- *red:FIX* inject 的时候要能自动 unref, provide + inject 实际上是原型链的实现
+
+** Bug Fixes [3/3]
+- [X] inject: should auto unwrap injected refs ([[https://github.com/vuejs/vue-next/commit/561e210157874b216efc1c17be701a6a81c4383b][561e210]]), closes [[https://github.com/vuejs/vue-next/issues/4196][#4196]]
+
+  在 child 组件中使用 inject 时候要检测是不是 ref 类型，如果是要自动 unref 下，
+  即：
+
+  在 parent 中
+  #+begin_src js
+defineComponent({
+  provide(): {
+    return { n: ref(0) }
+  }
+})
+  #+end_src
+
+  在 child 中
+  #+begin_src js
+defineComponent({
+  inject: ['n'],
+  render() {
+    // 这里要能直接使用，而不是需要 this.n.value
+    return this.n
+  }
+})
+  #+end_src
+
+  所以 vue 内部要将 ~this.n.value~ 隐藏掉，从而能直接 ~this.n~ 使用。
+
+  [[https://github.com/vuejs/vue-next/tree/master/packages/runtime-core/src/componentOptions.ts][runtime-core/src/componentOptions.ts:resolveInjections]]
+  #+begin_src typescript
+export function resolveInjections(
+  injectOptions: ComponentInjectOptions,
+  ctx: any,
+  checkDuplicateProperties = NOOP as any,
+  unwrapRef = false
+) {
+  if (isArray(injectOptions)) {
+    injectOptions = normalizeInject(injectOptions)!
+  }
+  for (const key in injectOptions) {
+    const opt = (injectOptions as ObjectInjectOptions)[key]
+    let injected: unknown
+    if (isObject(opt)) {
+      if ('default' in opt) {
+        injected = inject(
+          opt.from || key,
+          opt.default,
+          true /* treat default function as factory */
+        )
+      } else {
+        injected = inject(opt.from || key)
+      }
+    } else {
+      injected = inject(opt)
+    }
+    if (isRef(injected)) {
+      // TODO remove the check in 3.3
+      if (unwrapRef) {
+        Object.defineProperty(ctx, key, {
+          enumerable: true,
+          configurable: true,
+          get: () => (injected as Ref).value,
+          set: v => ((injected as Ref).value = v)
+        })
+      } else {
+        ctx[key] = injected
+      }
+    } else {
+      ctx[key] = injected
+    }
+    if (__DEV__) {
+      checkDuplicateProperties!(OptionTypes.INJECT, key)
+    }
+  }
+}
+
+
+  #+end_src
+- [X] sfc/style-vars: should ignore style variable bindings in comments ([[https://github.com/vuejs/vue-next/issues/4188][#4188]]) ([[https://github.com/vuejs/vue-next/commit/3a75d5d6942a1743789192dca9161f7c30a71e58][3a75d5d]]), closes [[https://github.com/vuejs/vue-next/issues/4185][#4185]]
+
+  过滤掉 css 注释里面的 v-bind
+  #+begin_src diff
+packages/compiler-sfc/src/cssVars.ts
+@@ -37,7 +37,9 @@ export function parseCssVars(sfc: SFCDescriptor): string[] {
+  const vars: string[] = []
+  sfc.styles.forEach(style => {
+    let match
+-    while ((match = cssVarRE.exec(style.content))) {
++    // ignore v-bind() in comments /* ... */
++    const content = style.content.replace(/\/\*[\s\S]*\*\//g, '')
++    while ((match = cssVarRE.exec(content))) {
+      const variable = match[1] || match[2] || match[3]
+      if (!vars.includes(variable)) {
+        vars.push(variable)
+  #+end_src
+** Features [1/1]
+- [X] unwrap refs in toDisplayString ([[https://github.com/vuejs/vue-next/commit/f994b974c0a1ac95d313c8ccfc258c6ba3910b6e][f994b97]])
+  @@html:<span id="f994b97"></span>@@
+
+  #+begin_src diff
+ packages/shared/src/toDisplayString.ts
+@@ -12,8 +12,11 @@ export const toDisplayString = (val: unknown): string => {
+    : String(val)
+}
+
+- const replacer = (_key: string, val: any) => {
+-  if (isMap(val)) {
++ const replacer = (_key: string, val: any): any => {
++  // can't use isRef here since @vue/shared has no deps
++  if (val && val.__v_isRef) {
++    return replacer(_key, val.value)
++  } else if (isMap(val)) {
+    return {
+      [`Map(${val.size})`]: [...val.entries()].reduce((entries, [key, val]) => {
+        ;(entries as any)[`${key} =>`] = val
+  #+end_src
+* 3.2.0-beta.5
+CLOSED: [2021-09-08 Wed 13:39]
+** Bug Fixes [4/4]
+- [X] v-model: avoid resetting value of in-focus & lazy input ([[https://github.com/vuejs/vue-next/commit/ac74e1dd33a45874a96fc13efdaade613c44dd70][ac74e1d]]), closes [[https://github.com/vuejs/vue-next/issues/4182][#4182]]
+  #+begin_src diff
+ packages/runtime-dom/src/directives/vModel.ts
+@@ -80,11 +80,14 @@ export const vModelText: ModelDirective<
+  mounted(el, { value }) {
+    el.value = value == null ? '' : value
+  },
+-  beforeUpdate(el, { value, modifiers: { trim, number } }, vnode) {
++  beforeUpdate(el, { value, modifiers: { lazy, trim, number } }, vnode) {
+    el._assign = getModelAssigner(vnode)
+    // avoid clearing unresolved text. #2302
+    if ((el as any).composing) return
+    if (document.activeElement === el) {
++      if (lazy) {
++        return
++      }
+      if (trim && el.value.trim() === value) {
+        return
+      }
+  #+end_src
+** Features [4/4]
+- [X] compiler-sfc: avoid exposing imports not used in template ([[https://github.com/vuejs/vue-next/commit/5a3ccfd9143700c7ca82d2911fe592d0658c5393][5a3ccfd]]), closes [[https://github.com/vuejs/vue-next/commit/5a3ccfd9143700c7ca82d2911fe592d0658c5393][#3183]]
+  @@html:<span id="5a3ccfd"></span>@@
+
+  避免导出 ~<template>~ 中没有用到的 ~<script setup>~ 中引入的变量。
+- [X] runtime-dom: hmr for custom elements ([[https://github.com/vuejs/vue-next/commit/7a7e1d8e9fed27bc2dbf24076642e83d0c80d9af][7a7e1d8]])
+
+  支持自定义元素在开发时的热更新。
+
+  #+begin_src typescript
+if (__DEV__) {
+  instance.appContext.reload = () => {
+    render(this._createVNode(), this.shadowRoot!)
+    this.shadowRoot!.querySelectorAll('style').forEach(s => {
+      this.shadowRoot!.removeChild(s)
+    })
+    this._applyStyles()
+  }
+}
+  #+end_src
+- [X] runtime-dom: support passing initial props to custom element constructor ([[https://github.com/vuejs/vue-next/commit/5b76843b693d6477ae44b4bd238c2c892d8f4c77][5b76843]])
+  支持给自定义元素传递默认属性值。
+
+  #+begin_src typescript
+  describe('mounting/unmount', () => {
+    const E = defineCustomElement({
+      render: () => h('div', 'hello')
+      props: {
+        msg: {
+          type: String,
+          default: 'hello'
+        }
+      },
+      render() {
+        return h('div', this.msg)
+      }
+    })
+    customElements.define('my-element', E)
+
+    // ...
+
+    test('should work w/ manual instantiation', () => {
+      const e = new E({ msg: 'inline' })
+      // should lazy init
+      expect(e._instance).toBe(null)
+      // should initialize on connect
+      container.appendChild(e)
+      expect(e._instance).toBeTruthy()
+      expect(e.shadowRoot!.innerHTML).toBe(`<div>inline</div>`)
+    })
+  #+end_src
+
+  feat:
+
+  #+begin_src diff
+packages/runtime-dom/src/apiCustomElement.ts
+@@ -23,8 +23,8 @@ import {
+import { camelize, extend, hyphenate, isArray, toNumber } from '@vue/shared'
+import { hydrate, render } from '.'
+
+- type VueElementConstructor<P = {}> = {
+-  new (): VueElement & P
++ export type VueElementConstructor<P = {}> = {
++  new (initialProps?: Record<string, any>): VueElement & P
+}
+
+// defineCustomElement provides the same type inference as defineComponent
+@@ -134,8 +134,8 @@ export function defineCustomElement(
+    static get observedAttributes() {
+      return attrKeys
+    }
+    constructor() {
+-      super(Comp, attrKeys, propKeys, hydate)
++    constructor(initialProps?: Record<string, any>) {
++      super(Comp, initialProps, attrKeys, propKeys, hydate)
+    }
+  }
+
+@@ -163,10 +163,6 @@ const BaseClass = (
+) as typeof HTMLElement
+
+export class VueElement extends BaseClass {
+  /**
+   * @internal
+   */
+@@ -178,6 +174,7 @@ export class VueElement extends BaseClass {
+
+  constructor(
+    private _def: ComponentOptions & { styles?: string[] },
++    private _props: Record<string, any> = {},
+    private _attrKeys: string[],
+    private _propKeys: string[],
+    hydrate?: RootHydrateFunction
+  #+end_src
+- [X] runtime-dom: support specifying shadow dom styles in defineCustomElement ([[https://github.com/vuejs/vue-next/commit/a7fa4ac28afb73be00503be87f35e8724fe25443][a7fa4ac]])
+
+  给自定义元素增加 styles 支持。
+  #+begin_src diff
+packages/runtime-dom/src/apiCustomElement.ts
+
+// overload 5: defining a custom element from the returned value of
+@@ -176,7 +176,7 @@ export class VueElement extends BaseClass {
+  _connected = false
+
+  constructor(
+-    private _def: Component,
++    private _def: ComponentOptions & { styles?: string[] },
+    private _attrKeys: string[],
+    private _propKeys: string[],
+    hydrate?: RootHydrateFunction
+@@ -192,6 +192,13 @@ export class VueElement extends BaseClass {
+        )
+      }
+      this.attachShadow({ mode: 'open' })
++      if (_def.styles) {
++        _def.styles.forEach(css => {
++          const s = document.createElement('style')
++          s.textContent = css
++          this.shadowRoot!.appendChild(s)
++        })
++      }
+    }
+  }
+  #+end_src
+
+  测试：
+  #+begin_src typescript
+  describe('styles', () => {
+    test('should attach styles to shadow dom', () => {
+      const Foo = defineCustomElement({
+        styles: [`div { color: red; }`],
+        render() {
+          return h('div', 'hello')
+        }
+      })
+      customElements.define('my-el-with-styles', Foo)
+      container.innerHTML = `<my-el-with-styles></my-el-with-styles>`
+      const el = container.childNodes[0] as VueElement
+      const style = el.shadowRoot?.querySelector('style')!
+      expect(style.textContent).toBe(`div { color: red; }`)
+    })
+  })
+  #+end_src
+* 3.2.0-beta.4
+CLOSED: [2021-09-08 Wed 11:24]
+** Bug Fixes [2/2]
+- [X] runtime-core: ensure setupContext.attrs reactivity when used in child slots ([[https://github.com/vuejs/vue-next/commit/85600056015fcf5c922dc0b5b07aa03a5ba53245][8560005]]), closes [[https://github.com/vuejs/vue-next/issues/4161][#4161]]
+
+  setup 中的 attrs 使用 proxy 代理
+
+  #+begin_src diff
+@@ -859,15 +874,13 @@ export function createSetupContext(
+  } else {
+    return {
+-      attrs: instance.attrs,
++      get attrs() {
++        return attrs || (attrs = createAttrsProxy(instance))
++      },
+      slots: instance.slots,
+      emit: instance.emit,
+      expose
+  #+end_src
+** Performance Improvements [1/1]
+- [X] skip patch on same vnode ([[https://github.com/vuejs/vue-next/commit/d13774b881b297f2cd1a8d3193183d241dee625b][d13774b]])
+
+  优化：不对同一个节点进行 patch 过程。
+
+  #+begin_src diff
+packages/runtime-core/src/renderer.ts
+@@ -470,6 +470,10 @@ function baseCreateRenderer(
+    slotScopeIds = null,
+    optimized = __DEV__ && isHmrUpdating ? false : !!n2.dynamicChildren
+  ) => {
++    if (n1 === n2) {
++      return
++    }
+  #+end_src
+* 3.2.0-beta.3
+CLOSED: [2021-09-08 Wed 10:50]
+
+- *green:ADD* ~watchSyncEffect~ 同步 watch effect，回调会在值变更之前被调用
+- *green:ADD* 添加 [[#deferredComputed][deferredComputed]] 支持计算属性异步功能，修改之后取值不会立即计算，而是
+  在 next tick 之后 flush scheduler 队列的时候通过 effect 去触发重新计算。
+- *red:FIX* [[#fix-vbind-class][修复]] ~<button class="{btn:true}" v-bind="{disabled:true}">~ 中的 class 被解
+  析成了 ~[object Object]~ 的问题。
+
+** Bug Fixes [4/4]
+- [X] reactivity: revert computed scheduler change ([[https://github.com/vuejs/vue-next/commit/33c2fbfdc80c6f17c7e8435b7a152a4d9ed5c6ed][33c2fbf]]), closes [[https://github.com/vuejs/vue-next/issues/4157][#4157]]
+
+  将 async computed 还原回去了，同时在这个版本中加入了 [[#deferredComputed][deferredComputed]]
+- [X] [[#fix-vbind-class][runtime-core: fix v-bind class/style merging regression]] ([[https://github.com/vuejs/vue-next/commit/2bdee50a598456392541a8a4b451501e5df2d363][2bdee50]]), closes [[https://github.com/vuejs/vue-next/issues/4155][#4155]]
+** Features [2/2]
+- [X] [[#deferredComputed][reactivity: deferredComputed]] ([[https://github.com/vuejs/vue-next/commit/14ca881a1ba6ad887d5ffc6ce3b7f8461252afee][14ca881]])
+  @@html:<span id="f-deferredComputed"></span>@@
+- [X] runtime-core: watchSyncEffect ([[https://github.com/vuejs/vue-next/commit/d87d059ac120ed0496f85474344ef76e40fa9bc7][d87d059]])
+  @@html:<span id="watchSyncEffect"></span>@@
+  @@html:<span id="d87d059"></span>@@
+
+  watch options flush -> sync
+
+  #+begin_src typescript
+export function watchSyncEffect(
+  effect: WatchEffect,
+  options?: DebuggerOptions
+) {
+  return doWatch(
+    effect,
+    null,
+    (__DEV__
+      ? Object.assign(options || {}, { flush: 'sync' })
+      : { flush: 'sync' }) as WatchOptionsBase
+  )
+}
+  #+end_src
+
+  test:
+
+  #+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../runtime-test/dist/runtime-test.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { nodeOps, render, nextTick, h, serializeInner: s, defineComponent, ref, watchSyncEffect } = value
+const count = ref(0)
+const count2 = ref(0)
+let result1, result2, callCount = 0
+const assertion = count => {
+  console.log('called ' + ++callCount)
+  // on mount, watch callback 应该在 DOM 渲染之前被调用
+  // on update, 应该在 count 更新之前被调用
+  // 因为是同步 effect
+  const expectedDOM = callCount === 1 ? '' : `${count - 1}`
+  result1 = s(root) === expectedDOM
+
+  // 在同步回调中，在第2次调用时，state mutation 还不会被执行，但是在第3次调用时被执行
+  const expectedState = callCount <3 ? 0 : 1
+  result2 = count2.value === expectedState
+}
+
+const Comp = {
+  setup() {
+    watchSyncEffect(() => {
+      assertion(count.value)
+    })
+    return () => count.value
+  }
+}
+
+const root = nodeOps.createElement('div')
+render(h(Comp), root)
+console.log('before set, result1 = ' + result1)
+console.log('before set, result2 = ' + result2)
+
+count.value++
+count2.value++
+nextTick().then(() => {
+  console.log('\nafter set, result1 = ' + result1)
+  console.log('after set, result2 = ' + result2)
+})
+
+  #+end_src
+
+  源码：
+  #+begin_src typescript
+// apiWatch.ts -> doWatch(...)
+let scheduler: EffectScheduler
+// 如果是 flush : 'sync', 这里会直接给 sheduler，这个
+// scheduler 会在值发生变更 trigger -> triggerEffect 中执行
+if (flush === 'sync') {
+  scheduler = job as any // the scheduler function gets called directly
+}
+
+// ...
+// getter 已经上面测试中的 watchSyncEffect(fn) 的 fn 函数
+const effect = new ReactiveEffect(getter, scheduler)
+
+// ...
+// initial run
+  if (cb) {
+    // ...
+  } else if (flush === 'post') {
+    // ...
+  } else {
+    // on mount 时执行,
+    // 会进入这里直接的执行 run, 即立即执行一次 watchSyncEffect(fn) 的 fn
+    effect.run()
+  }
+
+
+// effect.ts -> trigger -> triggerEffects
+// on update 执行的: trigger 的时候如果有 scheduler 会直接执行
+export function triggerEffects(
+  dep: Dep | ReactiveEffect[],
+  debuggerEventExtraInfo?: DebuggerEventExtraInfo
+) {
+  // spread into array for stabilization
+  for (const effect of isArray(dep) ? dep : [...dep]) {
+    if (effect !== activeEffect || effect.allowRecurse) {
+      if (__DEV__ && effect.onTrigger) {
+        effect.onTrigger(extend({ effect }, debuggerEventExtraInfo))
+      }
+      if (effect.scheduler) {
+        effect.scheduler()
+      } else {
+        effect.run()
+      }
+    }
+  }
+}
+
+  #+end_src
+
+* 3.2.0-beta.2
+
+1. *green:ADD*: 支持 ~<script setup lang="ts">~ 中使用 ~const enum Foo { A: 100 }~, const
+   enum
+2. *red:FIX*: 支持 ~<div :style="color: `${value}`"/>~ 使用
+3. *red:FIX*: 修复 ~watch([a,b], ([newA, newB], [oldA, oldB]) => {})~ 中 ~undefined ->
+   [oldA, oldB]~ 解构问题
+
+** Bug Fixes [11/11]
+- [X] compiler-sfc: support const enum ([[https://github.com/vuejs/vue-next/commit/93a950d60d347321df4196d22f64c4810840a3bb][93a950d]])
+
+  支持 ~<script setup lang="ts">~ 中使用 ~const enum Foo { A: 100 }~
+
+  #+begin_src js
+const url =
+      process.env.VNEXT_PKG_RC + "/../compiler-sfc/dist/compiler-sfc.cjs.js";
+const value = require(url.replace("stb-", ""));
+const { compileScript, parse } = value;
+
+function compileSFCScript(src, options) {
+  const { descriptor } = parse(src)
+  return compileScript(descriptor, {
+    ...options,
+    id: 'xxxxxxx'
+  })
+}
+
+function compileWithRefSugar(src) {
+  return compileSFCScript(src, { refSugar: true })
+}
+
+const _ = (title, src) => {
+  const { content } = compileWithRefSugar(src)
+  console.log(title, '\n', content)
+}
+
+_('const enum >> ', `
+<script setup lang="ts">
+  const enum Foo { A = 123 }
+</script>`)
+  #+end_src
+
+  #+RESULTS:
+  #+begin_example
+  const enum >>
+   import { defineComponent as _defineComponent } from 'vue'
+  const enum Foo { A = 123 }
+
+  export default _defineComponent({
+    setup(__props, { expose }) {
+    expose()
+
+
+  const __returned__ = { Foo }
+  Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true })
+  return __returned__
+  }
+
+  })
+  undefined
+  #+end_example
+
+  #+begin_src diff
+packages/compiler-sfc/src/compileScript.ts
+@@ -1008,7 +1008,7 @@ export function compileScript(
+
+    if (isTS) {
+      // runtime enum
+-      if (node.type === 'TSEnumDeclaration' && !node.const) {
++      if (node.type === 'TSEnumDeclaration') {
+        registerBinding(setupBindings, node.id, BindingTypes.SETUP_CONST)
+      }
+
+  #+end_src
+- [X] reactivity: computed should not trigger scheduler if stopped ([[https://github.com/vuejs/vue-next/commit/6eb47f000a1b54b2419c031979502d2793c5189d][6eb47f0]]), closes [[https://github.com/vuejs/vue-next/issues/4149][#4149]]
+
+  组件 deactivated 之后不应该再执行 compute 计算，3.2.1 中好像又改回去了？
+
+  #+begin_src js
+(async function () {
+  const url = process.env.VNEXT_PKG_RC +'/../reactivity/dist/reactivity.cjs.js'
+  const value = require(url.replace('stb-', ''))
+  const { reactive, effect, computed, ref } = value
+  const tick = Promise.resolve()
+  const queue = []
+  let queued = false
+  const schedule = fn => {
+    queue.push(fn)
+    if (!queued) {
+      queued = true
+      tick.then(flush)
+    }
+  }
+
+  const flush = () => {
+    for (let i = 0; i < queue.length; i++) {
+      queue[i]()
+    }
+    queue.length = 0
+    queued = false
+  }
+
+  let i = 0
+  const c1Spy = () => {
+    i++
+    console.log('xxx');
+  }
+  const src = ref(0)
+  const c1 = computed(() => {
+    c1Spy()
+    return src.value % 2
+  })
+  effect(() => c1.value)
+  console.log(`c1Spy called ${i} times`)
+
+  schedule(() => {
+    console.log('\nstopped');
+    c1.effect.stop()
+  })
+
+  src.value++
+
+  await tick
+  console.log(`c1Spy called ${i} times`)
+
+}())
+
+  return
+  #+end_src
+
+  #+RESULTS:
+  : xxx
+  : c1Spy called 1 times
+  : xxx
+  : undefined
+  : stopped
+  : c1Spy called 2 times
+- [X] runtime-core: fix null type in required + multi-type prop declarations ([[https://github.com/vuejs/vue-next/commit/bbf6ca9bca942df639ff0357d713413c9a1c4c05][bbf6ca9]]), closes [[https://github.com/vuejs/vue-next/issues/4146][#4146]] [[https://github.com/vuejs/vue-next/issues/4147][#4147]]
+  支持多种类型时 null 声明。
+
+  test:
+  #+begin_src typescript
+  test('support null in required + multiple-type declarations', () => {
+    const Comp = {
+      props: {
+        foo: { type: [Function, null], required: true }
+      },
+      render() {}
+    }
+    const root = nodeOps.createElement('div')
+    expect(() => {
+      render(h(Comp, { foo: () => {} }), root)
+    }).not.toThrow()
+
+    expect(() => {
+      render(h(Comp, { foo: null }), root)
+    }).not.toThrow()
+  })
+  #+end_src
+
+  FIX:
+
+  #+begin_src diff
+packages/runtime-core/src/componentProps.ts
+@@ -529,7 +529,7 @@ function validatePropName(key: string) {
+// so that it works across vms / iframes.
+function getType(ctor: Prop<any>): string {
+  const match = ctor && ctor.toString().match(/^\s*function (\w+)/)
+-  return match ? match[1] : ''
++  return match ? match[1] : ctor === null ? 'null' : ''
+}
+
+function isSameType(a: Prop<any>, b: Prop<any>): boolean {
+@@ -637,6 +637,8 @@ function assertType(value: unknown, type: PropConstructor): AssertionResult {
+    valid = isObject(value)
+  } else if (expectedType === 'Array') {
+    valid = isArray(value)
++  } else if (expectedType === 'null') {
++    valid = value === null
+  } else {
+    valid = value instanceof type
+  }
+@@ -656,7 +658,7 @@ function getInvalidTypeMessage(
+): string {
+  let message =
+    `Invalid prop: type check failed for prop "${name}".` +
+-    ` Expected ${expectedTypes.map(capitalize).join(', ')}`
++    ` Expected ${expectedTypes.map(capitalize).join(' | ')}`
+  const expectedType = expectedTypes[0]
+  const receivedType = toRawType(value)
+  const expectedValue = styleValue(value, expectedType)
+
+  #+end_src
+- [X] scheduler: fix insertion for id-less job ([[https://github.com/vuejs/vue-next/commit/d810a1a56943aeba5160b42bc917187e99cdfb8e][d810a1a]]), closes [[https://github.com/vuejs/vue-next/issues/4148][#4148]]
+
+  scheduler 调试 job 过程中是按照 job.id 的大小来进行排序的，比如，队列中有三个
+  job: ~job1{id:5}, job4, job2{id:1}, job5, job3{id:3}~ 最后当前队列中会有：
+  ~[job2, job1, job3, job4, job5]~ 如果一个任务没有 id，会直接按照调用顺序逐个追加
+  到队列末尾,如 job4, job5。
+
+  #+begin_src diff
+ packages/runtime-core/src/scheduler.ts
+@@ -10,6 +10,7 @@ setComputedScheduler(queueJob)
+export interface SchedulerJob extends Function {
+  id?: number
+  active?: boolean
++  computed?: boolean
+  /**
+   * Indicates whether the effect is allowed to recursively trigger itself
+   * when managed by the scheduler.
+@@ -70,16 +71,15 @@ export function nextTick<T = void>(
+// Use binary-search to find a suitable position in the queue,
+// so that the queue maintains the increasing order of job's id,
+// which can prevent the job from being skipped and also can avoid repeated patching.
+- function findInsertionIndex(job: SchedulerJob) {
++ function findInsertionIndex(id: number) {
+  // the start index should be `flushIndex + 1`
+  let start = flushIndex + 1
+  let end = queue.length
+-  const jobId = getId(job)
+
+  while (start < end) {
+    const middle = (start + end) >>> 1
+    const middleJobId = getId(queue[middle])
+-    middleJobId < jobId ? (start = middle + 1) : (end = middle)
++    middleJobId < id ? (start = middle + 1) : (end = middle)
+  }
+
+  return start
+@@ -100,11 +100,10 @@ export function queueJob(job: SchedulerJob) {
+      )) &&
+    job !== currentPreFlushParentJob
+  ) {
+-    const pos = findInsertionIndex(job)
+-    if (pos > -1) {
+-      queue.splice(pos, 0, job)
+-    } else {
++    if (job.id == null) {
+      queue.push(job)
++    } else {
++      queue.splice(findInsertionIndex(job.id), 0, job)
+    }
+    queueFlush()
+  }
+@@ -253,6 +252,7 @@ function flushJobs(seen?: CountMap) {
+        if (__DEV__ && checkRecursiveUpdates(seen!, job)) {
+          continue
+        }
++        // console.log(`running:`, job.id)
+        callWithErrorHandling(job, null, ErrorCodes.SCHEDULER)
+      }
+    }
+  #+end_src
+- [X] shared: normalizeStyle should handle strings ([[https://github.com/vuejs/vue-next/commit/a8c3a8ad61b16a31f6754066838440a59ee9db8b][a8c3a8a]]), closes [[https://github.com/vuejs/vue-next/issues/4138][#4138]]
+
+  问题： ~<h1 :style="`color: ${x};`" style="">Hello World!</h1>~
+
+  修复：
+  #+begin_src diff
+packages/shared/src/normalizeProp.ts
+@@ -18,6 +18,8 @@ export function normalizeStyle(value: unknown): NormalizedStyle | undefined {
+      }
+    }
+    return res
++  } else if (isString(value)) {
++    return parseStringStyle(value)
+  } else if (isObject(value)) {
+    return value
+  }
+  #+end_src
+
+  源码：
+  #+begin_src typescript
+const listDelimiterRE = /;(?![^(]*\))/g
+const propertyDelimiterRE = /:(.+)/
+
+export function parseStringStyle(cssText: string): NormalizedStyle {
+  const ret: NormalizedStyle = {}
+  cssText.split(listDelimiterRE).forEach(item => {
+    if (item) {
+      const tmp = item.split(propertyDelimiterRE)
+      tmp.length > 1 && (ret[tmp[0].trim()] = tmp[1].trim())
+    }
+  })
+  return ret
+}
+  #+end_src
+- [X] ssr: update initial old value to watch callback in ssr usage ([[https://github.com/vuejs/vue-next/issues/4103][#4103]]) ([[https://github.com/vuejs/vue-next/commit/20b6619793702d265fcc3a7c099f5764fa9d8685][20b6619]])
+  问题： 指定 ~immediate: true~ 时候会立即执行一次，然而此时 oldValue 是 undefined
+  会导致 callback([...], [oldA, oldB]) 解构错误(~undefined -> [oldA, oldB]~)
+
+  #+begin_src js
+setup(){
+  const a = ref(1)
+  const b = ref(2)
+  watch([a, b], ([newA, newB], [oldA, oldB]) => {
+    // ...
+  }, { deep: true, immediate: true })
+}
+  #+end_src
+
+  修复： 检查被 watch 的源数据，如果是数据 oldValue 初始化成 ~[]~
+  #+begin_src diff
+ packages/runtime-core/src/apiWatch.ts
+@@ -265,7 +265,7 @@ function doWatch(
+    } else if (immediate) {
+      callWithAsyncErrorHandling(cb, instance, ErrorCodes.WATCH_CALLBACK, [
+        getter(),
+-        undefined,
++        isMultiSource ? [] : undefined,
+        onInvalidate
+      ])
+    }
+  #+end_src
+- [X] v-model: properly detect input type=number ([[https://github.com/vuejs/vue-next/commit/3056e9b3dcb1ab0bd18227c6fa7bf283f98f6ef6][3056e9b]]), closes [[https://github.com/vuejs/vue-next/issues/3813][#3813]]
+
+  #+begin_src diff
+ packages/runtime-dom/src/directives/vModel.ts
+@@ -49,7 +49,8 @@ export const vModelText: ModelDirective<
+> = {
+  created(el, { modifiers: { lazy, trim, number } }, vnode) {
+    el._assign = getModelAssigner(vnode)
+-    const castToNumber = number || el.type === 'number'
++    const castToNumber =
++      number || (vnode.props && vnode.props.type === 'number')
+    addEventListener(el, lazy ? 'change' : 'input', e => {
+      if ((e.target as any).composing) return
+      let domValue: string | number = el.value
+  #+end_src
+** Features [3/3]
+- [X] compiler: allow 'comments' option to affect comment inclusion in dev ([[https://github.com/vuejs/vue-next/issues/4115][#4115]]) ([[https://github.com/vuejs/vue-next/commit/dd0f9d1ce6b0de59c84d334c7190fa9d2cc17a04][dd0f9d1]]), closes [[https://github.com/vuejs/vue-next/issues/3392][#3392]] [[https://github.com/vuejs/vue-next/issues/3395][#3395]]
+  @@html:<span id="dd0f9d1"></span>@@
+
+  由 ~__DEV__~ 值决定 comments 是否保留。
+- [X] compiler-sfc: add @@html:<a href="#ignore-empty-blocks">ignoreEmpty</a>@@ option for sfc parse method ([[https://github.com/vuejs/vue-next/commit/8dbecfcbb3d597a644d0f263dfd6d7fcfd23a9fb][8dbecfc]])
+
+  支持 sfc ~parse(src, { ignoreEmpty: true/false })~ 来决定是否忽略空的 script 和 style
+- [X] types: map declared emits to onXXX props in inferred prop types ([[https://github.com/vuejs/vue-next/issues/3926][#3926]]) ([[https://github.com/vuejs/vue-next/commit/69344ff1ae724beb648c34ede8050b3b70ddf4b7][69344ff]])
+  @@html:<span id="69344ff"></span>@@
+
+  emits 事件绑定的函数类型推导。
+
+  #+begin_src diff
+packages/runtime-core/src/componentEmits.ts
++ export type EmitsToProps<T extends EmitsOptions> = T extends string[]
++  ? {
++      [K in string & `on${Capitalize<T[number]>}`]?: (...args: any[]) => any
++    }
++  : T extends ObjectEmitsOptions
++  ? {
++      [K in string &
++        `on${Capitalize<string & keyof T>}`]?: K extends `on${infer C}`
++        ? T[Uncapitalize<C>] extends null
++          ? (...args: any[]) => any
++          : T[Uncapitalize<C>]
++        : never
++    }
++  : {}
+  #+end_src
+
+  test:
+  #+begin_src diff
+  const MyComponent = defineComponent({
+    mixins: [MixinA, MixinB, MixinC, MixinD],
++    emits: ['click'],
+    props: {
+      // required should make property non-void
+      z: {
+@@ -552,6 +554,9 @@ describe('with mixins', () => {
+    setup(props) {
+      expectType<string>(props.z)
+      // props
++      expectType<((...args: any[]) => any) | undefined>(props.onClick)
+      // from Base
++      expectType<((...args: any[]) => any) | undefined>(props.onBar)
+      expectType<string>(props.aP1)
+      expectType<boolean | undefined>(props.aP2)
+      expectType<any>(props.bP1)
+  #+end_src
+** Performance Improvements [1/1]
+- [X] compiler-sfc: ignore empty blocks ([[https://github.com/vuejs/vue-next/issues/3520][#3520]]) ([[https://github.com/vuejs/vue-next/commit/b771fdbef9a8dadd4c9cc939cc104f7764e40373][b771fdb]])
+  @@html:<span id="ignore-empty-blocks"></span>@@
+
+  忽略 SFC 中的空标签。
+  #+begin_src diff
+packages/compiler-sfc/src/parse.ts
+@@ -162,7 +162,8 @@ export function parse(
+    if (node.type !== NodeTypes.ELEMENT) {
+      return
+    }
+-    if (!node.children.length && !hasSrc(node) && node.tag !== 'template') {
++    // we only want to keep the nodes that are not empty (when the tag is not a template)
++    if (node.tag !== 'template' && isEmpty(node) && !hasSrc(node)) {
+      return
+    }
+    switch (node.tag) {
+@@ -415,3 +416,15 @@ function hasSrc(node: ElementNode) {
+    return p.name === 'src'
+  })
+}
++
++ /**
++ * Returns true if the node has no children
++ * once the empty text nodes (trimmed content) have been filtered out.
++ */
++ function isEmpty(node: ElementNode) {
++  return (
++    node.children.filter(
++      child => child.type !== NodeTypes.TEXT || child.content.trim() !== ''
++    ).length === 0
++  )
++ }
+  #+end_src
+
+  测试：
+  #+begin_src js
+const url =
+      process.env.VNEXT_PKG_RC + "/../compiler-sfc/dist/compiler-sfc.cjs.js";
+const value = require(url.replace("stb-", ""));
+const { compileScript, parse } = value;
+
+const _ = (title, src) => {
+  const { descriptor: { script, styles, template } } = parse(src)
+  console.log(title, '\n', script, styles, template.content)
+}
+
+
+_('empty tag', `<template>
+  <h1>{{ msg }}</h1>
+</template>
+
+<script setup>
+
+</script>
+
+<style scoped>
+
+</style>`)
+  #+end_src
+
+  #+RESULTS:
+  : empty tag
+  :  null []
+  :   <h1>{{ msg }}</h1>
+  :
+  : undefined
+
+* 3.2.0-beta.1
+
+1. *green:ADD*: ~defineCustomElement~ 结合 ~window.customElements~ 来定义元素 link-here:defineCustomElement
+2. **green:ADD*: doc:v-memo 指令可以指定哪些条件下组件需要更新 link-here:v-memo
+3. **green:ADD*: ~watchPostEffect~ 等价于 ~doWatch(effect, null/*cb*/, { flush:
+   'post' })~ link-here:watchPostEffect
+4. **green:ADD*: ~effectScope~
+5. **green:ADD*: ref 新语法糖 ~$ref()~ 等价于 ~ref()~, 只是不再需要手动从 ~vue~ import 了
+
+   之前： ~<script setup>import { ref } from 'vue'; var val = ref(1);</script>~
+
+   之后： ~<script setup>var val = $ref(1);</script>~
+6. *red:FIX*: 使用了 [[/web/javascript-api-mutationobserver][MutationObserver]] 来解决 ~cssVar + transition + v-if~ 时 cssVar 不正
+   常生效问题
+7. *pink:CHG*: ~ReactiveEffect~ 改成了 class 来实现，因此 effect 不再是函数，而是一个
+   ~ReactiveEffect~ 实例对象。
+** Code Refactoring(代码重构) [1/1]
+- [X] remove deprecated scopeId codegen ([[https://github.com/vuejs/vue-next/commit/f596e008efd97fe8f9b28f536fbb0fd48b9b6333][f596e00]])
+
+  生成的 render 没有 scope id 了 ?
+  #+begin_src diff
+- export const render = /*#__PURE__*/_withId((_ctx, _cache) => {
++ export function render(_ctx, _cache) {
+  #+end_src
+** Bug Fixes [4/4]
+- [X] sfc/style-vars: properly re-apply style vars on component root elements
+  change ([[https://github.com/vuejs/vue-next/commit/49dc2dd1e4a56d0d2ad28003240c99e99ef469e4][49dc2dd]]), closes [[https://github.com/vuejs/vue-next/issues/3894][#3894]] @@html:<span id="MutationObserver"></span>@@
+
+  在使用 ~<transition>~ 和 ~v-if~ 时， ~SFC <style>~ 中的 ~v-bind(color)~ 没起作用？
+
+  #+begin_src diff
+// packages/runtime-dom/src/helpers/useCssVars.ts
+// @@ -27,8 +27,12 @@ export function useCssVars(getter: (ctx: any) => Record<string, string>) {
+  const setVars = () =>
+    setVarsOnVNode(instance.subTree, getter(instance.proxy!))
+-  onMounted(() => watchEffect(setVars, { flush: 'post' }))
+-  onUpdated(setVars)
++  watchPostEffect(setVars)
++  onMounted(() => {
++    const ob = new MutationObserver(setVars)
++    ob.observe(instance.subTree.el!.parentNode, { childList: true })
++    onUnmounted(() => ob.disconnect())
++  })
+}
+  #+end_src
+
+  涉及函数： ~watchPostEffect(setVars)~ 和 ~MutationObserver(setVars)~ 的使用。
+
+  watchPostEffect 是监听 instance.subTree 状态的变化时执行 ~setVars -> setVarsOnVNode~
+
+  MutationObserver 是 JavaScript 的原生 API ，详情可查看[[http://localhost:1313/web/javascript-api-mutationobserver/][此文 JavaScript API -
+  MutationObserver]] 。
+- [X] ensure customElements API ssr compatibility ([[https://github.com/vuejs/vue-next/commit/de32cfa43e94276c60f93ac4c560cb7b84534cfe][de32cfa]]), closes [[https://github.com/vuejs/vue-next/issues/4129][#4129]]
+
+  解决 SSR 服务端渲染时不支持 ~HTMLElement~ 的问题。
+
+  #+begin_src diff
+// packages/runtime-dom/src/apiCustomElement.ts
+@@ -157,7 +157,11 @@ export const defineSSRCustomElement = ((options: any) => {
+- export class VueElement extends HTMLElement {
++ const BaseClass = (typeof HTMLElement !== 'undefined'
++  ? HTMLElement
++  : class {}) as typeof HTMLElement
+
++ export class VueElement extends BaseClass {
+  /**
+   ,* @internal
+   ,*/
+  #+end_src
+- [X] runtime-core: fix default shapeFlag for fragments ([[https://github.com/vuejs/vue-next/commit/2a310df7531a693be706a96d4191a5bfbf24692d][2a310df]])
+
+  #+begin_src diff
+  dynamicProps: string[] | null = null,
+-  shapeFlag = ShapeFlags.ELEMENT,
++  shapeFlag = type === Fragment ? 0 : ShapeFlags.ELEMENT,
+  isBlockNode = false,
+  #+end_src
+- [X] ignore .prop/.attr modifiers in ssr ([[https://github.com/vuejs/vue-next/commit/29732c2c8681cc3e58251c19149ba3a0ce31cdaf][29732c2]])
+
+  忽略 SSR 中的 .prop/.attr 因为这两个的作用是决定该属性是做为 DOM 元素的
+  attribute 存在还是以 ~element.prop = value~ 元素对象的属性存在。不管是哪种情况都
+  和实际的 DOM 元素有关。
+
+  #+begin_src diff
+// packages/compiler-core/src/transforms/vBind.ts
+@@ -37,12 +37,13 @@ export const transformBind: DirectiveTransform = (dir, _node, context) => {
+-  if (modifiers.includes('prop')) {
+-    injectPrefix(arg, '.')
+-  }
+
+-  if (modifiers.includes('attr')) {
+-    injectPrefix(arg, '^')
++  if (!context.inSSR) {
++    if (modifiers.includes('prop')) {
++      injectPrefix(arg, '.')
++    }
++    if (modifiers.includes('attr')) {
++      injectPrefix(arg, '^')
++    }
+  #+end_src
+** Features [10/10]
+- [X] [[/vue/vue-update-3.2/#new-ref-sugar][sfc: (experimental) new ref sugar]] ([[https://github.com/vuejs/vue-next/commit/562bddb3ce76a0e98e499e199e96fa4271e5d1b4][562bddb]])
+  @@html:<span id="sfc-ref-sugar"></span>@@
+- [X] sfc: support namespaced component tags when using <script setup> ([[https://github.com/vuejs/vue-next/commit/e5a4412764f6db255afe01b8a7e6e40ebf707412][e5a4412]])
+  @@html:<span id="e5a4412"></span>@@
+- [X] custom element reflection, casting and edge cases ([[https://github.com/vuejs/vue-next/commit/00f0b3c46552626cd7c5ec73ffd0a918c3e1a5fb][00f0b3c]])
+  @@html:<span id="custom-element-refection"></span>@@
+- [X] remove experimental status of <script setup> ([[https://github.com/vuejs/vue-next/commit/00f0b3c46552626cd7c5ec73ffd0a918c3e1a5fb][27104ea]])
+  @@html:<span id="27104ea"></span>@@
+
+  正式发布 ~<script setup>~
+- [X] support v-bind .prop & .attr modifiers ([[https://github.com/vuejs/vue-next/commit/8610e1c9e23a4316f76fb35eebbab4ad48566fbf][1c7d737]])
+  @@html:<span id="1c7d737"></span>@@
+- [X] runtime-dom: defineCustomElement ([[https://github.com/vuejs/vue-next/commit/8610e1c9e23a4316f76fb35eebbab4ad48566fbf][8610e1c]])
+  @@html:<span id="defineCustomElement"></span>@@
+  @@html:<span id="8610e1c"></span>@@
+
+  [[https://github.com/vuejs/vue-next/tree/master/packages/runtime-core/src/component.ts][runtime-core/src/component.ts:]]
+  #+begin_src typescript
+export interface ComponentInternalInstance {
+  /**
+   ,* is custom element?
+   ,*/
+  isCE?: boolean
+  // ...
+}
+
+export function createComponentInstance(/*...*/) {
+  // ...
+  // 交给 vnode.ce 去处理
+  // apply custom element special handling
+  if (vnode.ce) {
+    vnode.ce(instance)
+  }
+}
+  #+end_src
+
+  [[https://github.com/vuejs/vue-next/tree/master/packages/runtime-core/src/helpers/renderSlot.ts][runtime-core/src/helpers/renderSlot.ts]]
+  #+begin_src typescript
+export function renderSlot(/*...*/) {
+  if (currentRenderingInstance!.isCE) {
+    return createVNode(
+      'slot',
+      name === 'default' ? null : { name },
+      fallback && fallback()
+    )
+  }
+  // ...
+}
+  #+end_src
+
+  #+begin_export html
+  <div>测试结果 <button onclick="showCode('rhBIQi');">查看源码</button></div>
+  <div id="rhBIQi" class="comment-block"></div>
+<script id="s_rhBIQi">
+const p_rhBIQi = document.getElementById('rhBIQi')
+const cr = document.createElement('div')
+p_rhBIQi.appendChild(cr)
+const E = Vue.defineCustomElement({
+  render: () => Vue.h('div', 'hello')
+})
+customElements.define('my-element', E)
+cr.innerHTML = "<my-element></my-element>"
+const e = cr.childNodes[0]
+console.log(e, e instanceof E)
+console.log(e._instance)
+console.log(e.shadowRoot.innerHTML)
+</script>
+  #+end_export
+- [X] doc:v-memo 可以指定什么条件下组件会被重新渲染，否则使用缓存结果 ([[https://github.com/vuejs/vue-next/commit/3b64508e3b2d648e346cbf34e1641f4022be61b6][3b64508]])
+  @@html:<span id="v-memo"></span>@@
+  @@html:<span id="3b64508"></span>@@
+
+  [[https://github.com/vuejs/vue-next/tree/master/packages/compiler-core/src/transforms/vFor.ts][compiler-core/src/transforms/vFor.ts]] 中增加的核心代码：
+
+  #+begin_src typescript
+// v-memo
+if (memo) {
+  const loop = createFunctionExpression(
+    createForLoopParams(forNode.parseResult, [
+      createSimpleExpression(`_cached`)
+    ])
+  )
+  loop.body = createBlockStatement([
+    createCompoundExpression([`const _memo = (`, memo.exp!, `)`]),
+    createCompoundExpression([
+      `if (_cached`,
+      ...(keyExp ? [` && _cached.key === `, keyExp] : []),
+      ` && ${context.helperString(
+IS_MEMO_SAME
+)}(_cached.memo, _memo)) return _cached`
+    ]),
+    createCompoundExpression([`const _item = `, childBlock as any]),
+    createSimpleExpression(`_item.memo = _memo`),
+    createSimpleExpression(`return _item`)
+  ])
+  renderExp.arguments.push(
+    loop as ForIteratorExpression,
+    createSimpleExpression(`_cache`),
+    createSimpleExpression(String(context.cached++))
+  )
+} else {
+  renderExp.arguments.push(createFunctionExpression(
+    createForLoopParams(forNode.parseResult),
+    childBlock,
+    true /* force newline */
+  ) as ForIteratorExpression)
+}
+  #+end_src
+
+  如：
+  #+begin_src js :results value code
+const url = process.env.VNEXT_PKG_RC +'/../compiler-core/dist/compiler-core.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { baseCompile } = value
+
+const compile = c => baseCompile(`<div>${c}</div>`, {
+  mode: "module",
+  prefixIdentifiers: true
+}).code
+
+function test(title, code, options) {
+  console.log('// > ' + title)
+  console.log(compile(code))
+}
+
+console.log('// > on root element')
+console.log(  baseCompile(`<div v-memo="[x]"></div>`, {
+  mode: 'module',
+  prefixIdentifiers: true
+}).code)
+
+test('on normal element', `<div v-memo="[x]"></div>`)
+test('on template v-for', `<template v-for="{ x, y } in list" :key="x" v-memo="[x, y === z]">
+          <span>foobar</span>
+        </template>`)
+return 0
+  #+end_src
+
+  #+RESULTS:
+  #+begin_src js
+  // > on root element
+  import { openBlock as _openBlock, createElementBlock as _createElementBlock, withMemo as _withMemo } from "vue"
+
+  export function render(_ctx, _cache) {
+    return _withMemo([_ctx.x], () => (_openBlock(), _createElementBlock("div")), _cache, 0)
+  }
+  // > on normal element
+  import { openBlock as _openBlock, createElementBlock as _createElementBlock, withMemo as _withMemo } from "vue"
+
+  export function render(_ctx, _cache) {
+    return (_openBlock(), _createElementBlock("div", null, [
+      _withMemo([_ctx.x], () => (_openBlock(), _createElementBlock("div")), _cache, 0)
+    ]))
+  }
+  // > on template v-for
+  import { renderList as _renderList, Fragment as _Fragment, openBlock as _openBlock, createElementBlock as _createElementBlock, isMemoSame as _isMemoSame, withMemo as _withMemo } from "vue"
+
+  export function render(_ctx, _cache) {
+    return (_openBlock(), _createElementBlock("div", null, [
+      (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.list, ({ x, y }, __, ___, _cached) => {
+        const _memo = ([x, y === z])
+        if (_cached && _cached.key === x && _isMemoSame(_cached, _memo)) return _cached
+        const _item = (_openBlock(), _createElementBlock("span", { key: x }, "foobar"))
+        _item.memo = _memo
+        return _item
+      }, _cache, 0), 128 /* KEYED_FRAGMENT */))
+    ]))
+  }
+  0
+  #+end_src
+
+  _withMemo -> [[https://github.com/vuejs/vue-next/tree/master/packages/runtime-core/src/helpers/withMemo.ts][runtime-core/src/helpers/withMemo.ts:withMemo]]
+
+  #+begin_src typescript
+export function withMemo(
+  memo: any[],
+  render: () => VNode<any, any>,
+  cache: any[],
+  index: number
+) {
+  const cached = cache[index] as VNode | undefined
+  if (cached && isMemoSame(cached, memo)) {
+    return cached
+  }
+  const ret = render()
+
+  // shallow clone
+  ret.memo = memo.slice()
+  return (cache[index] = ret)
+}
+  #+end_src
+
+  判断不重新渲染条件(memo 长度和元素的值必须一致)：
+  #+begin_src typescript
+export function isMemoSame(cached: VNode, memo: any[]) {
+  const prev: any[] = cached.memo!
+  if (prev.length != memo.length) {
+    return false
+  }
+  for (let i = 0; i < prev.length; i++) {
+    if (prev[i] !== memo[i]) {
+      return false
+    }
+  }
+
+  // make sure to let parent block track it when returning cached
+  if (isBlockTreeEnabled > 0 && currentBlock) {
+    currentBlock.push(cached)
+  }
+  return true
+}
+  #+end_src
+- [X] watchPostEffect ([[https://github.com/vuejs/vue-next/commit/42ace9577da49477ff189950a83d6eead73d0efe][42ace95]])
+  @@html:<span id="watchPostEffect"></span>@@
+  @@html:<span id="42ace95"></span>@@
+
+  #+begin_src typescript
+export function watchPostEffect(
+  effect: WatchEffect,
+  options?: DebuggerOptions
+) {
+  return doWatch(effect, null, (__DEV__
+    ? Object.assign(options || {}, { flush: 'post' })
+    : { flush: 'post' }) as WatchOptionsBase)
+}
+  #+end_src
+
+  测试：
+  #+begin_src js
+(async function () {
+  const url = process.env.VNEXT_PKG_RC +'/../runtime-test/dist/runtime-test.cjs.js'
+  const value = require(url.replace('stb-', ''))
+  const { render, ref,
+          reactive, nextTick, serializeInner, h, nodeOps,
+          watchPostEffect
+        } = value
+
+  const count = ref(0)
+  let result, n = 0
+  const assertion = count => {
+    result = serializeInner(root) === `${count}`
+    n++
+  }
+
+  const Comp = {
+    setup() {
+      watchPostEffect(() => assertion(count.value))
+      return () => count.value
+    }
+  }
+
+  const root = nodeOps.createElement('div')
+  try {
+    render(h(Comp), root)
+  } catch(e) {
+    console.log(e.message);
+  }
+  console.log('1. result = ' + result + ', n = ' + n)
+
+  count.value++
+
+  await nextTick()
+  console.log('\n2. result = ' + result + ', n = ' + n)
+}());
+return ''
+  #+end_src
+
+  #+RESULTS:
+  : 1. result = true, n = 1
+  : ''
+  : 2. result = true, n = 2
+- [X] reactivity: new effectScope API ([[https://github.com/vuejs/vue-next/issues/2195][#2195]]) ([[https://github.com/vuejs/vue-next/commit/f5617fc3bb8fd33927b2567622ac4f8b43f9b5d5][f5617fc]])
+  @@html:<span id="f5617fc"></span>@@
+
+  RFC: [[https://github.com/vuejs/rfcs/pull/212][vuejs/rfcs#212]]
+
+  新增的 APIs
+  1. EffectScope (class)
+  2. getCurrentScope
+  3. onScopeDispose
+- [X] reactivity: support onTrack/onTrigger debug options for computed ([[https://github.com/vuejs/vue-next/commit/5cea9a1d4e846f60515ef76ebab4800228645601][5cea9a1]])
+  @@html:<span id="5cea9a1"></span>@@
+
+  支持 *DEV* 模式下分别在 track 和 trigger 的时候调用 onTrack 和 onTrigger。
+
+ onTrack -> effect.ts:trackEffects:
+ #+begin_src typescript
+if (shouldTrack) {
+  dep.add(activeEffect!)
+  activeEffect!.deps.push(dep)
+  if (__DEV__ && activeEffect!.onTrack) {
+    activeEffect!.onTrack(
+      Object.assign(
+        {
+          effect: activeEffect!
+        },
+        debuggerEventExtraInfo
+      )
+    )
+  }
+}
+ #+end_src
+
+ onTrigger -> effect.ts:triggerEffects:
+ #+begin_src typescript
+for (const effect of isArray(dep) ? dep : [...dep]) {
+  if (effect !== activeEffect || effect.allowRecurse) {
+    if (__DEV__ && effect.onTrigger) {
+      effect.onTrigger(extend({ effect }, debuggerEventExtraInfo))
+    }
+    if (effect.scheduler) {
+      effect.scheduler()
+    } else {
+      effect.run()
+    }
+  }
+}
+
+// onTrigger 参数： { effect } & DebuggerEventExtraInfo
+export type DebuggerEventExtraInfo = {
+  target: object
+  type: TrackOpTypes | TriggerOpTypes
+  key: any
+  newValue?: any
+  oldValue?: any
+  oldTarget?: Map<any, any> | Set<any>
+}
+ #+end_src
+
+ 使用：
+ #+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../reactivity/dist/reactivity.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { reactive, effect, computed } = value
+
+const obj = reactive({ foo: 1 })
+function onTrack(eventInfo) {
+  console.log('TrackEventArg=', eventInfo);
+}
+function onTrigger(eventInfo) {
+  console.log('TriggerEventArg=', eventInfo);
+}
+const c = computed(() => obj.foo, { onTrigger, onTrack })
+
+c.value;
+obj.foo++
+console.log('c.value = ' + c.value)
+return obj
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ TrackEventArg= {
+   effect: ReactiveEffect {
+     fn: [Function (anonymous)],
+     scheduler: [Function (anonymous)],
+     active: true,
+     deps: [ [Set] ],
+     onTrack: [Function: onTrack],
+     onTrigger: [Function: onTrigger]
+   },
+   target: { foo: 1 },
+   type: 'get',
+   key: 'foo'
+ }
+ TriggerEventArg= {
+   effect: ReactiveEffect {
+     fn: [Function (anonymous)],
+     scheduler: [Function (anonymous)],
+     active: true,
+     deps: [ [Set] ],
+     onTrack: [Function: onTrack],
+     onTrigger: [Function: onTrigger]
+   },
+   target: { foo: 2 },
+   type: 'set',
+   key: 'foo',
+   newValue: 2,
+   oldValue: 1,
+   oldTarget: undefined
+ }
+ c.value = 2
+ { foo: 2 }
+ #+end_example
+
+** Performance improvements [7/7]
+- [X] also hoist all-static children array ([[https://github.com/vuejs/vue-next/commit/b7ea7c148552874e8bce399eec9fbe565efa2f4d][b7ea7c1]])
+  如果 children 里面都是静态节点直接将整个 children 数组提升:
+  #+begin_src diff
+const _hoisted_1 = /*#__PURE__*/_createElementVNode(\\"div\\", { key: \\"foo\\" }, null, -1 /* HOISTED */)
++ const _hoisted_2 = [
++  _hoisted_1
++ ]
+
+return function render(_ctx, _cache) {
+  with (_ctx) {
+    const { createElementVNode: _createElementVNode, openBlock: _openBlock, createElementBlock: _createElementBlock } = _Vue
+
+-    return (_openBlock(), _createElementBlock(\\"div\\", null, [
+-      _hoisted_1
+-    ]))
++    return (_openBlock(), _createElementBlock(\\"div\\", null, _hoisted_2))
+  }
+}"
+  #+end_src
+- [X] hoist dynamic props lists ([[https://github.com/vuejs/vue-next/commit/02339b67d8c6fab6ee701a7c4f2773139ed007f5][02339b6]])
+  动态属性名列表提升：
+  #+begin_src diff
+-      _createElementVNode(\\"div\\", { id: foo }, null, 8 /* PROPS */, [\\"id\\"])
++      _createElementVNode(\\"div\\", { id: foo }, null, 8 /* PROPS */, _hoisted_1)
+  #+end_src
+- [X] reactivity: avoid triggering re-render if computed value did not change ([[https://github.com/vuejs/vue-next/commit/ebaac9a56d82d266e333d077b6457543d7cab9ae][ebaac9a]])
+  trigger computed value 之前先检查下值有没改变。
+
+  #+begin_src typescript
+if (this._dirty) {
+  this._dirty = false
+  const newValue = this.effect.run()!
+  if (this._value !== newValue) {
+    this._value = newValue
+    triggerRefValue(this)
+  }
+} else {
+  triggerRefValue(this)
+}
+  #+end_src
+- [X] reactivity: improve reactive effect memory usage ([[https://github.com/vuejs/vue-next/issues/4001][#4001]]) ([[https://github.com/vuejs/vue-next/commit/87f69fd0bb67508337fb95cb98135fd5d6ebca7d][87f69fd]]), closes [[https://github.com/vuejs/vue-next/issues/2345][#2345]]
+  @@html:<span id="87f69fd"></span>@@
+
+  改动点：
+
+  1) ReactiveEffect 改用 class 来实现(stop, run 都在这个 class 里面实现)
+
+     #+begin_src typescript
+export class ReactiveEffect<T = any> {
+  active = true
+  deps: Dep[] = []
+
+  // can be attached after creation
+  computed?: boolean
+  allowRecurse?: boolean
+  onStop?: () => void
+  // dev only
+  onTrack?: (event: DebuggerEvent) => void
+  // dev only
+  onTrigger?: (event: DebuggerEvent) => void
+
+  constructor(
+    public fn: () => T,
+    public scheduler: EffectScheduler | null = null,
+    scope?: EffectScope | null
+  ) {
+    recordEffectScope(this, scope)
+  }
+
+  run() {
+    if (!this.active) {
+      return this.fn()
+    }
+    if (!effectStack.includes(this)) {
+      try {
+        effectStack.push((activeEffect = this))
+        enableTracking()
+
+        trackOpBit = 1 << ++effectTrackDepth
+
+        if (effectTrackDepth <= maxMarkerBits) {
+          initDepMarkers(this)
+        } else {
+          cleanupEffect(this)
+        }
+        return this.fn()
+      } finally {
+        if (effectTrackDepth <= maxMarkerBits) {
+          finalizeDepMarkers(this)
+        }
+
+        trackOpBit = 1 << --effectTrackDepth
+
+        resetTracking()
+        effectStack.pop()
+        const n = effectStack.length
+        activeEffect = n > 0 ? effectStack[n - 1] : undefined
+      }
+    }
+  }
+
+  stop() {
+    if (this.active) {
+      cleanupEffect(this)
+      if (this.onStop) {
+        this.onStop()
+      }
+      this.active = false
+    }
+  }
+}
+     #+end_src
+
+  2) effect 通过 ~new ReactiveEffect()~ 创建, 收集的依赖通过 ~_effect.run()~ 执行。
+- [X] reactivity: ref-specific track/trigger and miscellaneous optimizations ([[https://github.com/vuejs/vue-next/issues/3995][#3995]]) ([[https://github.com/vuejs/vue-next/commit/64310405acaccabc24985ade95fb1b5c9c06ef76][6431040]])
+  @@html:<span id="6431040"></span>@@
+- [X] reactivity: use bitwise dep markers to optimize re-tracking ([[https://github.com/vuejs/vue-next/issues/4017][#4017]]) ([[https://github.com/vuejs/vue-next/commit/6cf2377cd49d24814bdff136bf78c77d50d5b41a][6cf2377]])
+  @@html:<span id="6cf2377"></span>@@
+
+  #+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../reactivity/dist/reactivity.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { reactive, effect, targetMap, toRaw } = value
+
+
+console.log('> should handle deep effect recursion using cleanup fallback');
+const results = reactive([0])
+const effects = []
+for (let i = 1; i < 40;i++) {
+  ;(index => {
+    const fx = effect(() => {
+      results[index] = results[index - 1] * 2
+    })
+    effects.push({ fx, index })
+  })(i)
+}
+
+// targetMap.forEach((key, value) => console.log({ key, value }))
+// console.log(toRaw(results).join(','), targetMap.get(toRaw(results)), 'xx');
+console.log(('results[39] = ' + results[39]));
+const deps = targetMap.get(toRaw(results))
+for (let i = 0; i < 40; i++) {
+  const dep = deps.get('' + i)
+  // dep && console.log(i + 1 + ": " + "n(newTracked): " + dep.n +', w(wasTracked): ' + dep.w);
+}
+results[0] = 1
+console.log(('results[39] = 2^39, ' + (results[39] === Math.pow(2, 39))));
+
+return 0
+  #+end_src
+
+  #+RESULTS:
+  : > should handle deep effect recursion using cleanup fallback
+  : results[39] = 0
+  : results[39] = 2^39, true
+  : 0
+- [X] improve VNode creation performance with compiler hints ([[https://github.com/vuejs/vue-next/issues/3334][#3334]]) ([[https://github.com/vuejs/vue-next/commit/ceff89905b05381d3d73c480e08c7aff9271b074][ceff899]])
+  @@html:<span id="ceff899"></span>@@
+
+  区分 element 和 component 创建过程，新增两个针对性的函数，分别用来创建
+  element(~createElementVNode~) 和 component(~createComponentVNode~)，减少部分检查的
+  工作，总的来说优化创建 element 和 component 的过程。
+
+  compiler-core:codegen 阶段 element 由 ~_createVNode~ 改成 ~_createElementVNode~,
+  ~_createBlock~ 改成 ~_createElementBlock~
+
+  增加的 helpers: ~CREATE_VNODE~ -> ~CREATE_ELEMENT_VNODE~
+
+  #+begin_src typescript
+export const CREATE_ELEMENT_BLOCK = Symbol(__DEV__ ? `createElementBlock` : ``)
+export const CREATE_ELEMENT_VNODE = Symbol(__DEV__ ? `createElementVNode` : ``)
+export const NORMALIZE_CLASS = Symbol(__DEV__ ? `normalizeClass` : ``)
+export const NORMALIZE_STYLE = Symbol(__DEV__ ? `normalizeStyle` : ``)
+export const NORMALIZE_PROPS = Symbol(__DEV__ ? `normalizeProps` : ``)
+export const GUARD_REACTIVE_PROPS = Symbol(__DEV__ ? `guardReactiveProps` : ``)
+
+// compiler-core/src/utils.ts
+export function getVNodeHelper(ssr: boolean, isComponent: boolean) {
+  return ssr || isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE
+}
+
+export function getVNodeBlockHelper(ssr: boolean, isComponent: boolean) {
+  return ssr || isComponent ? CREATE_BLOCK : CREATE_ELEMENT_BLOCK
+}
+
+// runtime-core/src/vnode.ts
+export function guardReactiveProps(props: (Data & VNodeProps) | null) {
+  if (!props) return null
+  return isProxy(props) || InternalObjectKey in props
+    ? extend({}, props)
+    : props
+}
+
+// shared/src/normalizeProp.ts
+export function normalizeProps(props: Record<string, any> | null) {
+  if (!props) return null
+  let { class: klass, style } = props
+  if (klass && !isString(klass)) {
+    props.class = normalizeClass(klass)
+  }
+  if (style) {
+    props.style = normalizeStyle(style)
+  }
+  return props
+}
+  #+end_src
+
+  测试：
+
+  #+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../compiler-core/dist/compiler-core.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { generate, createSimpleExpression, locStub,
+        createVNodeCall, createObjectExpression,
+        createObjectProperty,
+        createCompoundExpression,
+        createArrayExpression
+      } = value
+
+function createRoot(options) {
+  return {
+    type: 0/* ROOT */,
+    children: [],
+    helpers: [],
+    components: [],
+    directives: [],
+    imports: [],
+    hoists: [],
+    cached: 0,
+    temps: 0,
+    codegenNode: createSimpleExpression(`null`, false),
+    loc: locStub,
+    ...options
+  }
+}
+
+function genCode(node) {
+  return generate(
+    createRoot({
+      codegenNode: node
+    })
+  ).code.match(/with \(_ctx\) \{\s+([^]+)\s+\}\s+\}$/)[1]
+}
+
+const mockChildren = createCompoundExpression(['children'])
+const mockDirs = createArrayExpression([
+  createArrayExpression([`foo`, createSimpleExpression(`bar`, false)])
+])
+
+const mockProps = createObjectExpression([
+  createObjectProperty(`foo`, createSimpleExpression(`bar`, true))
+])
+
+const test = (title, ...args) => console.log('> ' + title + '\n', "'" + genCode( createVNodeCall(...args) ) + "'")
+
+test('tag only', null, '"div"')
+test('with props', null, '"div"', mockProps)
+test('with children, no props', null, '"div"', undefined, mockChildren)
+test('with children + props', null, '"div"', mockProps, mockChildren)
+test('as block', null, '"dv"', mockProps, mockChildren, undefined, undefined, undefined, true)
+return 0
+  #+end_src
+
+  #+RESULTS:
+  #+begin_example
+  > tag only
+   'return _createElementVNode("div")
+   '
+  > with props
+   'return _createElementVNode("div", { foo: "bar" })
+   '
+  > with children, no props
+   'return _createElementVNode("div", null, children)
+   '
+  > with children + props
+   'return _createElementVNode("div", { foo: "bar" }, children)
+   '
+  > as block
+   'return (_openBlock(), _createElementBlock("dv", { foo: "bar" }, children))
+   '
+  0
+  #+end_example
+
+** Breaking Changes [1/1]
+- [X] Output of SFC using <style scoped> generated by 3.2+ will be incompatible w/ runtime < 3.2.
+
+* 小结
+
+3.2 更新重点摘要：
+
+1. ~v-memo~ 组件更新条件设置。
+2. ~$ref()~ SFC setup 中的新语法糖。
+3. ~MutationObserver~ 解决 cssVar + transition + v-if 无效问题。
+4. ~ReactiveEffect~ 重构成了 class 实现，effect 不再是函数，而是其实例对象。
+
+* 3.0.8
+
+1. *yellow:IMP*: SFC style 中的 ~::v-slotted~ 和 ~:slotted~ link-here:slotted
+
+** DONE Performance Improvements [1/1]
+CLOSED: [2021-08-09 Mon 21:23]
+
+- [X] support only attaching slot scope ids when necessary ([[https://github.com/vuejs/vue-next/commit/02cbbb718ca226b087c42e6f132120931307c2a6][02cbbb7]])
+  @@html:<span id="slotted"></span>@@
+
+  SFC style 中使用
+
+  ~:slotted(h1) { color: blue; }~
+
+  或
+
+  ~::v-slotted(h1) { color: blue; }~
+
+  可以在当前组件中控制 slot 组件的样式。
+
+  https://codesandbox.io/s/damp-cdn-k9eed?file=/src/main.js
+
+  #+begin_src js
+const url =
+      process.env.VNEXT_PKG_RC + "/../compiler-sfc/dist/compiler-sfc.cjs.js";
+const value = require(url.replace("stb-", ""));
+const { compileScript, parse, compileStyle } = value;
+
+function compileScoped(source, options) {
+  const res = compileStyle({
+    source,
+    filename: 'test.css',
+    id: 'data-v-test',
+    scoped: true,
+    ...options
+  })
+  return res.code
+}
+
+const src = `::v-slotted(h1) { color: red; } :slotted(h1) {font-size:12px;}`
+const code = compileScoped(src)
+console.log(code)
+return 0;
+  #+end_src
+
+  #+RESULTS:
+  : h1[data-v-test-s] { color: red;
+  : }
+  : h1[data-v-test-s] {font-size:12px;}
+  : 0
+
+  下面会检查 style 中是不是含 ~::v-slotted(...) {...}~ 或 ~:slotted(...) {..}~ 指令
+
+  #+begin_src typescript
+// packages/compiler-sfc/src/parse.ts
+  // check if the SFC uses :slotted
+  const slottedRE = /(?:::v-|:)slotted\(/
+  descriptor.slotted = descriptor.styles.some(s => slottedRE.test(s.content))
+#+end_src
+
+  根据上面的结果，在 parse SFC template 阶段给组件加上 ~scope-id-s~ 属性， 如：
+
+  ~<div scope-id-s />~
+
+  #+begin_src typescript
+// packages/compiler-ssr/src/transforms/ssrTransformSlotOutlet.ts
+// inject slot scope id if current template uses :slotted
+  if (context.scopeId && context.slotted !== false) {
+    args.push(`"${context.scopeId}-s"`)
+  }
+#+end_src
+* 3.0.7
+
+1. *red:FIX*: ~<script setup>~ 中 export default 和 class 语法
+   link-here:default-rewrite 。
+2. *red:FIX*: doc:v-show 的优先级比 ~{style: { display: 'block' }}~ 更高
+   link-here:v-show-priority
+3. *red:FIX*: scheduler 中 组件更新任务总是保持以 ~job.id~ 的增序执行，在插入的时候找到
+   对应的索引插入 link-here:job-id-as
+
+** DONE Bug Fixes [6/6]
+CLOSED: [2021-08-09 Mon 15:23]
+
+- [X] compiler-sfc: handle more edge cases in default rewrite (1dedc19)
+  @@html:<span id="default-rewrite"></span>@@
+
+  处理 setup script 中更多语法情况：
+
+  #+begin_src js
+const url =
+  process.env.VNEXT_PKG_RC + "/../compiler-sfc/dist/compiler-sfc.cjs.js";
+const value = require(url.replace("stb-", ""));
+const { rewriteDefault } = value;
+
+const test = (hint, code) => {
+  console.log('> ' + hint + '\n');
+  console.log(rewriteDefault(code, 'script'))
+}
+
+test('1. comments', `// export default\nexport default {}`)
+test('2. export default class', `export default class Foo {}`)
+test('3. export default class + commons', `// export default\nexport default class Foo {}`)
+test('4. export default class + comments 2',  `export default {}\n` + `// export default class Foo {}`)
+test('5. export default class + comments 3', `/*\nexport default class Foo {}*/\n` + `export default class Bar {}`)
+console.log('------ end ------ ');
+
+return 0;
+  #+end_src
+
+  blue:+RESULTS:
+  #+begin_example
+  > 1. comments
+
+  // export default
+  const script = {}
+  > 2. export default class
+
+  class Foo {}
+  const script = Foo
+  > 3. export default class + commons
+
+  // export default
+  class Foo {}
+  const script = Foo
+  > 4. export default class + comments 2
+
+  const script = {}
+  // export default class Foo {}
+  > 5. export default class + comments 3
+
+  /*
+  export default class Foo {}*/
+  const script = class Bar {}
+  ------ end ------
+  0
+  #+end_example
+- [X] deps: pin Rollup to 2.38 (34f354b), closes #3332
+- [X] runtime-core: properties in methods should be writable and enumerable in
+  DEV (#3301) (e3568ba), closes #3300
+
+  #+begin_src diff
+ 3  packages/runtime-core/src/componentOptions.ts
+@@ -610,7 +610,8 @@ export function applyOptions(
+          Object.defineProperty(ctx, key, {
+            value: methodHandler.bind(publicThis),
+            configurable: true,
+-            enumerable: false
++            enumerable: true,
++            writable: true
+          })
+        } else {
+          ctx[key] = methodHandler.bind(publicThis)
+  #+end_src
+- [X] scheduler: ensure updates are always inserted in ascending id order
+  ([[https://github.com/vuejs/vue-next/issues/3184][#3184]]) ([[https://github.com/vuejs/vue-next/commit/45fae9d308e8cb9fe3304d4ca03c373ce63b2e62][45fae9d]]), closes [[https://github.com/vuejs/vue-next/issues/2768][#2768]] [[https://github.com/vuejs/vue-next/issues/2829][#2829]] @@html:<span id="job-id-as"></span>@@
+
+  [[https://codesandbox.io/s/lucid-wind-c4jky?file=/src/App.vue][View isn't updated in a weird case (combination of many factors, transition,
+  injection & computed)]]
+
+  确保 updates 总是以升序被插入，那么在插入之前就得找到适当的 job 索引:
+
+  #+begin_src typescript
+// #2768
+// Use binary-search to find a suitable position in the queue,
+// so that the queue maintains the increasing order of job's id,
+// which can prevent the job from being skipped and also can avoid repeated patching.
+function findInsertionIndex(job: SchedulerJob) {
+  // the start index should be `flushIndex + 1`
+  let start = flushIndex + 1
+  let end = queue.length
+  const jobId = getId(job)
+
+  while (start < end) {
+    const middle = (start + end) >>> 1
+    const middleJobId = getId(queue[middle])
+    middleJobId < jobId ? (start = middle + 1) : (end = middle)
+  }
+
+  return start
+}
+
+
+  #+end_src
+
+  在 update 进入任务队列的时候保证所有 jobs 是以升序排列
+
+  #+begin_src diff
+export function queueJob(job: SchedulerJob) {
+  // the dedupe search uses the startIndex argument of Array.includes()
+  // by default the search index includes the current job that is being run
+@@ -72,7 +91,12 @@ export function queueJob(job: SchedulerJob) {
+      )) &&
+    job !== currentPreFlushParentJob
+  ) {
+-    queue.push(job)
++    const pos = findInsertionIndex(job)
++    if (pos > -1) {
++      queue.splice(pos, 0, job)
++    } else {
++      queue.push(job)
++    }
+    queueFlush()
+  }
+}
+  #+end_src
+- [X] doc:v-show takes higher priority than style attribute ([[https://github.com/vuejs/vue-next/issues/3230][#3230]])
+  ([[https://github.com/vuejs/vue-next/commit/5ad4036e29f75dc907e95b99a63325b855332566][5ad4036]]), closes [[https://github.com/vuejs/vue-next/issues/2757][#2757]] @@html:<span id="v-show-priority"></span>@@
+
+  doc:v-show 也是通过 el.style.[[https://developer.mozilla.org/en-US/docs/Web/CSS/display][display]] 来实现的，这里意思是如果 style 属性中也有
+  display 的话，在 [[https://github.com/vuejs/vue-next/tree/master/packages/runtime-dom/src/modules/style.ts][runtime-dom/src/modules/style.ts]] 中 patch 的时候应该
+  doc:v-show 的优先级更高。
+
+- [X] init devtools after feature flag checks ([[https://github.com/vuejs/vue-next/commit/d0ea74556f74d8c503ffb7b70f41cbe2ce14db98][d0ea745]])
+** DONE Performance Improvements [1/1]
+CLOSED: [2021-08-09 Mon 15:22]
+
+- [X] reactivity: only call Set.add if doesn't already have value ([[https://github.com/vuejs/vue-next/issues/3307][#3307]])
+  ([[https://github.com/vuejs/vue-next/commit/9cd988342cfa32ddd9479585244eb317d74c9712][9cd9883]])
+
+  对于 Set key-value 都是值，所以当有这个 value 的时候再添加就没有什么意义了，
+  Set 又是不重复集合。
+
+  #+begin_src diff
+ packages/reactivity/src/collectionHandlers.ts
+@@ -76,8 +76,8 @@ function add(this: SetTypes, value: unknown) {
+  const target = toRaw(this)
+  const proto = getProto(target)
+  const hadKey = proto.has.call(target, value)
+-  target.add(value)
+  if (!hadKey) {
++    target.add(value)
+    trigger(target, TriggerOpTypes.ADD, value, value)
+  }
+  return this
+  #+end_src
+* 3.0.6
+
+此次更新重点内容(值得关注的点)：
+
+ 1. *green:ADD*: ~BigInt~ 类型和 /doc:SFC/ 支持 link-here:add-bigint
+ 2. *red:FIX*: 修复 ~class: ['foo', false, undefined, 'bar']~ 被解析成 ~<div
+    class="foo bar"/>~ 问题 link-here:fix-array-class 。
+ 3. *red:FIX*: 修复 ~foo-bar~ 事件名无法触发问题 link-here:fix-kebab-event-name 。
+ 4. *red:FIX*: ~this.$watch(fn, callback)~ 的 ~fn~ 第一个参数是 ~instance.proxy~
+    link-here:instanceWatch
+
+** Bug Fixes [3/3]
+CLOSED: [2022-03-12 Sat 19:15]
+
+- [X] remove superfluous spaces when normalizing class ([[https://github.com/vuejs/vue-next/issues/3083][#3083]]) ([[https://github.com/vuejs/vue-next/commit/4b551420fc058c4683219db5d75893f9fc69aa04][4b55142]])
+  @@html:<span id="fix-array-class"></span>@@
+
+  问题如下代码，正常应该忽略 ~undefind~, ~false~ ：
+  #+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../runtime-test/dist/runtime-test.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { nodeOps, render, h, serializeInner: s } = value
+
+const Comp = {
+  props: { foo: BigInt },
+  render() {
+    return h('div', { class: ['foo', undefined, false, 'bar'] }, [this.foo])
+  }
+}
+
+const root = nodeOps.createElement('div')
+render(h(Comp,  {
+  foo: BigInt(BigInt(100000111)) + BigInt(2000000000) * BigInt(30000000)
+}), root)
+
+console.log(s(root))
+return 0
+  #+end_src
+
+  blue:+RESULTS:
+  : <div class="foo   bar">60000000100000111</div>
+  : 0
+
+  修复：
+  #+begin_src diff
+ packages/shared/src/normalizeProp.ts
+@@ -62,7 +62,10 @@ export function normalizeClass(value: unknown): string {
+    res = value
+  } else if (isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+-      res += normalizeClass(value[i]) + ' '
++      const normalized = normalizeClass(value[i])
++      if (normalized) {
++        res += normalized + ' '
++      }
+    }
+  } else if (isObject(value)) {
+    for (const name in value) {
+  #+end_src
+- [X] runtime-core: instanceWatch should pass this.proxy to source as the first argument ([[https://github.com/vuejs/vue-next/issues/2753][#2753]]) ([[https://github.com/vuejs/vue-next/commit/ec8fd10cec61c33c7c8056413a1c609ac90e1215][ec8fd10]])
+  @@html:<span id="instanceWatch"></span>@@
+
+  当 watch 一个函数的时候，将 instance.proxy 做为第一个参数传给这个函数。
+
+  测试：
+
+  #+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../runtime-test/dist/runtime-test.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { nodeOps, render, h, serializeInner: s, createApp } = value
+
+let instance = null
+const source = (proxy) => console.log(instance && ( proxy === instance.proxy ))
+const Comp = {
+  created() {
+    instance = this
+    this.$watch(source, () => {})
+  },
+  render() {}
+}
+
+const root = nodeOps.createElement('div')
+createApp(Comp).mount(root)
+return 0
+  #+end_src
+
+  blue:+RESULTS:
+  : false
+  : 0
+
+  修复：
+
+  #+begin_src diff
+ packages/runtime-core/src/apiWatch.ts
+@@ -181,7 +181,9 @@ function doWatch(
+        } else if (isReactive(s)) {
+          return traverse(s)
+        } else if (isFunction(s)) {
+-          return callWithErrorHandling(s, instance, ErrorCodes.WATCH_GETTER)
++          return callWithErrorHandling(s, instance, ErrorCodes.WATCH_GETTER, [
++            instance && (instance.proxy as any)
++          ])
+        } else {
+          __DEV__ && warnInvalidSource(s)
+        }
+@@ -190,7 +192,9 @@ function doWatch(
+    if (cb) {
+      // getter with cb
+      getter = () =>
+-        callWithErrorHandling(source, instance, ErrorCodes.WATCH_GETTER)
++        callWithErrorHandling(source, instance, ErrorCodes.WATCH_GETTER, [
++          instance && (instance.proxy as any)
++        ])
+    } else {
+      // no cb -> simple effect
+      getter = () => {
+  #+end_src
+** Features [1/1]
+
+- [X] runtime-core: props type support BigInt ([[https://github.com/vuejs/vue-next/issues/2891][#2891]]) ([[https://github.com/vuejs/vue-next/commit/ffd52885453d1621e45dff645ff1101e74ea40b2][ffd5288]])
+  @@html:<span id="add-bigint"></span>@@
+
+  修改代码：
+  #+begin_src diff
+const isSimpleType = /*#__PURE__*/ makeMap(
+-  'String,Number,Boolean,Function,Symbol'
++  'String,Number,Boolean,Function,Symbol,BigInt'
+)
+  #+end_src
+
+  测试
+  #+begin_src js
+const url = process.env.VNEXT_PKG_RC +'/../runtime-test/dist/runtime-test.cjs.js'
+const value = require(url.replace('stb-', ''))
+const { nodeOps, render, h, serializeInner: s } = value
+
+const Comp = {
+  props: { foo: BigInt },
+  render() {
+    return h('div', [this.foo])
+  }
+}
+
+const root = nodeOps.createElement('div')
+render(h(Comp,  {
+  foo: BigInt(BigInt(100000111)) + BigInt(2000000000) * BigInt(30000000)
+}), root)
+
+console.log(s(root))
+return 0
+  #+end_src
+
+  #+RESULTS:
+  : <div>60000000100000111</div>
+  : 0
+* 3.0.5
+** DONE *Bug Fixes* [2/2]
+CLOSED: [2021-08-05 Thu 23:44]
+
+- [X] compiler-sfc: support transforming asset urls with full base url. ([[https://github.com/vuejs/vue-next/issues/2477][#2477]]) ([[https://github.com/vuejs/vue-next/commit/db786b1afe41c26611a215e6d6599d50312b9c2f][db786b1]])
+
+    针对相对路径而言，当提供了 base 选项的时候，会使用这个值去拼接，如：
+
+    ~{ transformAssetUrls: { base: 'https://www.cheng92.com' } }~
+
+    ~<img src="./vue/img/test.png" />~ 会被编译成：
+
+    ~createVNode('img', { src: 'https://www.cheng92.com/vue/img/test.png' })~
+- [X] skip patchBlockChildren if n1.dynamicChildren is null ([[https://github.com/vuejs/vue-next/issues/2717][#2717]]) ([[https://github.com/vuejs/vue-next/commit/c59897c7b0dbd82b5bbf3fbca945c0639ac37fb8][c59897c]]), closes [[https://github.com/vuejs/vue-next/issues/2715][#2715]] [[https://github.com/vuejs/vue-next/issues/2485][#2485]]
+
+  #+begin_export html
+    <div id="IR8Cl"></div>
+    <script src="/assets/js/vue/tests/IR8Cl.js"></script>
+  #+end_export
+
+  这个问题原因是，一开始 HelloWorld 的 dynamicChildren 是 null。
+
+  当点击 ADD 按钮的时候增加了一项数据，会进入 mountChildren -> patchBlockChildren
+
+  #+begin_src typescript
+  const patchBlockChildren: PatchBlockChildrenFn = (
+    oldChildren,
+    newChildren,
+    fallbackContainer,
+    parentComponent,
+    parentSuspense,
+    isSVG,
+    slotScopeIds
+  ) => {
+    for (let i = 0; i < newChildren.length; i++) {
+      const oldVNode = oldChildren[i] // dynamicChildren
+      const newVNode = newChildren[i]
+
+      // ...
+      }
+    }
+  #+end_src
+
+  而 ~dynamicChildren~ 在初始化的时候是个 ~null~ 值, 一开始就访问了
+  ~dynamicChildren[i]~ 所以导致报错。
+
+  修复代码([[https://github.com/vuejs/vue-next/commit/c59897c7b0dbd82b5bbf3fbca945c0639ac37fb8][c59897c]])，加个判断条件：
+
+  #+begin_src diff
+  if (
+        patchFlag > 0 &&
+        patchFlag & PatchFlags.STABLE_FRAGMENT &&
+-        dynamicChildren &&
++        dynamicChildren &&
++        n1.dynamicChildren
+      ) {
+        // a stable fragment (template root or <template v-for>) doesn't need to
+        // patch children order, but it may contain dynamicChildren.
+        patchBlockChildren(
+-         n1.dynamicChildren!,
++          n1.dynamicChildren,
+          dynamicChildren,
+          container,
+          parentComponent,
+          parentSuspense,
+          isSVG,
+          slotScopeIds
+        )
+
+  #+end_src
+
+* COMMENT Local Variables :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

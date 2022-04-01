@@ -1,0 +1,22 @@
+:PROPERTIES:
+:ID:       58f6b283-015f-476f-a515-de5e6083dd1d
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: readthedocs
+#+HTML_HEAD: <meta name="category" content="emacs"/>
+#+HTML_HEAD: <meta name="tags" content="readthedocs"/>
+#+TITLE: readthedocs
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+* ReadTheDocs
+* 搜索工具
+
+[[https://readthedocs-sphinx-search.readthedocs.io/en/latest/][readthedocs-sphinx-search — readthedocs-sphinx-search 0.1.1 documentation]]
+
+1. ~$ pip install readthedocs-sphinx-search~
+
+
+* COMMENT Local Variables :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

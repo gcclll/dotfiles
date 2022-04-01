@@ -1,0 +1,1153 @@
+:PROPERTIES:
+:ID:       f4fd05f7-cec7-46fd-8b58-c4c736b1a58c
+:ROAM_REFS: https://tc39.es/ecma262/#sec-function-calls
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: build_your_own_vue_reactivity
+#+HTML_HEAD: <meta name="category" content="vue"/>
+#+HTML_HEAD: <meta name="tags" content="reactivity"/>
+# #+PROPERTY: header-args:js :exports both
+#+PROPERTY: header-args :noweb no-export
+#+TITLE: build your own vue reactivity
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+#+begin_box Vue3 Reactivity :background-color green
+从零开始实现 doc:vue3 的 reactivity 模块，基于 Proxy + Reflect api 实现响应式。大致
+实现路径 reactive -> proxy 开启代理 -> reflect 映射到原子操作，监听 get/set 执行
+track & trigger 收集信赖。
+
+/<blue:注意：这里会省略部分不影响理解的代码，和一些非法参数等等的检查，目的是为了减少代码量，但不影响学习和理解源代码>/
+#+end_box
+#+html: <br>
+
+* 前置代码(handlers)
+
+由于 doc:Proxy + doc:Reflect 并没有针对集合类型(=Set=, =Map=)的数据有直接的映射接口，因此对
+于这两类数据要做特殊处理，直接通过 getter, setter 方法来变相实现 reactive 功能。
+
+所以这里用到两种 handlers， 一个是 ~mutableHandlers~ 针对普通类型的对象，一个是
+~mutableCollectionHandlers~ 集合类型的对象。
+
+而 handlers 是传递给 doc:Proxy 接口的一个参数，具体的使用要参考 doc:Proxy +
+doc:Reflect 的使用。
+
+当传递一个对象 =target= 给 doc:Proxy 的时候，它会返回一个代理后的对象，对这个对象
+做的一些原子操作会被 handlers 里面提供的方法所拦截，然后在这些 handlers 对应的方
+法里面又可以通过 doc:Reflect 来执行原子操作(比如：赋值和取值)，这样就能监听某一
+个对象的原子操作在它们变更时来执行一些我们所想要的操作。
+
+更多与 doc:proxy 和 doc:reflect 相关的内容请点击 [[id:cc2b98c6-21d9-488c-9a05-8485a36c1e01][JavaScript Proxy And Reflect]]。
+
+* used global variables
+
+这里把用到的所有全局变量集中到下面。
+
+#+name: globalVars
+#+begin_src js -n -r
+const __DEV__ = true
+// 用来缓存 target => Proxy<target> 之间的关系
+const reactiveMap = new WeakMap() (ref:reactiveMap)
+
+const objectToString = Object.prototype.toString
+const toTypeString = value => objectToString.call(value)
+
+const getRawType = val => Object.prototype.toString.call(val).slice(8, -1)
+const isCollection = val => ['Map', 'Set', 'WeakMap', 'WeakSet'].includes(getRawType(val))
+const isObject = val => ['Object', 'Array'].includes(getRawType(val))
+const isString = val => typeof val === 'string'
+const isIntegerKey = (key) => isString(key) && key !== 'NaN' && key[0] !== '-' && '' + parseInt(key, 10) === key
+const isMap = val => toTypeString(val) === '[object Map]'
+const hasOwnProperty = Object.prototype.hasOwnProperty
+const hasOwn = (val, key) => hasOwnProperty.call(val, key)
+
+const toRaw = observed => {
+  const raw = observed && observed.__v_raw
+  return raw ? toRaw(raw) : observed
+}
+const getProto = v => Reflect.getPrototypeOf(v)
+const toReactive = value => typeof value === 'object' ? reactive(value) : value
+
+const log = (fn, message) => console.log(`[${fn}] ${message}`)
+const logEnd = () => console.log("--------- END ---------")
+#+end_src
+
+* reactive(target: object)
+
+相关代码：[[globalVars][globalVars]], [[createReactiveObject][createReactiveObject]]
+
+#+name: reactive
+#+begin_src js -n -r
+<<globalVars>>
+
+function reactive(target) {
+  // 只读对象不可 reactive
+  if (target?.__v_isReadonly) {
+    return target
+  }
+
+  return createReactiveObject(
+    target,
+    false,
+    mutableHandlers,
+    mutableCollectionHandlers,
+    reactiveMap
+  )
+}
+<<createReactiveObject>>
+#+end_src
+
+注意这里传入的 5 个参数[[(createReactiveObject-parameters)]]。
+
+1. =target= 被代理的目标对象
+2. =readonly = false= 标识该目标对象不是只读的
+3. [[(mutableHandlers)][mutableHandlers]] 普通类型对象的代理参数
+4. [[(mutableCollectionHandlers)][mutableCollectionHandlers]] 集合类型的代理参数
+5. [[(reactiveMap)][reactiveMap]] 这里是一个应用级别的全局变量，用来存储 target=>proxy 的对应关系，
+   可以用来避免对一个已经是 doc:Proxy 的对象进行重复代理。
+
+* createReactiveObject
+
+这个才是真正创建代理的地方，也是 blue:reactivity 模块真正的核心起点代码，其它代码都是
+围绕着这里面创建的代理。
+
+kbd:createReactiveObject()
+
+声明：
+#+begin_src typescript
+function createReactiveObject(
+  target: Target,
+  isReadonly: boolean,
+  baseHandlers: ProxyHandler<any>,
+  collectionHandlers: ProxyHandler<any>,
+  proxyMap: WeakMap<Target, any>
+)
+#+end_src
+
+参数说明：
+
+#+name: createReactiveObject-parameters
+| name               | description                                                 |
+|--------------------+-------------------------------------------------------------|
+| =target=             | object to be reactive                                       |
+| =isReadonly=         | target is readonly ?                                        |
+| =baseHandlers=     | a param to Proxy for normal objects(doc:Object, doc:Array)  |
+| =collectionHandlers= | a param to Proxy for collectional objects(doc:Map, doc:Set) |
+| =proxyMap=           | cache target=>proxy relationship, avoid proxy repeatly      |
+
+#+name: createReactiveObject
+#+begin_src js
+function createReactiveObject(
+  target,
+  isReadOnly,
+  baseHandlers,
+  collectionHandlers,
+  proxyMap
+) {
+  // targetType 是 target 原始类型 Object.prototype.toString.call(target) => [object Object]
+  // 中的 "Object", 这里如果是 Map/Set/WeakMap/WeakSet 则使用 collectionHandlers 如果是 Object/Array
+  // 就使用 baseHandlers(TIP:这里路过非法检测)
+  const proxy = new Proxy(target, isCollection(target) ? collectionHandlers : baseHandlers)
+  proxyMap.set(target, proxy)
+  return proxy
+}
+#+end_src
+
+* mutableHandlers
+
+针对普通类型(doc:Object, doc:Array)的对象的 Proxy 参数。
+
+#+name: mutableHandlers
+#+begin_src js -n -r
+const mutableHandlers = (function () {    (ref:mutableHandlers)
+  const get = createGetter();
+
+  <<createGetter>>         (ref:createGetter)
+
+  const set = createSetter();
+
+  <<createSetter>>         (ref:createSetter)
+
+  <<deleteProperty>>       (ref:deleteProperty)
+
+  <<not-collection-has>>          (ref:not-collection-has)
+
+  <<ownKeys>>              (ref:ownKeys)
+
+  return {
+    get,
+    set,
+    deleteProperty,
+    has,
+    ownKeys,
+  };
+})();
+#+end_src
+
+** createGetter
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: base-handler-createGetter
+:END:
+
+#+name: createGetter
+#+begin_src js
+function createGetter(isReadonly = false, shallow = false) {
+
+  return function get(target, key, receiver) {
+
+    // 通过原子操作得到真实的值
+    const res = Reflect.get(target, key, receiver)
+    console.log(`createGetter| ${res}, get proxy - reflect`)
+
+    return res
+  }
+}
+#+end_src
+
+** createSetter
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: base-handler-createSetter
+:END:
+
+#+name: createSetter
+#+begin_src js
+function createSetter(shallow = false) {
+  return function set(target, key, value, receiver) {
+    let oldValue = target[key]
+
+    // 检测是新增成员还是更新成员值，并且排除了 NaN 一些非法的下标值
+    const hadKey =
+      Array.isArray(target) && isIntegerKey(key)
+        ? Number(key) < target.length
+        : hasOwn(target, key)
+
+    // 赋值的原子操作
+    const result = Reflect.set(target, key, value, receiver)
+    console.log(`createSetter| set value=${value}, key=${key}, result=${result}`)
+
+    return result // 返回赋值结果
+  }
+}
+#+end_src
+
+** deleteProperty
+#+name: deleteProperty
+#+begin_src js
+function deleteProperty(target, key) {
+  const hasKey = hasOwn(target, key)
+  const oldValue = target[key]
+  const result = Reflect.deleteProperty(target, key)
+  console.log(`deleteProperty| key=${key} deleted, result=${result}`)
+  return result
+}
+#+end_src
+
+** has
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: base-handler-has
+:END:
+
+#+name: not-collection-has
+#+begin_src js
+function has(target, key) {
+  const result = Reflect.has(target, key)
+  console.log(`has| key=${key}, result=${result}`);
+  return result
+}
+#+end_src
+
+** ownKeys
+
+#+name: ownKeys
+#+begin_src js
+function ownKeys(target) {
+  console.log(`ownKeys| - ${JSON.stringify(target)}`);
+  return Reflect.ownKeys(target)
+}
+#+end_src
+
+** Testing
+
+先将 [[(mutableCollectionHandlers)][mutableCollectionHandlers]] 置为 ={}= 这里只测试 [[(mutableHandlers)][mutableHandlers]] 普通对象的代理
+部分。
+
+#+html: <br>
+#+begin_details 测试非集合类型 get 操作 :title-color red
+[[createGetter][createGetter]], [[reactive][reactive]]
+
+#+begin_src js -n -r :exports both
+const mutableCollectionHandlers = {}
+const mutableHandlers = (function() {
+  <<createGetter>>
+  const get = createGetter()
+  return { get }
+}())
+
+<<reactive>>
+
+const observed = reactive({ count: 0 })
+observed.count // read val, should log some below
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 测试非集合类型 set 操作 :title-color red
+[[createSetter][createSetter]], [[reactive][reactive]]
+
+#+begin_src js -n -r :exports both
+const mutableCollectionHandlers = {}
+const mutableHandlers = (function() {
+  <<createSetter>>
+  const set = createSetter()
+  return { set }
+}())
+
+<<reactive>>
+
+const observed = reactive({ count: 0 })
+observed.count++ // write val, should log some below
+console.log('count = ' + observed.count)
+logEnd()
+#+end_src
+
+#+end_details
+
+#+html: <br>
+#+begin_details 测试非集合类型 delete 操作 :title-color red
+[[deleteProperty][deleteProperty]], [[reactive][reactive]]
+
+#+begin_src js -n -r :exports both
+const mutableCollectionHandlers = {}
+const mutableHandlers = (function() {
+  <<deleteProperty>>
+  return { deleteProperty }
+}())
+
+<<reactive>>
+
+const observed = reactive({ count: 0, count2: 0 })
+delete observed.count2 // delete property, should log some below
+console.log('count2 = ' + observed.count2)
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 测试非集合类型 has 操作 :title-color red
+[[not-collection-has][not-collection-has]], [[reactive][reactive]]
+#+begin_src js -n -r :exports both
+const mutableCollectionHandlers = {}
+const mutableHandlers = (function() {
+  <<not-collection-has>>
+  return { has }
+}())
+
+<<reactive>>
+
+const observed = reactive({ count: 0 })
+'count' in observed;
+'count2' in observed;
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 测试非集合类型 ownKeys 操作 :title-color red
+[[ownKeys][ownKeys]], [[reactive][reactive]]
+
+各种迭达操作时会调用的原子操作。
+
+#+begin_src js -n -r :exports both
+const mutableCollectionHandlers = {}
+const mutableHandlers = (function() {
+  <<ownKeys>>
+  return { ownKeys }
+}())
+
+<<reactive>>
+
+const observed = reactive({ count: 0 })
+for (let prop in observed) {
+  // ...
+}
+Object.keys(observed) // 也是迭代器操作
+logEnd()
+#+end_src
+#+end_details
+
+* mutableCollectionHandlers
+
+针对集合类型的对象，因为 doc:Reflect 并没有提供对应的原子操作的方法，所以需要通过
+getter/setter 方法与对应 ~Reflect.get~ 结合对集合类型变相实现响应式。
+
+因为任何方法的调用实际上都是 get[fn:1] 操作。
+
+集合类型包含的方法有： ~get, has, size, add, set, delete, clear, forEach~ 对它们实
+现 doc:Proxy 方式其实就是一个 proxy get - Reflect.get 方法，所以
+mutableCollectionHandlers 就很简单只有一个 ~get~ 方法。
+
+#+name: mutableCollectionHandlers
+#+begin_src js -r -n
+<<mutableInstrumentations>>
+<<collection-iterator>>
+<<createInstrumentationGetter>>
+const mutableCollectionHandlers = { (ref:mutableCollectionHandlers)
+  get: createInstrumentationGetter(false, false)
+}
+#+end_src
+
+所有的代码都封装在以 [[createInstrumentationGetter][createInstrumentationGetter]] 为入口的代码中了。
+
+接下来重点看下它是如何实现 Map/Set 类型的代理的？？？
+
+#+begin_tip
+vue 源码是基于 typescript 实现的，所以下面集合相关的函数的第一个参数是 ~function
+(this: Xxxx)~ 方法，在 javascript 中其实就是函数内部的 ~this~ 。
+#+end_tip
+
+** createInstrumentationGetter
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-createInstrumentationGetter
+:END:
+
+#+name: createInstrumentationGetter
+#+begin_src js
+function createInstrumentationGetter(isReadonly, shallow) {
+  // 这里会去检测 isReadonly, shallow 参数决定使用哪个 instrumentations
+  // 这里为了简便直接使用最基本的 instrumentations
+  const instrumentations = mutableInstrumentations
+
+  // 返回一个 get proxy handler, 针对 map.has() 方法和属性的调用
+  // 此时的访问的 key 其实是 `has` 这个方法名
+  return (target, key, receiver) => {
+
+    console.log(`createInstrumentationGetter| key=${key}`) // 这里应该输出集合方法名，如：has,set,get
+
+    // 取被代理之前的原始对象
+    if (key === '__v_raw') {
+      return target
+    }
+    // 这里将集合类实例方法或属性的读取映射到 instrumentations 中去
+    // 等于是 map.has -> get 'has' prop -> instrumetations get ...
+    // 也就是说当你调用 map.has 的时候实际是调用的这里的 instrumentations.has 方法
+    return Reflect.get(
+      hasOwn(instrumentations, key) && key in target
+        ? instrumentations
+        : target,
+      key,
+      receiver
+    )
+  }
+}
+#+end_src
+
+** mutableInstrumentations
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: collection-mutableInstrumentations
+:END:
+
+#+name: mutableInstrumentations
+#+begin_src js -n -r
+<<collection-get>>
+<<collection-size>>
+<<collection-has>>
+<<collection-add>>
+<<collection-set>>
+<<collection-delete>>
+<<collection-clear>>
+<<collection-forEach>>
+const mutableInstrumentations = {
+  get(key) {
+    return get(this, key)
+  },
+  get size() {
+    return size(this)
+  },
+  has,
+  add,
+  set,
+  delete: deleteEntry,
+  clear,
+  forEach: createForEach(false, false)
+}
+#+end_src
+
+** get
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-get
+:END:
+
+#+name: collection-get
+#+begin_src js -n -r
+function get(target, key, isReadonly, isShallow) {
+  target = target.__v_raw // 取出代理之前的原始对象
+  const rawTarget = toRaw(target)
+  const rawKey = toRaw(key)
+
+  // 取出原始对象的原生的 has 方法，即： Map.prototype.has
+  const { has } = getProto(rawTarget)
+  console.log(`collection get| key=${rawKey}, target=${rawTarget}`)
+  const wrap = toReactive // readonly ? shallow ?
+  if (has.call(rawTarget, key)) { // 先检测正常的 key
+    return wrap(target.get(key))
+  } else if (has.call(rawTarget, rawKey)) { // key 本身可能是个 proxy 对象
+    return wrap(target.get(rawKey))
+  } else if (target !== rawTarget) {
+    // 嵌套使用时的情况 readonly(reactive(Map))，这里暂时不讨论
+    target.get(key)
+  }
+}
+#+end_src
+
+这个 get 函数是集合类型对象实现代理的最关键的函数，因为所有的集合类型代理都通过代
+理它们的 ~get~ 方法来实现的，比如： ~map.get('count')~ 实现是对 map get 进行了代理，
+当调用它时首先是发生了 map -> get 这个名为 ~get~ 的函数的取值操作，最后这个操作都
+被代理到了 [[mutableCollectionHandlers][mutableCollectionHandlers]] 中去了，因为当调用 ~map.get()~ 的时候实际是在
+调用 ~mutableCollectionHandlers.get()~ 最后调用的就是这里的 ~get~ 函数。
+
+其实一顿操作过后，在这个函数里最后调用的还是 ~map.get~ 这个原生函数，得到值返回，
+在返回之前会对这个结果进行 reactive 化。
+
+** has
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-has
+:END:
+
+#+name: collection-has
+#+begin_src js -n -r
+function has(key, isReadonly) {
+  target = this.__v_raw
+  const rawTarget = toRaw(target)
+  const rawKey = toRaw(key)
+
+  console.log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
+  // key 本身也可能是一个 reactive 对象
+  return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey)
+}
+#+end_src
+
+** size
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-size
+:END:
+
+#+name: collection-size
+#+begin_src js -n -r
+function size(target, isReadonly) {
+  target = target.__v_raw
+
+  console.log(`size| target=${target}`)
+  return Reflect.get(target, 'size', target)
+}
+#+end_src
+** add
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-add
+:END:
+
+~Set.prototype.add~ 添加元素。
+
+#+name: collection-add
+#+begin_src js -n -r
+function add(value) {
+  value = toRaw(value)
+  const target = toRaw(this)
+  const proto = getProto(target)
+  const hadKey = proto.has.call(target, value)
+
+  if (!hadKey) {
+    target.add(value)
+  }
+  console.log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
+  return this
+}
+#+end_src
+
+** set
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-set
+:END:
+
+#+name: collection-set
+#+begin_src js -n -r
+function set(key, value) {
+  value = toRaw(value)
+  const target = toRaw(this)
+  const { has, get } = getProto(target)
+
+  let hadKey = has.call(target, key)
+  if (!hadKey) {
+    key = toRaw(key)
+    hadKey = has.call(target, key)
+  }
+
+  const oldValue = get.call(target, key)
+  target.set(key, value)
+  console.log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
+  return this
+}
+#+end_src
+
+** delete
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-delete
+:END:
+
+#+name: collection-delete
+#+begin_src js -n -r
+function deleteEntry(key) {
+  const target = toRaw(this)
+  const { has, get } = getProto(target)
+  let hadKey = has.call(target, key)
+  if (!hadKey) {
+    key = toRaw(key)
+    hadKey = has.call(target, key)
+  }
+
+  const oldValue = get ? get.call(target, key) : undefined
+  const result = target.delete(key)
+  console.log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
+  return result
+}
+#+end_src
+
+** clear
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-clear
+:END:
+
+#+name: collection-clear
+#+begin_src js -n -r
+function clear() {
+  const target = toRaw(this)
+  const hadItems = target.size !== 0
+  const oldTarget = __DEV__
+        ? isMap(target) ? new Map(target) : new Set(target)
+        : undefined
+
+  const result = target.clear()
+  if (hadItems) {
+    // ...trigger
+  }
+  console.log(`clear| result=${result}, target=${target}`)
+  return result
+}
+#+end_src
+
+** forEach
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: ref-collection-forEach
+:END:
+
+#+name: collection-forEach
+#+begin_src js -n -r
+function createForEach(isReadonly, isShallow) {
+  return function forEach(callback, thisArg) {
+    const observed = this
+    const target = observed.__v_raw
+    const rawTarget = toRaw(target)
+    const wrap = toReactive // shallow ? readonly ?
+
+    console.log(`forEach| target=${target}, rawTarget=${rawTarget}`)
+    return target.forEach((value, key) => {
+      console.log(`forEach - forEach| value=${value}, key=${key}`)
+      return callback.call(thisArg, wrap(value), wrap(key), observed)
+    })
+  }
+}
+#+end_src
+** keys, values, entries
+
+#+name: createIterableMethod
+#+begin_src js -n -r
+function createIterableMethod(method, isReadonly, isShallow) {
+  return function(...args) {
+    const target = this.__v_raw
+    const rawTarget = toRaw(target)
+    const targetIsMap = isMap(rawTarget)
+    // map 键值对类型
+    const isPair = method === 'entries' || (method === Symbol.iterator && targetIsMap)
+    // set 值-值类型
+    const isKeyOnly = method === 'keys' && targetIsMap
+    const innerIterator = target[method](...args)
+    const wrap = toReactive
+
+    // 伪造迭代器
+    return {
+      next() {
+        const { value, done } = innerIterator.next()
+        console.log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
+        return done ? { value, done } : {
+          value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
+          done
+        }
+      },
+      [Symbol.iterator]() {
+        return this
+      }
+    }
+  }
+}
+#+end_src
+
+代理 Map, Set 的迭达器操作:
+
+#+name: collection-iterator
+#+begin_src js -n -r
+<<createIterableMethod>>
+
+const iteratorMethods = ['keys', 'values', 'entries', Symbol.iterator]
+iteratorMethods.forEach(method => {
+  mutableInstrumentations[method] = createIterableMethod(
+    method,
+    false,
+    false
+  )
+})
+#+end_src
+** Testing
+
+#+html: <br>
+#+begin_details 集合类型的 get 操作 :title-color red
+
+[[reactive][reactive]], [[collection-get][collection-get]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-get>>
+
+  return {
+    get(key) {
+      return get(this, key)
+    }
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed = reactive(new Map([['count', 0]]))
+const count = observed.get('count')
+
+logEnd()
+#+end_src
+
+1. 第一行输出是 ~observed.get~ 方法的访问，被 ~proxy get~ 代理到了
+   [[mutableCollectionHandlers][mutableCollectionHandlers]] 中的 ~get~ 结果，即此时的 ~get~ 调用已经被代理到了
+   ~mutableCollectionHandlers.get~ 。
+2. 第二行是因为在 ~mutableCollectionHandlers.get~ 中访问了一次 ~target__v_raw~ 触发
+   的
+3. 第三行是 ~observed.get('count')~ 调用触发最后返回 ~count:0~
+
+
+也就是说对于集合类型的代理，代码的路径都是：
+
+~map.get~ -> ~Reflect.get~ 原生方法/属性名 -> 代理到对应的
+~mutableCollectionHandlers.[method]~ -> 取出 ~map~ 原生的 ~get~ 取出结果返回。
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 has 操作 :title-color red
+
+[[reactive][reactive]], [[collection-has][collection-has]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-has>>
+  <<collection-get>>
+
+  return {
+    has,
+    get(key) {
+      return get(this, key)
+    }
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed = reactive(new Map([['count', 0]]))
+const result = observed.has('count')
+console.log('has count prop ? ', result)
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 size 操作 :title-color red
+
+[[reactive][reactive]], [[collection-size][collection-size]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-size>>
+  <<collection-get>>
+
+  return {
+    get(key) {
+      return get(this, key)
+    },
+
+    get size() {
+      return size(this)
+    }
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed = reactive(new Map([['count', 0]]))
+console.log(`size = ${observed.size}`)
+logEnd()
+#+end_src
+
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 add 操作 :title-color red
+
+[[reactive][reactive]], [[collection-add][collection-add]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-add>>
+
+  return {
+    add
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed = reactive(new Set())
+observed.add(1)
+observed.add(2)
+observed.add(2)
+logEnd()
+#+end_src
+
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 set 操作 :title-color red
+
+[[reactive][reactive]], [[collection-set][collection-set]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-set>>
+
+  return {
+    set
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed = reactive(new Map())
+observed.set('count', 1)
+observed.set('count', 2)
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 delete 操作 :title-color red
+[[reactive][reactive]], [[collection-delete][collection-delete]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-delete>>
+  <<collection-set>>
+  <<collection-get>>
+  <<collection-add>>
+
+  return {
+    delete: deleteEntry,
+    set,
+    add,
+    get(key) {
+      return get(this, key)
+    }
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed = reactive(new Map())
+observed.set('count', 1)
+observed.set('foo', 2)
+observed.delete('foo')
+console.log(observed)
+logEnd()
+const observed1 = reactive(new Set())
+observed1.add(1)
+observed1.add(2)
+observed1.delete(1)
+console.log(observed1)
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 clear 操作 :title-color red
+[[reactive][reactive]], [[collection-clear][collection-clear]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-delete>>
+  <<collection-set>>
+  <<collection-get>>
+  <<collection-add>>
+  <<collection-clear>>
+
+  return {
+    delete: deleteEntry,
+    set,
+    add,
+    get(key) {
+      return get(this, key)
+    },
+    clear
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed1 = reactive(new Set())
+observed1.add(1)
+observed1.add(2)
+console.log('before clear', observed1)
+observed1.clear()
+console.log('after clear', observed1)
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 forEach 操作 :title-color red
+[[reactive][reactive]], [[collection-forEach][collection-forEach]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-delete>>
+  <<collection-set>>
+  <<collection-get>>
+  <<collection-add>>
+  <<collection-clear>>
+  <<collection-forEach>>
+
+  return {
+    delete: deleteEntry,
+    set,
+    add,
+    get(key) {
+      return get(this, key)
+    },
+    clear,
+    forEach: createForEach(false, false)
+  }
+}())
+
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+const observed = reactive(new Map([["foo", 1], ['bar', 2]]))
+observed.forEach((val, key) => {
+  console.log(`[Map] === ${key}=${val} ===`)
+})
+const observed1 = reactive(new Set([1,2,1,3,4,2,5]))
+observed1.forEach((val, key) => {
+  console.log(`[Set] === ${key}=${val} ===`)
+})
+logEnd()
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details 集合类型的 keys values entries Symbol.iterator 操作 :title-color red
+[[reactive][reactive]], [[collection-iterator][collection-iterator]]
+
+#+begin_src js -n -r :exports both
+const mutableHandlers = {}
+const mutableInstrumentations = (function() {
+
+  <<collection-delete>>
+  <<collection-set>>
+  <<collection-get>>
+  <<collection-add>>
+  <<collection-clear>>
+  <<collection-forEach>>
+  <<collection-has>>
+  <<collection-size>>
+
+  return {
+    delete: deleteEntry,
+    set,
+    has,
+    add,
+    get(key) {
+      return get(this, key)
+    },
+    get size() {
+      return size(this)
+    },
+    clear,
+    forEach: createForEach(false, false)
+  }
+}())
+
+// 封装迭达器操作
+<<collection-iterator>>
+<<createInstrumentationGetter>>
+
+const mutableCollectionHandlers = {
+  get: createInstrumentationGetter(false, false)
+}
+
+<<reactive>>
+
+function logIterator(iterator, hint, type) {
+  let done = false, value
+  while (!done) {
+    const it = iterator.next()
+    value = it.value
+    done = it.done
+    console.log(`[${type}] - ${hint} - value=${value}, done=${done}`)
+
+  }
+  console.log(`[${type}] - ${hint} - value=${value}, done=${done}`)
+}
+const observed = reactive(new Map([["foo", 1], ['bar', 2]]))
+logIterator(observed.keys(), 'Map', 'keys')
+logIterator(observed.values(), 'Map', 'values')
+logIterator(observed.entries(), 'Map', 'entries')
+
+logEnd()
+const observed1 = reactive(new Set([1,2,1]))
+logIterator(observed1.keys(), 'Set', 'keys')
+logIterator(observed1.values(), 'Set', 'values')
+logIterator(observed1.entries(), 'Set', 'entries')
+logEnd()
+#+end_src
+#+end_details
+
+* phase one(no track & trigger)
+
+完整不含 track 和 trigger 代码的 reactive 实现代码。
+
+#+begin_src js -n -r :noweb yes
+<<mutableHandlers>>
+<<mutableCollectionHandlers>>
+<<reactive>>
+
+let val, iterator
+const observed = reactive({ a: 1 })
+observed.a // get
+observed.a = 2
+logEnd()
+const observed1 = reactive(new Map())
+observed1.set('foo', 1)
+observed1.set('bar', 2)
+val = observed1.get('bar')
+console.log(`[Map] bar=${val}, size=${observed1.size}`)
+observed1.delete('foo')
+console.log(`[Map] foo=${observed1.get('foo')}, has foo?${observed1.has('foo')}, size=${observed1.size}`)
+iterator = observed1.keys()
+let item = iterator.next()
+console.log(`[iterator 1] val=${item.value}, done=${item.done}`, )
+item = iterator.next()
+console.log(`[iterator 2] val=${item.value}, done=${item.done}`, )
+item = iterator.next()
+console.log(`[iterator 3] val=${item.value}, done=${item.done}`, )
+logEnd()
+const observed2 = reactive(new Set())
+observed2.add(1)
+observed2.add(2)
+observed2.delete(1)
+console.log(`size=${observed2.size}`)
+#+end_src
+
+* COMMENT Local Variables :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:
+
+* FootNotes
+
+[fn:1] https://tc39.es/ecma262/#sec-function-calls

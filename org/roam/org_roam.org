@@ -1,0 +1,30 @@
+:PROPERTIES:
+:ID:       193fb17e-b4ea-4b4b-bc78-056815359664
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: org_roam
+#+HTML_HEAD: <meta name="category" content="emacs"/>
+#+HTML_HEAD: <meta name="tags" content="org,roam"/>
+#+TITLE: org-roam
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+* org-ref
+
+bibliography:references.bib
+
+ref:193fb17e-b4ea-4b4b-bc78-056815359664
+
+label:193fb17e-b4ea-4b4b-bc78-056815359664
+
+
+#+name: table-1
+#+caption: simple table
+| x | y |
+| 1 | 1 |
+| 2 | 2 |
+| 3 | 3 |
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

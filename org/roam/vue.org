@@ -1,0 +1,15 @@
+:PROPERTIES:
+:ID:       e8a6f155-00b4-484d-8594-f1dfc20c78a9
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: vue
+#+TITLE: Vue
+
+<badge:GCCLL | Homepage | green | / | Vue>
+
+Hello 💖 x Vue !!!
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

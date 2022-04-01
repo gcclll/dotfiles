@@ -1,0 +1,117 @@
+# -*- mode: conf -*-
+
+# remote-url|local-dir|local-dir-parent-dir|clone-depth
+# by default depth=1
+# private
+git@code.aliyun.com:wyu/documents.git|documents|mine|0
+git@code.aliyun.com:gccll/get-more-money.git|get-more-money|mine|0
+git@github.com:gcclll/awesome-demos.git|awesome-demos|mine|0
+git@github.com:gcclll/cheng92.com.git|cheng92.com|mine|0
+git@github.com:gcclll/blog.cheng92.com.git|blog.cheng92.com|mine|0
+git@github.com:gcclll/cheng92-comments.git|cheng92-comments|mine|0
+git@github.com:gcclll/dotfiles.git|dotfiles|mine|0
+git@github.com:gcclll/make-leetcode.git|make-leetcode|mine|0
+git@github.com:gcclll/test.git|test|mine|0
+git@github.com:gcclll/org-html-themes.git|org-html-themes|mine|0
+git@github.com:gcclll/waka-box.git|waka-box|mine|0
+git@github.com:gcclll/org-special-block-extras.git|org-special-block-extras|mine|0
+git@code.aliyun.com:gccll/bak-sl-projects.git|bak-sl-projects|mine|0
+
+# tools
+https://github.com/hgoebl/mobile-detect.js.git|mobile-detect|tools
+
+# nodejs
+https://github.com/sindresorhus/awesome-nodejs.git|awesome-nodejs|nodejs
+
+# css
+https://github.com/AllThingsSmitty/css-protips.git|css-protips|css
+https://github.com/aniftyco/awesome-tailwindcss.git|awesome-tailwindcss|css
+https://github.com/troxler/awesome-css-frameworks.git|awesome-css-frameworks|css
+
+# vue
+https://github.com/vuejs/awesome-vue.git|awesome-vue|vue
+https://github.com/vuejs/vue-next.git|vue-next|vue
+https://github.com/vuejs/vuex.git|vuex|vue
+https://github.com/vuejs/vue-router-next.git|vue-router-next|vue
+https://github.com/vuejs/vite.git|vite|vue
+https://github.com/vuejs/rfcs.git|rfcs|vue
+https://github.com/basvanmeurs/vue-next-benchmarks.git|vue-next-benchmarks|vue
+https://github.com/gcclll/vue-json-pretty.git|vue-json-pretty|vue
+https://github.com/vitejs/awesome-vite.git|awesome-vite|vue
+https://github.com/gcclll/vitesse.git|vitesse|vue
+https://github.com/vuejs/pinia.git|pinia|vue
+
+# react
+git@code.aliyun.com:gccll/react-native-demo-app.git|react-native-demo-app|react
+https://github.com/duskload/react-device-detect.git|react-device-detect|react
+https://github.com/brillout/awesome-react-components.git|awesome-react-components|react
+https://github.com/facebook/react.git|react|react
+https://github.com/facebook/create-react-app.git|create-react-app|react
+https://github.com/vercel/next.js.git|next.js|react|1
+https://github.com/marmelab/react-admin.git|react-admin|react
+https://github.com/remix-run/react-router.git|react-router|react
+https://github.com/reach/router.git|reach-router|react
+https://github.com/ant-design/ant-design.git|ant-design|react
+https://github.com/enaqx/awesome-react.git|awesome-react|react
+https://github.com/preactjs/preact.git|preact|react
+https://github.com/reduxjs/react-redux.git|react-redux|react
+https://github.com/mobxjs/mobx.git|mobx|react
+https://github.com/facebook/flux.git|flux|react
+https://github.com/xgrommx/awesome-redux.git|awesome-redux|react
+https://github.com/rehooks/awesome-react-hooks.git|awesome-react-hooks|react
+
+# golang
+https://github.com/golang/go.git|go|golang
+https://github.com/tmrts/go-patterns.git|go-patterns|golang
+https://github.com/avelino/awesome-go.git|awesome-go|golang
+https://github.com/dariubs/GoBooks.git|GoBooks|golang
+https://github.com/hackstoic/golang-open-source-projects.git|golang-open-source-projects|golang
+
+# python
+https://github.com/vinta/awesome-python.git|awesome-python|python
+https://github.com/facert/awesome-spider.git|awesome-spider|python
+
+# shell
+https://github.com/alebcay/awesome-shell.git|awesome-shell|shell
+https://github.com/unixorn/awesome-zsh-plugins.git|awesome-zsh-plugins|shell
+https://github.com/bnb/awesome-hyper.git|awesome-hyper|shell
+https://github.com/webpro/awesome-dotfiles.git|awesome-dotfiles|shell
+
+# HarmonyOS
+https://github.com/Awesome-HarmonyOS/HarmonyOS.git|HarmonyOS|harmony
+
+# Normally, common
+https://github.com/mbasso/awesome-wasm.git|awesome-wasm|common
+https://github.com/qazbnm456/awesome-web-security.git|awesome-web-security|common
+https://github.com/sindresorhus/awesome.git|awesome|common
+https://github.com/awesome-selfhosted/awesome-selfhosted.git|awesome-selfhosted|common
+https://github.com/trimstray/the-book-of-secret-knowledge.git|the-book-of-secret-knowledge|common
+https://github.com/papers-we-love/papers-we-love.git|papers-we-love|common
+https://github.com/521xueweihan/HelloGitHub.git|HelloGitHub|common
+https://github.com/Hack-with-Github/Awesome-Hacking.git|Awesome-Hacking|common
+https://github.com/jaywcjlove/awesome-mac.git|awesome-mac|common
+https://github.com/DopplerHQ/awesome-interview-questions.git|awesome-interview-questions|common
+https://github.com/prakhar1989/awesome-courses.git|awesome-courses|common
+https://github.com/MunGell/awesome-for-beginners.git|awesome-for-beginners|common
+https://github.com/binhnguyennus/awesome-scalability.git|awesome-scalability|common
+https://github.com/tiimgreen/github-cheat-sheet.git|github-cheat-sheet|common
+https://github.com/dypsilon/frontend-dev-bookmarks.git|frontend-dev-bookmarks|common
+https://github.com/serhii-londar/open-source-mac-os-apps.git|open-source-mac-os-apps|common
+https://github.com/goabstract/Awesome-Design-Tools.git|Awesome-Design-Tools|common
+https://github.com/nikitavoloboev/my-mac-os.git|my-mac-os|common
+https://github.com/iCHAIT/awesome-macOS.git|awesome-macOS|common
+https://github.com/ascoders/weekly.git|weekly|common
+https://github.com/DovAmir/awesome-design-patterns.git|awesome-design-patterns|common
+https://github.com/alexpate/awesome-design-systems.git|awesome-design-systems|common
+https://github.com/stanzhai/be-a-professional-programmer.git|be-a-professional-programmer|common
+https://github.com/agarrharr/awesome-cli-apps.git|awesome-cli-apps|common
+https://github.com/carpedm20/awesome-hacking.git|awesome-hacking|common
+https://github.com/TonnyL/Awesome_APIs.git|Awesome_APIs|common
+https://github.com/taowen/awesome-lowcode.git|awesome-lowcode|common
+https://github.com/davidsonfellipe/awesome-wpo.git|awesome-wpo|common
+https://github.com/aalhour/awesome-compilers.git|awesome-compilers|common
+https://github.com/mbasso/awesome-wasm.git|awesome-wasm|common
+https://github.com/rossant/awesome-math.git|awesome-math|common
+https://github.com/ChromeDevTools/awesome-chrome-devtools.git|awesome-chrome-devtools|common
+https://github.com/Atarity/deploy-your-own-saas.git|deploy-your-own-saas|common
+https://github.com/jasonrudolph/keyboard.git|hammerspoon-keyboard|common

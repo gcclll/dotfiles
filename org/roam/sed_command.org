@@ -1,0 +1,78 @@
+:PROPERTIES:
+:ID:       1a7e98ba-a7f1-4758-b3a0-6ee1e148a61d
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: sed_command
+#+HTML_HEAD: <meta name="category" content="shell"/>
+#+HTML_HEAD: <meta name="tags" content="sed"/>
+#+TITLE: sed command
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+[[https://www.gnu.org/software/sed/manual/sed.html][sed, a stream editor]]
+
+=sed= 是一个流编辑器，用来在一个输入流上执行基本的文本操作，输入流可以是一个文件或
+管道。
+
+** 执行 sed
+
+~$ sed SCRIPT INPUTFILE...~
+
+如：用 'world' 替换 input.txt 中所有的 'hello'
+
+~$ sed 's/hello/world/' input.txt > output.txt~
+
+#+begin_src sh :results output
+echo "
+hello...
+hello...
+hello...
+">/tmp/input.txt
+sed 's/hello/world/' /tmp/input.txt > /tmp/output.txt
+cat /tmp/output.txt
+#+end_src
+
+#+RESULTS:
+:
+: world...
+: world...
+: world...
+:
+
+如果没有指定 /INPUTFILE/ 或者 /INPUTFILE/ 是 ~-~, sed 会将标准输入的内容做为处理目标，
+下面的命令都是等价的:
+
+#+begin_src sh
+sed 's/hello/world/' input.txt > output.txt
+sed 's/hello/world/' < input.txt > output.txt
+cat input.txt | sed 's/hello/world/' - > output.txt
+#+end_src
+
+sed 默认会将输出写入到标准输出，可以用 =i-= 去编辑来源文件从而代替打印到标准输出
+(意思就是直接编辑原文件了)
+
+#+begin_src sh :results output
+cat /tmp/input.txt
+sed -i'' -e 's/world/hello/' /tmp/input.txt
+cat /tmp/input.txt
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+world...
+world...
+world...
+
+
+hello...
+hello...
+hello...
+
+#+end_example
+
+
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

@@ -24,6 +24,14 @@ if [ -d $dot ]; then
         $dot/dev \
         $dot/xminds \
         $dot/.hammerspoon \
+        $dot/.macos \
+        $dot/.repositories \
+        $dot/Brewfile \
+        $dot/config \
+        $dot/org \
+        $dot/roam \
+        $dot/workflows \
+        $dot/xminds \
         $mine/dotfiles
 
     cd $mine/dotfiles

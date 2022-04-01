@@ -1,0 +1,97 @@
+* 用处不大可 remap 的组合键
+
+
+
+~/github/tmp/test/a.js:10
+
+https://github.com/hlissner/doom-emacs/blob/develop/modules/config/default/%2Bevil-bindings.el
+* head 1
+** head 2
+*** head 3
+
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+* head 1
+** head 2
+*** head 3
+
+    test test test test test test est test
+
+* head 1
+** head 2
+*** head 3
+
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+* head 1
+** head 2
+*** head 3
+
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+* head 1
+** head 2
+*** head 3
+    bb    aaa    cc test test1 test
+
+test2 test test3
+
+    test test4 test test5 test
+test6 test test7 test test8
+* head 1
+** head 2
+*** head 3
+
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+* head 1
+** head 2
+*** head 3
+
+test test
+
+    test test test test
+
+test test
+
+test1 test2 test3 test3 test7
+
+
+
+test4 test6 test5
+* head 1
+** head 2
+*** head 3
+
+test test
+test test
+test test
+test test
+test test
+test test
+test test
+test test

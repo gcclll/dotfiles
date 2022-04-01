@@ -1,0 +1,47 @@
+#!/bin/bash
+
+http_url_cnpm="https://github.com.cnpmjs.org"
+git_url_cnpm="git@github.com.cnpmjs.org"
+
+http_url_fast="https://hub.fastgit.org"
+git_url_fast="git@hub.fastgit.org"
+
+http_url_gc="https://gitclone.com/github.com"
+git_url_gc="git@gitclone.com/github.com"
+
+help() {
+    echo -e "
+COMMAND: gclone <proxy> <repo> <target>
+
+proxy:
+1. cnpm, cnpmgit, cnpmset   # github.com.cnpmjs.org
+2. fast, fastgit, fastset   # hub.fastgit.org
+3. gc, gcgit, gcset         # gitclone.com
+4. unset
+"
+}
+
+if [ $# -lt 3 ]; then
+    help
+    exit -1
+fi
+
+repo="$2"
+target="$3"
+
+case "$1" in
+    # cnpmjs
+    cnpm) git clone "${http_url_cnpm}/$repo" "$target" ;;
+    cnpmgit) git clone "${git_url_cnpm}/$repo" "$target" ;;
+    cnpmset) git config --global url."${http_url_cnpm}".insteadOf https://github.com ;;
+    # fast
+    fast) git clone "${http_url_fast}/$repo" "$target" ;;
+    fastgit) git clone "${git_url_fast}/$repo" "$target" ;;
+    fastset) git config --global url."${http_url_fast}".insteadOf https://github.com ;;
+    # gitclone
+    gc) git clone "${http_url_gc}/$repo" "$target" ;;
+    gcgit) git clone "${git_url_gc}/$repo" "$target" ;;
+    gcset) git config --global url."${http_url_gc}".insteadOf https://github.com ;;
+    # unset
+    unset) git config --global --unset url.https://github.com.insteadOf ;;
+esac

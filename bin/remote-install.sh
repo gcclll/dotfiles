@@ -27,6 +27,6 @@ else
     eval "$CMD"
 fi
 
-echo "Should execute \`
+echo "should execute \`
 bash -c \"\`curl -fsSL https://raw.githubusercontent.com/gcclll/dotfiles/master/install-refresh-os\`\"
 \` command to install everything in need."
