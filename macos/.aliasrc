@@ -70,8 +70,13 @@ source $D/.inforc
 # $GCLRC_SHELL/galias
 # source $GCLRC_HOME/macos/.tmprc
 
-export PATH="/Users/gcl/Library/Python/3.8/bin:/usr/local/bin:/Library/TeX/texbin/:$GCLRC_HOME/bin:$GOBIN:$PATH"
+# export PATH="/Users/gcl/Library/Python/3.8/bin:/usr/local/bin:/Library/TeX/texbin/:$GCLRC_HOME/bin:$GOBIN:$PATH"
+BIN="/bin:/opt/local/bin:/opt/local/sbin:/sbin:/usr/bin:/usr/local/bin:/usr/local/go/bin:/usr/local/opt/fzf/bin:/usr/local/sbin:/usr/sbin:/Users/gcl/.local/bin"
+LIB="/Library/Apple/usr/bin:/Library/TeX/texbin:/Library/TeX/texbin/"
+GCL="/Users/gcl/.cargo/bin:/Users/gcl/.gclrc/bin:/Users/gcl/.local/bin:/Users/gcl/Library/Python/3.8/bin"
+export PATH="$LIB:$GCL:$BIN:$PATH"
 
-export PATH=$(echo $PATH | sed 's/:/\n/g' | sort | uniq | tr -s '\n' ':' | sed 's/:$//g')
+# export PATH=$(echo $PATH | sed 's/:/\n/g' | sort | uniq | tr -s '\n' ':' | sed 's/:$//g')
+export PATH=$(echo $PATH | awk -F: '{for(i=1; i<=NF; i++) { print $(i) } }' | sort | uniq | tr -s '\n' ':' | sed 's/:$//g')
 
 # $GCLRC_BIN/bin/gawesome
