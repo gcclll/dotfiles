@@ -197,8 +197,7 @@ if test ! $(which npm); then
     npm install -g cnpm
     cnpm -g install yarn opencc js-beautify indium \
         editorconfig jest vmd tsun indium ba64 http-server \
-        expo-cli browser-sync pnpm stylelint @volar/server \
-        mermaid.cli atomic-algolia magic-string estree-walker \
+        expo-cli browser-sync pnpm stylelint @volar/vue-language-server mermaid.cli atomic-algolia magic-string estree-walker \
         acorn rollup
 fi
 

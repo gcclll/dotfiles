@@ -1111,6 +1111,8 @@ logEnd()
 
 完整不含 track 和 trigger 代码的 reactive 实现代码。
 
+#+html: <br>
+#+begin_details CODE :title-color green
 #+begin_src js -n -r :noweb yes
 <<mutableHandlers>>
 <<mutableCollectionHandlers>>
@@ -1142,6 +1144,7 @@ observed2.add(2)
 observed2.delete(1)
 console.log(`size=${observed2.size}`)
 #+end_src
+#+end_details
 
 * COMMENT Local Variables :ARCHIVE:
 # Local Variables:

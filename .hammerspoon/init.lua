@@ -64,7 +64,7 @@ up(↑) down(↓) left(←) right(→) \
 \
 grid(g,234) next screen(/) max(<space>) min(.)\
 \
-capture(t)\
+capture(t) 进入Model(Ctrl+F12)\
 "); end)
 
 org_capture_path = os.getenv("HOME").."/.hammerspoon/files/org-capture.lua"
