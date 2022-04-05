@@ -20,7 +20,7 @@ track & trigger 收集信赖。
 #+end_box
 #+html: <br>
 
-* 前置代码(handlers)
+* READY(handlers)
 
 由于 doc:Proxy + doc:Reflect 并没有针对集合类型(=Set=, =Map=)的数据有直接的映射接口，因此对
 于这两类数据要做特殊处理，直接通过 getter, setter 方法来变相实现 reactive 功能。
@@ -38,7 +38,7 @@ doc:Reflect 的使用。
 
 更多与 doc:proxy 和 doc:reflect 相关的内容请点击 [[id:cc2b98c6-21d9-488c-9a05-8485a36c1e01][JavaScript Proxy And Reflect]]。
 
-* used global variables
+* Global variables
 
 这里把用到的所有全局变量集中到下面。
 
@@ -47,9 +47,13 @@ doc:Reflect 的使用。
 const __DEV__ = true
 // 用来缓存 target => Proxy<target> 之间的关系
 const reactiveMap = new WeakMap() (ref:reactiveMap)
+const shallowReactiveMap = new WeakMap() (ref:shallowReactiveMap)
+const readonlyMap = new WeakMap() (ref:readonlyMap)
+const shallowReadonlyMap = new WeakMap() (ref:shallowReadonlyMap)
 
 const objectToString = Object.prototype.toString
 const toTypeString = value => objectToString.call(value)
+const extend = Object.assign
 
 const getRawType = val => Object.prototype.toString.call(val).slice(8, -1)
 const isCollection = val => ['Map', 'Set', 'WeakMap', 'WeakSet'].includes(getRawType(val))
@@ -59,6 +63,7 @@ const isIntegerKey = (key) => isString(key) && key !== 'NaN' && key[0] !== '-' &
 const isMap = val => toTypeString(val) === '[object Map]'
 const hasOwnProperty = Object.prototype.hasOwnProperty
 const hasOwn = (val, key) => hasOwnProperty.call(val, key)
+const hasChanged = (value, oldValue) => !Object.is(value, oldValue)
 
 const toRaw = observed => {
   const raw = observed && observed.__v_raw
@@ -67,8 +72,103 @@ const toRaw = observed => {
 const getProto = v => Reflect.getPrototypeOf(v)
 const toReactive = value => typeof value === 'object' ? reactive(value) : value
 
+// track & trigger related
+// 用来存储订阅者，对应关系： {target -> key -> dep}
+const targetMap = new WeakMap()
+// 当前激活状态的 effect
+let activeEffect // ReactiveEffect
+// 对象迭代过程中收集订阅的一个 key
+const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
+const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
+// 是不是应该收集信赖，比如正在执行的 effect 就不该重复收集
+let shouldTrack = true
+
+<<effect-tools>>
+<<ReactiveEffect>>
+
 const log = (fn, message) => console.log(`[${fn}] ${message}`)
 const logEnd = () => console.log("--------- END ---------")
+#+end_src
+
+effect.s 中相关的函数：
+
+#+name: effect-tools
+#+begin_src js -n -r
+function cleanupEffect(effect) {
+  const { deps } = effect
+  if (deps.length) {
+    for (let i = 0; i < deps.length; i++) {
+      deps[i].delete(effect)
+    }
+    deps.length = 0
+  }
+}
+#+end_src
+
+每个订阅函数最终都会被封装成一个 ~ReactiveEffect~ 被收集到 ~targetMap -> depsMap~ 中
+
+#+name: ReactiveEffect
+#+begin_src js -n -r
+class ReactiveEffect {
+  active = true
+  // 信赖列表
+  deps = []
+  parent = undefined
+
+  constructor(fn, scheduler, scope) {
+    this.fn = fn
+    this.scheduler = scheduler || null
+
+    // ...
+  }
+
+  run() {    (ref:effect-run)
+
+    console.log(`effect|run| active=${this.active}, shouldTrack=${shouldTrack}`)
+    if (!this.active) {
+      return this.fn()
+    }
+
+    let parent = activeEffect
+    let lastShouldTrack = shouldTrack
+    while (parent) {
+      // 是自身，等于没有嵌套，或递归结束
+      if (parent === this) {
+        return
+      }
+      parent = parent.parent
+    }
+
+    // reactive 中执行订阅者函数核心代码
+    try {
+      this.parent = activeEffect
+      activeEffect = this
+      shouldTrack = true
+
+      // 执行之前清理当前订阅
+      cleanupEffect(this)
+      // 执行真正的订阅函数
+      return this.fn()
+    } finally {
+      activeEffect = this.parent
+      // 恢复上一次的 track flag
+      shouldTrack = lastShouldTrack
+      // 已经执行完了，递归链已经被释放了
+      this.parent = undefined
+    }
+
+  }
+
+  stop() {
+    if (this.active) {
+      cleanupEffect(this)
+      if (this.onStop) {
+        this.onStop()
+      }
+      this.active(false)
+    }
+  }
+}
 #+end_src
 
 * reactive(target: object)
@@ -105,6 +205,37 @@ function reactive(target) {
 5. [[(reactiveMap)][reactiveMap]] 这里是一个应用级别的全局变量，用来存储 target=>proxy 的对应关系，
    可以用来避免对一个已经是 doc:Proxy 的对象进行重复代理。
 
+
+** reactive with track&trigger
+
+#+name: reactiveP2
+#+begin_src js -n -r
+<<globalVars>>
+
+<<track>>
+
+<<trigger>>
+
+<<mutableHandlersP2>>
+
+<<mutableCollectionHandlersP2>>
+
+function reactive(target) {
+  // 只读对象不可 reactive
+  if (target?.__v_isReadonly) {
+    return target
+  }
+
+  return createReactiveObject(
+    target,
+    false,
+    mutableHandlers,
+    mutableCollectionHandlers,
+    reactiveMap
+  )
+}
+<<createReactiveObject>>
+#+end_src
 * createReactiveObject
 
 这个才是真正创建代理的地方，也是 blue:reactivity 模块真正的核心起点代码，其它代码都是
@@ -143,6 +274,13 @@ function createReactiveObject(
   collectionHandlers,
   proxyMap
 ) {
+
+  // 不用对已经代理过的对象重复进行代理
+  const existingProxy = proxyMap.get(target)
+  if (existingProxy) {
+    return existingProxy
+  }
+
   // targetType 是 target 原始类型 Object.prototype.toString.call(target) => [object Object]
   // 中的 "Object", 这里如果是 Map/Set/WeakMap/WeakSet 则使用 collectionHandlers 如果是 Object/Array
   // 就使用 baseHandlers(TIP:这里路过非法检测)
@@ -169,7 +307,7 @@ const mutableHandlers = (function () {    (ref:mutableHandlers)
 
   <<deleteProperty>>       (ref:deleteProperty)
 
-  <<not-collection-has>>          (ref:not-collection-has)
+  <<object-has>>          (ref:object-has)
 
   <<ownKeys>>              (ref:ownKeys)
 
@@ -183,6 +321,34 @@ const mutableHandlers = (function () {    (ref:mutableHandlers)
 })();
 #+end_src
 
+add track & trigger
+
+#+name: mutableHandlersP2
+#+begin_src js -n -r
+const mutableHandlers = (function () {    (ref:mutableHandlersP2)
+  const get = createGetter();
+
+  <<createGetterP2>>         (ref:createGetterP2)
+
+  const set = createSetter();
+
+  <<createSetterP2>>         (ref:createSetterP2)
+
+  <<deletePropertyP2>>       (ref:deletePropertyP2)
+
+  <<object-hasP2>>          (ref:object-hasP2)
+
+  <<ownKeysP2>>              (ref:ownKeysP2)
+
+  return {
+    get,
+    set,
+    deleteProperty,
+    has,
+    ownKeys,
+  };
+})();
+#+end_src
 ** createGetter
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -197,12 +363,80 @@ function createGetter(isReadonly = false, shallow = false) {
 
     // 通过原子操作得到真实的值
     const res = Reflect.get(target, key, receiver)
+    console.log(`createGetter| get, key=${key}, value=${res}`)
+
+    return res
+  }
+}
+#+end_src
+
+*** createGetter with track
+
+#+name: createGetterP2
+#+begin_src js
+function createGetter(isReadonly = false, shallow = false) {
+
+  return function get(target, key, receiver) {
+    if (key === '__v_isReactive') {
+      // 检测是不是一个 reactive 对象时
+      return !isReadonly
+    } else if (key === '__v_isReadonly') {
+      // 检测是不是一个只读对象时，如： 取target.__v_isReadonly 的值
+      return isReadonly
+    } else if (key === '__v_isShallow') {
+      return shallow
+    } else if (key === '__v_raw' && receiver === (
+      isReadonly
+        ? shallow ? shallowReadonlyMap : readonlyMap
+      : shallow ? shallowReactiveMap : reactiveMap
+    ).get(target)) {
+      // 读原始对象，代理之前的
+      return target
+    }
+
+    // 通过原子操作得到真实的值
+    const res = Reflect.get(target, key, receiver)
+
+    // 只读的是不能设置值的因此也没必要去做多余的监听
+    if (!isReadonly) {
+      track(target, 'get', key)
+    }
+
+    console.log(`createGetter| get, key=${key}, value=${res}`)
+
+    if (isObject(res)) {
+      // TODO readonly(res)
+      return isReadonly ? res : reactive(res)
+    }
+
+    return res
+  }
+}
+#+end_src
+
+#+html: <br>
+#+begin_details diff
+#+name: createGetterP2-diff
+#+begin_src diff
+function createGetter(isReadonly = false, shallow = false) {
+
+  return function get(target, key, receiver) {
+
+    // 通过原子操作得到真实的值
+    const res = Reflect.get(target, key, receiver)
+
++    // 只读的是不能设置值的因此也没必要去做多余的监听
++    if (!isReadonly) {
++      track(target, 'get', key)
++    }
++
     console.log(`createGetter| ${res}, get proxy - reflect`)
 
     return res
   }
 }
 #+end_src
+#+end_details
 
 ** createSetter
 :PROPERTIES:
@@ -211,7 +445,7 @@ function createGetter(isReadonly = false, shallow = false) {
 :END:
 
 #+name: createSetter
-#+begin_src js
+#+begin_src js -n -r
 function createSetter(shallow = false) {
   return function set(target, key, value, receiver) {
     let oldValue = target[key]
@@ -231,6 +465,68 @@ function createSetter(shallow = false) {
 }
 #+end_src
 
+*** set with trigger
+
+#+name: createSetterP2
+#+begin_src js -n -r
+function createSetter(shallow = false) {
+  return function set(target, key, value, receiver) {
+    let oldValue = target[key]
+
+    // 检测是新增成员还是更新成员值，并且排除了 NaN 一些非法的下标值
+    const hadKey =
+      Array.isArray(target) && isIntegerKey(key)
+        ? Number(key) < target.length
+        : hasOwn(target, key)
+
+    // 赋值的原子操作
+    const result = Reflect.set(target, key, value, receiver)
+    console.log(`createSetter| set value=${value}, key=${key}, result=${result}`)
+
+    if (target === toRaw(receiver)) {
+      if (!hadKey) { // add prop
+        trigger(target, 'add', key, value)
+      } else if (hasChanged(value, oldValue)) { // changed existed prop value
+        trigger(target, 'set', key, value, oldValue)
+      }
+    }
+
+    return result // 返回赋值结果
+  }
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: createSetterP2-diff
+#+begin_src diff
+function createSetter(shallow = false) {
+  return function set(target, key, value, receiver) {
+    let oldValue = target[key]
+
+    // 检测是新增成员还是更新成员值，并且排除了 NaN 一些非法的下标值
+    const hadKey =
+      Array.isArray(target) && isIntegerKey(key)
+        ? Number(key) < target.length
+        : hasOwn(target, key)
+
+    // 赋值的原子操作
+    const result = Reflect.set(target, key, value, receiver)
+    console.log(`createSetter| set value=${value}, key=${key}, result=${result}`)
++
++   if (target === toRaw(receiver)) {
++      if (!hadKey) { // add prop
++        trigger(target, 'add', key, value)
++      } else if (hasChanged(value, oldValue)) { // changed existed prop value
++        trigger(target, 'set', key, value, oldValue)
++      }
++    }
+
+    return result // 返回赋值结果
+  }
+}
+#+end_src
+#+end_details
 ** deleteProperty
 #+name: deleteProperty
 #+begin_src js
@@ -243,13 +539,45 @@ function deleteProperty(target, key) {
 }
 #+end_src
 
+*** delete with trigger
+
+#+name: deletePropertyP2
+#+begin_src js -n -r
+function deleteProperty(target, key) {
+  const hasKey = hasOwn(target, key)
+  const oldValue = target[key]
+  const result = Reflect.deleteProperty(target, key)
+  if (result && hadKey) {
+    trigger(target, 'delete', key, undefined, oldValue)
+  }
+  console.log(`deleteProperty| key=${key} deleted, result=${result}`)
+  return result
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: deletePropertyP2-diff
+#+begin_src diff
+function deleteProperty(target, key) {
+  const hasKey = hasOwn(target, key)
+  const oldValue = target[key]
+  const result = Reflect.deleteProperty(target, key)
++  if (result && hadKey) {
++    trigger(target, 'delete', key, undefined, oldValue)
++  }
+  console.log(`deleteProperty| key=${key} deleted, result=${result}`)
+  return result
+}
+#+end_src
+#+end_details
 ** has
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
 :CUSTOM_ID: base-handler-has
 :END:
 
-#+name: not-collection-has
+#+name: object-has
 #+begin_src js
 function has(target, key) {
   const result = Reflect.has(target, key)
@@ -258,6 +586,30 @@ function has(target, key) {
 }
 #+end_src
 
+*** has with track
+
+#+name: object-hasP2
+#+begin_src js -n -r
+function has(target, key) {
+  track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
+  const result = Reflect.has(target, key)
+  console.log(`has| key=${key}, result=${result}`);
+  return result
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: object-hasP2-diff
+#+begin_src diff
+function has(target, key) {
++ track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
+  const result = Reflect.has(target, key)
+  console.log(`has| key=${key}, result=${result}`);
+  return result
+}
+#+end_src
+#+end_details
 ** ownKeys
 
 #+name: ownKeys
@@ -267,6 +619,29 @@ function ownKeys(target) {
   return Reflect.ownKeys(target)
 }
 #+end_src
+
+*** ownKeys with track
+
+#+name: ownKeysP2
+#+begin_src js -n -r
+function ownKeys(target) {
+  track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
+  console.log(`ownKeys| - ${JSON.stringify(target)}`);
+  return Reflect.ownKeys(target)
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: ownKeysP2-diff
+#+begin_src diff
+function ownKeys(target) {
++  track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
+  console.log(`ownKeys| - ${JSON.stringify(target)}`);
+  return Reflect.ownKeys(target)
+}
+#+end_src
+#+end_details
 
 ** Testing
 
@@ -337,11 +712,11 @@ logEnd()
 
 #+html: <br>
 #+begin_details 测试非集合类型 has 操作 :title-color red
-[[not-collection-has][not-collection-has]], [[reactive][reactive]]
+[[object-has][object-has]], [[reactive][reactive]]
 #+begin_src js -n -r :exports both
 const mutableCollectionHandlers = {}
 const mutableHandlers = (function() {
-  <<not-collection-has>>
+  <<object-has>>
   return { has }
 }())
 
@@ -407,6 +782,17 @@ const mutableCollectionHandlers = { (ref:mutableCollectionHandlers)
 vue 源码是基于 typescript 实现的，所以下面集合相关的函数的第一个参数是 ~function
 (this: Xxxx)~ 方法，在 javascript 中其实就是函数内部的 ~this~ 。
 #+end_tip
+
+add track & trigger
+#+name: mutableCollectionHandlersP2
+#+begin_src js -r -n
+<<mutableInstrumentationsP2>>
+<<collection-iteratorP2>>
+<<createInstrumentationGetter>>
+const mutableCollectionHandlers = { (ref:mutableCollectionHandlersP2)
+  get: createInstrumentationGetter(false, false)
+}
+#+end_src
 
 ** createInstrumentationGetter
 :PROPERTIES:
@@ -477,6 +863,33 @@ const mutableInstrumentations = {
 }
 #+end_src
 
+*** witch track & trigger
+
+#+name: mutableInstrumentationsP2
+#+begin_src js -n -r
+<<collection-getP2>>
+<<collection-sizeP2>>
+<<collection-hasP2>>
+<<collection-addP2>>
+<<collection-setP2>>
+<<collection-deleteP2>>
+<<collection-clearP2>>
+<<collection-forEachP2>>
+const mutableInstrumentations = {
+  get(key) {
+    return get(this, key)
+  },
+  get size() {
+    return size(this)
+  },
+  has,
+  add,
+  set,
+  delete: deleteEntry,
+  clear,
+  forEach: createForEach(false, false)
+}
+#+end_src
 ** get
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -514,6 +927,58 @@ function get(target, key, isReadonly, isShallow) {
 其实一顿操作过后，在这个函数里最后调用的还是 ~map.get~ 这个原生函数，得到值返回，
 在返回之前会对这个结果进行 reactive 化。
 
+*** get with track
+
+#+name: collection-getP2
+#+begin_src js -n -r
+function get(target, key, isReadonly, isShallow) {
+  target = target.__v_raw // 取出代理之前的原始对象
+  const rawTarget = toRaw(target)
+  const rawKey = toRaw(key)
+
+  // 只读不能修改因此不需要 track
+  !isReadonly && track(rawTarget, 'get', rawKey)
+  // 取出原始对象的原生的 has 方法，即： Map.prototype.has
+  const { has } = getProto(rawTarget)
+  console.log(`collection get| key=${rawKey}, target=${rawTarget}`)
+  const wrap = toReactive // readonly ? shallow ?
+  if (has.call(rawTarget, key)) { // 先检测正常的 key
+    return wrap(target.get(key))
+  } else if (has.call(rawTarget, rawKey)) { // key 本身可能是个 proxy 对象
+    return wrap(target.get(rawKey))
+  } else if (target !== rawTarget) {
+    // 嵌套使用时的情况 readonly(reactive(Map))，这里暂时不讨论
+    target.get(key)
+  }
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-getP2-diff
+#+begin_src diff
+function get(target, key, isReadonly, isShallow) {
+  target = target.__v_raw // 取出代理之前的原始对象
+  const rawTarget = toRaw(target)
+  const rawKey = toRaw(key)
+
++  // 只读不能修改因此不需要 track
++  !isReadonly && track(rawTarget, 'get', rawKey)
+  // 取出原始对象的原生的 has 方法，即： Map.prototype.has
+  const { has } = getProto(rawTarget)
+  console.log(`collection get| key=${rawKey}, target=${rawTarget}`)
+  const wrap = toReactive // readonly ? shallow ?
+  if (has.call(rawTarget, key)) { // 先检测正常的 key
+    return wrap(target.get(key))
+  } else if (has.call(rawTarget, rawKey)) { // key 本身可能是个 proxy 对象
+    return wrap(target.get(rawKey))
+  } else if (target !== rawTarget) {
+    // 嵌套使用时的情况 readonly(reactive(Map))，这里暂时不讨论
+    target.get(key)
+  }
+}
+#+end_src
+#+end_details
 ** has
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -533,6 +998,48 @@ function has(key, isReadonly) {
 }
 #+end_src
 
+*** has with track
+
+#+name: collection-hasP2
+#+begin_src js -n -r
+function has(key, isReadonly) {
+  target = this.__v_raw
+  const rawTarget = toRaw(target)
+  const rawKey = toRaw(key)
+
+  // 对于被 proxy 的 key 也做一次 track
+  if (key !== rawKey) {
+    !isReadonly&& track(rawTarget, 'has', key)
+  }
+  !isReadonly && track(rawTarget, 'has', rawKey)
+
+  console.log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
+  // key 本身也可能是一个 reactive 对象
+  return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey)
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-hasP2-diff
+#+begin_src diff
+function has(key, isReadonly) {
+  target = this.__v_raw
+  const rawTarget = toRaw(target)
+  const rawKey = toRaw(key)
+
++  // 对于被 proxy 的 key 也做一次 track
++  if (key !== rawKey) {
++    !isReadonly&& track(rawTarget, 'has', key)
++  }
++  !isReadonly && track(rawTarget, 'has', rawKey)
+
+  console.log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
+  // key 本身也可能是一个 reactive 对象
+  return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey)
+}
+#+end_src
+#+end_details
 ** size
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -548,6 +1055,31 @@ function size(target, isReadonly) {
   return Reflect.get(target, 'size', target)
 }
 #+end_src
+
+*** size with track
+
+#+name: collection-sizeP2
+#+begin_src js -n -r
+function size(target, isReadonly) {
+  target = target.__v_raw
+  !isReadonly && track(toRaw(target), 'iterate', ITERATE_KEY)
+  console.log(`size| target=${target}`)
+  return Reflect.get(target, 'size', target)
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-sizeP2-diff
+#+begin_src diff
+function size(target, isReadonly) {
+  target = target.__v_raw
++  !isReadonly && track(toRaw(target), 'iterate', ITERATE_KEY)
+  console.log(`size| target=${target}`)
+  return Reflect.get(target, 'size', target)
+}
+#+end_src
+#+end_details
 ** add
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -572,6 +1104,45 @@ function add(value) {
 }
 #+end_src
 
+*** add with trigger
+
+#+name: collection-addP2
+#+begin_src js -n -r
+function add(value) {
+  value = toRaw(value)
+  const target = toRaw(this)
+  const proto = getProto(target)
+  const hadKey = proto.has.call(target, value)
+
+  if (!hadKey) {
+    target.add(value)
+    trigger(target, 'add', value, value)
+  }
+  console.log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
+  return this
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-addP2-diff
+#+begin_src diff
+function add(value) {
+  value = toRaw(value)
+  const target = toRaw(this)
+  const proto = getProto(target)
+  const hadKey = proto.has.call(target, value)
+
+  if (!hadKey) {
+    target.add(value)
++    trigger(target, 'add', value, value)
+  }
+  console.log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
+  return this
+}
+#+end_src
+
+#+end_details
 ** set
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -598,6 +1169,60 @@ function set(key, value) {
 }
 #+end_src
 
+*** set with trigger
+
+#+name: collection-setP2
+#+begin_src js -n -r
+function set(key, value) {
+  value = toRaw(value)
+  const target = toRaw(this)
+  const { has, get } = getProto(target)
+
+  let hadKey = has.call(target, key)
+  if (!hadKey) {
+    key = toRaw(key)
+    hadKey = has.call(target, key)
+  }
+
+  const oldValue = get.call(target, key)
+  target.set(key, value)
+  if (!hadKey) {
+    trigger(target, 'add', key, value)
+  } else if (hasChanged(value, oldValue)) {
+    trigger(target, 'set', key, value, oldValue)
+  }
+  console.log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
+  return this
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-setP2-diff
+#+begin_src diff
+function set(key, value) {
+  value = toRaw(value)
+  const target = toRaw(this)
+  const { has, get } = getProto(target)
+
+  let hadKey = has.call(target, key)
+  if (!hadKey) {
+    key = toRaw(key)
+    hadKey = has.call(target, key)
+  }
+
+  const oldValue = get.call(target, key)
+  target.set(key, value)
++  if (!hadKey) {
++    trigger(target, 'add', key, value)
++  } else if (hasChanged(value, oldValue)) {
++    trigger(target, 'set', key, value, oldValue)
++  }
+  console.log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
+  return this
+}
+#+end_src
+#+end_details
 ** delete
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -622,6 +1247,53 @@ function deleteEntry(key) {
 }
 #+end_src
 
+*** delete with trigger
+
+#+name: collection-deleteP2
+#+begin_src js -n -r
+function deleteEntry(key) {
+  const target = toRaw(this)
+  const { has, get } = getProto(target)
+  let hadKey = has.call(target, key)
+  if (!hadKey) {
+    key = toRaw(key)
+    hadKey = has.call(target, key)
+  }
+
+  const oldValue = get ? get.call(target, key) : undefined
+  const result = target.delete(key)
+  if (hadKey) {
+    trigger(target, 'delete', key, undefined, oldValue)
+  }
+  console.log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
+  return result
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-deleteP2-diff
+#+begin_src diff
+function deleteEntry(key) {
+  const target = toRaw(this)
+  const { has, get } = getProto(target)
+  let hadKey = has.call(target, key)
+  if (!hadKey) {
+    key = toRaw(key)
+    hadKey = has.call(target, key)
+  }
+
+  const oldValue = get ? get.call(target, key) : undefined
+  const result = target.delete(key)
++  if (hadKey) {
++    trigger(target, 'delete', key, undefined, oldValue)
++  }
+  console.log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
+  return result
+}
+#+end_src
+
+#+end_details
 ** clear
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -646,6 +1318,47 @@ function clear() {
 }
 #+end_src
 
+*** clear with trigger
+
+#+name: collection-clearP2
+#+begin_src js -n -r
+function clear() {
+  const target = toRaw(this)
+  const hadItems = target.size !== 0
+  const oldTarget = __DEV__
+        ? isMap(target) ? new Map(target) : new Set(target)
+        : undefined
+
+  const result = target.clear()
+  if (hadItems) {
+    trigger(target, 'clear', undefined, undefined, oldTarget)
+  }
+  console.log(`clear| result=${result}, target=${target}`)
+  return result
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-clearP2-diff
+#+begin_src diff
+function clear() {
+  const target = toRaw(this)
+  const hadItems = target.size !== 0
+  const oldTarget = __DEV__
+        ? isMap(target) ? new Map(target) : new Set(target)
+        : undefined
+
+  const result = target.clear()
++  if (hadItems) {
++    trigger(target, 'clear', undefined, undefined, oldTarget)
++  }
+  console.log(`clear| result=${result}, target=${target}`)
+  return result
+}
+#+end_src
+
+#+end_details
 ** forEach
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -660,7 +1373,6 @@ function createForEach(isReadonly, isShallow) {
     const target = observed.__v_raw
     const rawTarget = toRaw(target)
     const wrap = toReactive // shallow ? readonly ?
-
     console.log(`forEach| target=${target}, rawTarget=${rawTarget}`)
     return target.forEach((value, key) => {
       console.log(`forEach - forEach| value=${value}, key=${key}`)
@@ -669,7 +1381,47 @@ function createForEach(isReadonly, isShallow) {
   }
 }
 #+end_src
-** keys, values, entries
+
+*** forEach with track
+
+#+name: collection-forEachP2
+#+begin_src js -n -r
+function createForEach(isReadonly, isShallow) {
+  return function forEach(callback, thisArg) {
+    const observed = this
+    const target = observed.__v_raw
+    const rawTarget = toRaw(target)
+    const wrap = toReactive // shallow ? readonly ?
+    !isReadonly && track(rawTarget, 'iterate', ITERATE_KEY)
+    console.log(`forEach| target=${target}, rawTarget=${rawTarget}`)
+    return target.forEach((value, key) => {
+      console.log(`forEach - forEach| value=${value}, key=${key}`)
+      return callback.call(thisArg, wrap(value), wrap(key), observed)
+    })
+  }
+}
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+begin_src diff
+function createForEach(isReadonly, isShallow) {
+  return function forEach(callback, thisArg) {
+    const observed = this
+    const target = observed.__v_raw
+    const rawTarget = toRaw(target)
+    const wrap = toReactive // shallow ? readonly ?
+ +   !isReadonly && track(rawTarget, 'iterate', ITERATE_KEY)
+    console.log(`forEach| target=${target}, rawTarget=${rawTarget}`)
+    return target.forEach((value, key) => {
+      console.log(`forEach - forEach| value=${value}, key=${key}`)
+      return callback.call(thisArg, wrap(value), wrap(key), observed)
+    })
+  }
+}
+#+end_src
+#+end_details
+** keys&values&entries
 
 #+name: createIterableMethod
 #+begin_src js -n -r
@@ -718,6 +1470,92 @@ iteratorMethods.forEach(method => {
   )
 })
 #+end_src
+
+*** iterator with track
+
+#+name: createIterableMethodP2
+#+begin_src js -n -r
+function createIterableMethod(method, isReadonly, isShallow) {
+  return function(...args) {
+    const target = this.__v_raw
+    const rawTarget = toRaw(target)
+    const targetIsMap = isMap(rawTarget)
+    // map 键值对类型
+    const isPair = method === 'entries' || (method === Symbol.iterator && targetIsMap)
+    // set 值-值类型
+    const isKeyOnly = method === 'keys' && targetIsMap
+    const innerIterator = target[method](...args)
+    const wrap = toReactive
+    !isReadonly && track(rawTarget, 'iterate', isKeyOnly ? MAP_KEY_ITERATE_KEY : ITERATE_KEY)
+
+    // 伪造迭代器
+    return {
+      next() {
+        const { value, done } = innerIterator.next()
+        console.log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
+        return done ? { value, done } : {
+          value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
+          done
+        }
+      },
+      [Symbol.iterator]() {
+        return this
+      }
+    }
+  }
+}
+#+end_src
+
+#+name: collection-iteratorP2
+#+begin_src js -n -r
+<<createIterableMethodP2>>
+
+const iteratorMethods = ['keys', 'values', 'entries', Symbol.iterator]
+iteratorMethods.forEach(method => {
+  mutableInstrumentations[method] = createIterableMethod(
+    method,
+    false,
+    false
+  )
+})
+#+end_src
+
+#+html: <br>
+#+begin_details DIFF
+#+name: collection-iteratorP2-diff
+#+begin_src diff
+function createIterableMethod(method, isReadonly, isShallow) {
+  return function(...args) {
+    const target = this.__v_raw
+    const rawTarget = toRaw(target)
+    const targetIsMap = isMap(rawTarget)
+    // map 键值对类型
+    const isPair = method === 'entries' || (method === Symbol.iterator && targetIsMap)
+    // set 值-值类型
+    const isKeyOnly = method === 'keys' && targetIsMap
+    const innerIterator = target[method](...args)
+    const wrap = toReactive
++    !isReadonly && track(rawTarget, 'iterate', isKeyOnly ? MAP_KEY_ITERATE_KEY : ITERATE_KEY)
+
+    // 伪造迭代器
+    return {
+      next() {
+        const { value, done } = innerIterator.next()
+        console.log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
+        return done ? { value, done } : {
+          value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
+          done
+        }
+      },
+      [Symbol.iterator]() {
+        return this
+      }
+    }
+  }
+}
+#+end_src
+#+end_details
+
 ** Testing
 
 #+html: <br>
@@ -905,7 +1743,7 @@ logEnd()
 
 #+html: <br>
 #+begin_details 集合类型的 delete 操作 :title-color red
-[[reactive][reactive]], [[collection-delete][collection-delete]]
+[[reactive][reactive]], [[collection-delete][collection-delete]], [[collection-set][collection-set]], [[collection-add][collection-add]]
 
 #+begin_src js -n -r :exports both
 const mutableHandlers = {}
@@ -951,7 +1789,8 @@ logEnd()
 
 #+html: <br>
 #+begin_details 集合类型的 clear 操作 :title-color red
-[[reactive][reactive]], [[collection-clear][collection-clear]]
+[[reactive][reactive]], [[collection-clear][collection-clear]], [[collection-delete][collection-delete]], [[collection-set][collection-set]], [[collection-add][collection-add]]
+
 
 #+begin_src js -n -r :exports both
 const mutableHandlers = {}
@@ -994,7 +1833,7 @@ logEnd()
 
 #+html: <br>
 #+begin_details 集合类型的 forEach 操作 :title-color red
-[[reactive][reactive]], [[collection-forEach][collection-forEach]]
+[[reactive][reactive]], [[collection-forEach][collection-forEach]], [[collection-clear][collection-clear]], [[collection-delete][collection-delete]], [[collection-set][collection-set]], [[collection-add][collection-add]]
 
 #+begin_src js -n -r :exports both
 const mutableHandlers = {}
@@ -1041,7 +1880,7 @@ logEnd()
 
 #+html: <br>
 #+begin_details 集合类型的 keys values entries Symbol.iterator 操作 :title-color red
-[[reactive][reactive]], [[collection-iterator][collection-iterator]]
+[[reactive][reactive]], [[collection-iterator][collection-iterator]], [[collection-forEach][collection-forEach]], [[collection-clear][collection-clear]], [[collection-delete][collection-delete]], [[collection-set][collection-set]], [[collection-add][collection-add]]
 
 #+begin_src js -n -r :exports both
 const mutableHandlers = {}
@@ -1109,9 +1948,8 @@ logEnd()
 
 * phase one(no track & trigger)
 
-完整不含 track 和 trigger 代码的 reactive 实现代码。
+不含 track 和 trigger 代码的 reactive 实现代码。
 
-#+html: <br>
 #+begin_details CODE :title-color green
 #+begin_src js -n -r :noweb yes
 <<mutableHandlers>>
@@ -1146,11 +1984,555 @@ console.log(`size=${observed2.size}`)
 #+end_src
 #+end_details
 
+接下来是如何结合 track 各 trigger 实现信赖收集和当值发生变化时去触发某种行为(DOM
+更新)。
+* track&trigger&effect
+
+[[https://github.com/vuejs/core/blob/main/packages/reactivity/src/effect.ts][core/effect.ts at main · vuejs/core]]
+
+reactive 中订阅发布逻辑相关的三大函数：
+
+[[track][track]]: get 取值操作时去收集当前的函数(也就是这个变量的监听者其实就是一个函数，只
+不过被封装成了一个 ReactiveEffect 类。)
+
+[[trigger][trigger]]: set 设值操作时会去触发 track 收集到的信赖并执行它们，这个执行的动作实际
+是由 [[id:4a858df2-f6f8-4d2f-9cda-78c12cbf42b3][Scheduler]] 这个模块去管理的，这里就不深入探讨这个了有兴趣
+的同学可以参考 [[https://www.cheng92.com/vue/vue-teardown-2-sheduler/][Vue3 功能拆解② Scheduler 渲染机制 - 若叶知秋]] [fn:2] 或 [[id:4a858df2-f6f8-4d2f-9cda-78c12cbf42b3][TODO:build you own vue scheduler]]。
+
+[[effect][effect]]: 将一个函数封装成 [[ReactiveEffect][ReactiveEffect]] 类，调用的时候会立即执行一个 fn 收集信赖。
+
+要搞清楚是怎么回事，还需要从头开始，也就是 ~reactive~ -> ~createReactiveObject~ 会发
+生这两个函数里面并没有与这两相关的代码，那么只能到
+[[(mutableHandlers)][mutableHandlers]] 和 [[(mutableCollectionHandlers)][mutableCollectionHandlers]] 中去找了，因为这两个涉及的是取值和
+设值两个行为，所以下面直接将涵盖的相关函数列出来。
+
+1. baseHandlers.ts 对应 [[(mutableHandlers)][mutableHandlers]], 中包含 ~get, set, deleteProperty, has, ownKeys~
+
+    其中 ~get, has, ownKeys~ 属于取值行为，所以应该调用 ~track~ 。
+
+    而 ~deleteProperty, set~ 为设置值行为，所以应该调用 ~trigger~ 。
+
+2. collectionHandlers.ts 对应 [[(mutableCollectionHandlers)][mutableCollectionHandlers]]
+
+   因为 collection 都是通过对集合方法名的 get 来实现代理的，这里就直接进行代理后
+   的行为函数判定，也就是包含 ~get, size, has, add, set, delete, clear, forEach~
+   方法和属性(~size~)。
+
+   其中 ~get, get size, has, forEach~ 均为取值行为，所以应该调用 ~track~ 。
+
+   而 ~set, delete, clear~ 为设值改变行为，所以应该调用 ~trigger~ 。
+
+
+有了上面的分析下面来为上面那些被代理的原子操作添加 track 和 trigger 相关代码。
+
+按照如下步骤添加相关代码(先实现 [[track][track]] 和 [[trigger][trigger]])，请看
+
+** track(target, type, key)
+
+#+name: track
+#+begin_src js -n -r
+<<createDep>>
+<<trackEffects>>
+
+function track(target, type, key) {
+  if (shouldTrack && activeEffect) {
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+      targetMap.set(target, (depsMap = new Map()))
+    }
+
+    let dep = depsMap.get(key)
+    if (!dep) {
+      depsMap.set(key, (dep = createDep()))
+    }
+
+    const eventInfo = __DEV__
+      ? { effect: activeEffect, target, type, key }
+      : undefined
+
+    console.log(`track| type=${type}, key=${key}, targetMap=${targetMap}, dep=${dep}`)
+    trackEffects(dep, eventInfo)
+  }
+}
+#+end_src
+
+*** createDep()
+
+[[https://github.com/vuejs/core/blob/main/packages/reactivity/src/dep.ts][core/dep.ts at main · vuejs/core]]
+
+#+begin_src typescript
+// wasTracked 和 newTracked 维护着多级递归 effect 的状态
+type TrackedMarkers = {
+  // wasTracked
+  w: number
+
+  // newTracked
+  n: number
+}
+#+end_src
+
+#+name: createDep
+#+begin_src js -n -r
+const createDep = (effects) => {
+  const dep = new Set()
+  dep.w = 0
+  dep.n = 0
+  return dep
+}
+#+end_src
+*** trackEffects(dep, debuggerEventExtraInfo)
+
+[[https://github.com/vuejs/core/blob/main/packages/reactivity/src/effect.ts#60][core/effect.ts at main · vuejs/core]]
+
+#+name: trackEffects
+#+begin_src js -n -r
+function trackEffects(dep, debuggerEventExtraInfo) {
+  // TODO maxMarkerBits 检查，这里省略直接检查是不是已经存在了
+  let shouldTrack = !dep.has(activeEffect)
+
+  if (shouldTrack) {
+    dep.add(activeEffect)
+    activeEffect.deps.push(dep)
+  }
+
+  console.log(`trackEffects| activeEffect=${activeEffect}, dep=${dep.size}, activeEffect.deps=${activeEffect.deps.length}`)
+}
+#+end_src
+** trigger()
+
+trigger 就是当值发生变更时将 [[track][track]] 中收集到的 ~targetMap -> depsMap~ 中的 effects
+拿出来执行。
+
+#+name: trigger
+#+begin_src js -n -r
+<<triggerEffects>>
+
+function trigger(target, type, key, newValue, oldValue, oldTarget) {
+  // 取出这个对象的订阅者
+  const depsMap = targetMap.get(target)
+
+  if (!depsMap) {
+    // 如果是空的表明这个对象从没有被取过值也就没有收集到任何信赖
+    return
+  }
+
+  console.log(`trigger| type=${type}, key=${key}, newValue=${newValue}, oldValue=${oldValue}`)
+  // 从 depsMap{key => Set()} 中取出所有 key 有关的订阅
+  let deps = []
+  if (type === 'clear') {
+    // 取出所有
+    deps = [...depsMap.value()]
+  } else if (key === 'length' && isArray(target)) {
+    // 如果是数组的长度发生变化
+    depsMap.forEach((dep, key) => {
+      // 这个一个是直接对 arr.length 赋值了，一种情况是通过删除和新增数组元素
+      // 让 length 改变了
+      if (key === 'length' || key >= (newValue)) {
+        deps.push(dep)
+      }
+    })
+  } else {
+    // 处理增(ADD)，删(DELETE)，改(SET) 操作
+    if (key !== void 0) {
+      deps.push(depsMap.get(key))
+    }
+
+    switch (type) {
+      case 'add':
+        if (!isArray(target)) {
+          deps.push(depsMap.get(ITERATE_KEY))
+          if (isMap(target)) {
+            deps.push(depsMap.get(MAP_KEY_ITERATE_KEY))
+          }
+        } else if (isIntegerKey(key)) {
+          // 添加了新的索引导致数组长度发生变化
+          deps.push(depsMap.get('length'))
+        }
+        break
+      case 'delete':
+        if (!isArray(target)) {
+          deps.push(depsMap.get(ITERATE_KEY))
+          if (isMap(target)) {
+            deps.push(depsMap.get(MAP_KEY_TERATE_KEY))
+          }
+        }
+        break
+      case 'set':
+        if (isMap(target)) {
+          deps.push(depsMap.get(ITERATE_KEY))
+        }
+        break
+    }
+  }
+
+  console.log(`trigger|deps| deps=${deps}`)
+  if (deps.length === 1) {
+    if (deps[0]) {
+      triggerEffects(deps[0])
+    }
+  } else {
+    const effects = []
+    for (const dep of deps) {
+      if (dep) {
+        effects.push(...dep)
+      }
+    }
+
+    triggerEffects(createDep(effects))
+  }
+}
+#+end_src
+
+*** triggerEffects()
+
+#+name: triggerEffects
+#+begin_src js -n -r
+function triggerEffects(dep, debuggerEventExtraInfo) { (ref:triggerEffects)
+  for (const effect of Array.isArray(dep) ? dep : [...dep]) {
+    if (effect !== activeEffect || effect.allowRecurse) { (ref:triggerEffects-allowRecurse)
+      console.log(`triggerEffects| allowRecurse=${effect.allowRecurse}, dep=${dep}, effect=${effect}`)
+      // 允许调用者决定如何执行 effect.run
+      if (effect.scheduler) {
+        effect.scheduler()
+      } else {
+        effect.run()
+      }
+    }
+  }
+}
+#+end_src
+
+这里会去执行 ~effect.run()~ 也就是具体的订阅者函数被封装后的 [[ReactiveEffect][ReactiveEffect]] 中的
+run 方法，在这个方法里面会去真正的执行订阅者函数，且执行的时候会使用
+try...finally 去保证这个函数的清理工作正常运行，具体请看
+[[(effect-run)][effect.run]] 函数。
+** effect()
+
+#+begin_src typescript
+export interface ReactiveEffectRunner<T = any> {
+  (): T
+  effect: ReactiveEffect
+}
+#+end_src
+
+#+name: effect
+#+begin_src js -n -r
+function effect(fn, options) {
+  // 可能是一个对象
+  if (fn.effect) {
+    fn = fn.effect.fn
+  }
+
+  // 封装 fn 成 ReactiveEffect 类
+  const _effect = new ReactiveEffect(fn)
+
+  // 允许覆盖 ReactiveEffect 实例内容
+  if (options) {
+    extend(_effect, options)
+    if (options.scope) {
+      // record effect scope
+    }
+  }
+
+  // 意思是 lazy 可以控制 fn 是不是要立即执行一次
+  if (!options || !options.lazy) {
+    _effect.run()
+  }
+
+  const runner = _effect.run.bind(_effect)
+  runner.effect = _effect
+  return runner
+}
+#+end_src
+
+这个 effect 其实很简单，其作用就是
+
+1. 将一个函数 ~fn~ 封装成 [[ReactiveEffect][ReactiveEffect]] 类实例
+2. 立即执行它收集信赖
+3. 返回 ~effect.run~ 这个方法，可以让调用者后续可以手动触发 ~fn~
+
+
+其实最重要的就是执行 fn 收集信赖，比如：
+
+#+begin_src js -n -r
+let count = reactive(0)
+function fn() {
+  console.log("count=" + count)
+}
+// 1. 执行 effect, 将 fn 收集进 count 的订阅表(targetMap->depsMap->key:count->Set())
+const runner=effect(fn)
+// 2. 改变 count 值，那么 fn 会被执行一次
+count++
+#+end_src
+
+** normal objects
+
+| code           | testing     |
+|----------------+-------------|
+| [[createGetterP2][object get]]     | [[test-createGetterP2][go test 🛬]] |
+| [[object-hasP2][object has]]     | [[test-object-hasP2][go test 🛬]] |
+| [[ownKeysP2][object ownKeys]] | [[test-ownKeysP2][go test 🛬]] |
+| [[createSetterP2][object set]]     | [[test-createSetterP2][go test 🛬]] |
+| [[deletePropertyP2][object delete]]  | [[test-deletePropertyP2][go test 🛬]] |
+
+** colletion objects(Map,Set)
+
+| code                | testing     |
+|---------------------+-------------|
+| [[collection-getP2][collection get]]      | [[test-collection-getP2][go test 🛬]] |
+| [[collection-hasP2][collection has]]      | [[test-collection-hasP2][go test 🛬]] |
+| [[collection-sizeP2][collection size]]     | [[test-collection-sizeP2][go test 🛬]] |
+| [[collection-addP2][collection add]]      | [[test-collection-addP2][go test 🛬]] |
+| [[collection-setP2][collection set]]      | [[test-collection-setP2][go test 🛬]] |
+| [[collection-deleteP2][collection delete]]   | [[test-collection-deleteP2][go test 🛬]] |
+| [[collection-clearP2][collection clear]]    | [[test-collection-clearP2][go test 🛬]] |
+| [[collection-forEachP2][collection forEach]]  | [[test-collection-forEachP2][go test 🛬]] |
+| [[collection-iteratorP2][collection iterator]] | [[test-collection-iteratorP2][go test 🛬]] |
+
+#+begin_comment
+[[track][track]] 和 [[trigger][trigger]] 相关代码都在 [[https://github.com/vuejs/core/blob/main/packages/reactivity/src/effect.ts][core/effect.ts at main · vuejs/core]], [[https://github.com/vuejs/core/blob/main/packages/reactivity/src/dep.ts][core/dep.ts
+at main · vuejs/core]], [[https://github.com/vuejs/core/blob/main/packages/reactivity/src/effectScope.ts][core/effectScope.ts at main · vuejs/core]] 中。
+#+end_comment
+** phase 2 updating
+
+加上 track, trigger 之后实际添加的代码：
+
+*** normal objects
+
+#+begin_details DIFF
+#+begin_src diff :noweb yes
+<<createGetterP2-diff>>
+
+<<object-hasP2-diff>>
+
+<<ownKeysP2-diff>>
+
+<<createSetterP2-diff>>
+
+<<deletePropertyP2-diff>>
+#+end_src
+#+end_details
+
+*** collection objects(Map,Set)
+
+#+begin_details DIFF
+#+begin_src diff :noweb yes
+<<collection-getP2-diff>>
+
+<<collection-hasP2-diff>>
+
+<<collection-sizeP2-diff>>
+
+<<collection-addP2-diff>>
+
+<<collection-setP2-diff>>
+
+<<collection-deleteP2-diff>>
+
+<<collection-clearP2-diff>>
+
+<<collection-forEachP2-diff>>
+
+<<collection-iteratorP2-diff>>
+#+end_src
+#+end_details
+** Testing
+
+普通类型：
+
+#+html: <br>
+#+begin_details createGetter
+[[createGetterP2][get with track]]
+
+#+name: test-createGetterP2
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+
+const observed = reactive({ count: 0 })
+let times = 0
+effect(() => {
+  console.log(`run times ${++times} ...`)
+  observed.count++
+})
+
+observed.count = 3 (ref:test-createGetterP2-set-3)
+logEnd()
+#+end_src
+
+#+RESULTS: test-createGetterP2
+#+begin_example
+effect|run| active=true, shouldTrack=true
+run times 1 ...
+track| type=get, key=count, targetMap=[object WeakMap], dep=[object Set]
+trackEffects| activeEffect=[object Object], dep=1, activeEffect.deps=1
+createGetter| get, key=count, value=0
+createSetter| set value=1, key=count, result=true
+trigger| type=set, key=count, newValue=1, oldValue=0
+trigger|deps| deps=[object Set]
+createSetter| set value=3, key=count, result=true
+trigger| type=set, key=count, newValue=3, oldValue=1
+trigger|deps| deps=[object Set]
+triggerEffects| allowRecurse=undefined, dep=[object Set], effect=[object Object]
+effect|run| active=true, shouldTrack=true
+run times 2 ...
+track| type=get, key=count, targetMap=[object WeakMap], dep=[object Set]
+trackEffects| activeEffect=[object Object], dep=1, activeEffect.deps=1
+createGetter| get, key=count, value=3
+createSetter| set value=4, key=count, result=true
+trigger| type=set, key=count, newValue=4, oldValue=3
+trigger|deps| deps=[object Set]
+--------- END ---------
+undefined
+#+end_example
+
+结果简要分析：
+1. 调用 ~effect(fn)~ 因为没有传 lazy:true 选项所以默认是调用即执行一次
+   ~effect.run() -> fn()~  所以会打印一次 "run times 1 ..."
+2. track 开始是因为 fn 中取值 ~observed.count~ -> 收集 effect 到
+   targetMap->depsMap-> dep{Set} 集合中，所以可以看到这里的 ~dep.size~ 是 *1*
+3. 然后是调用 ~Reflect.get()~ 原子操作取到值为 *0*
+4. 下面 createStter 是在 fn 中调用了 observed.count++ -> 等价于 ~observed.count =
+   observed.count + 1~ 进行了一次赋值操作，但是是不是很奇怪这里并没有执行 ~fn~ 打印
+   "run times 2" 呢？
+
+   这里就涉及到的一个经典问题：就是能不能在 ~effect->fn~ 中再次调用 ~effect(fn)~ ，在
+   不加控制情况下就会死循环，虽然每次执行 effect.run->fn 在 try 中都会清理一次
+   effects 信赖，但是在 fn 中调用 effect(fn) 的话会导致重新收集了 fn 进 reactive
+   变量的信赖表。所以在 ~trigger->triggerEffects~ 中增加了一个选项来控制是不是要放
+   开这个限制(即可以在 fn 中改变 reactive 变量同时调用 ~effect(fn)~ ，<red:前提是你
+   知道自己在干什么，并做好防控避免死循环>)，这个选项就是
+   [[(triggerEffects-allowRecurse)][triggerEffects-allowRecurse]] 它默认是关闭的如果要开启需要 ~effect(fn, {
+   allowRecurse: true })~
+
+   如下面的示例：
+
+   #+begin_src js -n -r :exports both
+    <<reactiveP2>>
+    <<effect>>
+
+    const observed = reactive({ count: 0 })
+    let times = 0
+
+    const fn = () => {
+
+      console.log(`run times ${++times}, count=${observed.count} ...`)
+
+      if (++observed.count < 3) {
+        console.log(`allowRecurse option opened...`)
+        // 允许
+        effect(fn)
+        return
+      }
+
+    }
+    effect(fn, { allowRecurse: true })
+    logEnd()
+   #+end_src
+5. 后面的 "run times 2 ..." 是在 [[(test-createGetterP2-set-3)]] 行赋值 *3* 触发的。
+
+#+end_details
+
+#+begin_details has
+#+name: test-object-hasP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details ownKeys
+#+name: test-ownKeysP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details createSetter
+#+name: test-createSetterP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details deleteProperty
+#+name: test-deletePropertyP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+集合类型：
+
+#+begin_details get
+#+name: test-collection-getP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details has
+#+name: test-collection-hasP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details size
+#+name: test-collection-sizeP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details add
+#+name: test-collection-addP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details set
+#+name: test-collection-setP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details delete
+#+name: test-collection-deleteP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details clear
+#+name: test-collection-clearP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details forEach
+#+name: test-collection-forEachP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+#+begin_details iterator
+#+name: test-collection-iteratorP2
+#+begin_src js -n -r
+console.log('xx')
+#+end_src
+#+end_details
+
+
+* FootNotes
+
+[fn:1] https://tc39.es/ecma262/#sec-function-calls
+[fn:2] https://www.cheng92.com/vue/vue-teardown-2-sheduler/
 * COMMENT Local Variables :ARCHIVE:
 # Local Variables:
 # after-save-hook: gcl/org-html-export-to-html
 # End:
 
-* FootNotes
-
-[fn:1] https://tc39.es/ecma262/#sec-function-calls

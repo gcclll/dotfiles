@@ -115,202 +115,8 @@ running() {
     echo "Running..."
 }
 
-# app links
-# open https://github.com/macports/macports-base/releases/download/v2.7.1/MacPorts-2.7.1-12-Monterey.pkg
-
-ptt "Check for Oh My Zsh and install if we don't have it."
-which omz
-if test ! $?; then
-    running
-    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/HEAD/tools/install.sh)"
-fi
-
-ptt "Check for Homebrew and install if we don't have it."
-if test ! $(which brew); then
-    running
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>$HOME/.zprofile
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
-
-if test ! $(which mac); then
-    running
-    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/guarinogabriel/mac-cli/master/mac-cli/tools/install)"
-fi
-
-ptt "Check for my dotfiles cloned or not, if not clone it into $DOTDIR"
-if test ! -d "$DOTDIR"; then
-    running
-    ptt "Installing private dotfiles to $HOME/.gclrc(this is my dotfile directory.)"
-    git clone "git@code.aliyun.com:wyu/dotdat.git" "$DOTDIR"
-fi
-
-ptt "Check for all our dependencies with bundle installed or not..."
-STATUS="$HOME/.installed-tools-list"
-if [ -z "$(cat $STATUS | grep "brewlist")" ]; then
-    running
-    brew update
-    brew tap homebrew/bundle
-    brew bundle --file $DOTDIR/Brewfile
-
-    mysql -u root -e "ALTER USER root@localhost IDENTIFIED WITH mysql_native_password BY 'password'; FLUSH PRIVILEGES;"
-
-    ptt "Installing tools with HomeBrew..."
-    brew install \
-        wget fd fzf ripgrep rg m-cli autojump sdcv jq pngpaste \
-        gnuplot pipx rust-analyzer pandoc glslang graphviz bcal \
-        pkg-config poppler automake clang-format texmacs texlab \
-        aspell xdotool mpd mpc httpie aria2 pass w3m msmtp isync \
-        offlineimap mu openssl deno gdb delve qrencode shfmt shellcheck \
-        krita pyqt5
-
-    brew link openssl --force
-    brew link fd
-    $(brew --prefix)/opt/fzf/install
-    echo "brewlist" >>$STATUS
-fi
-
-ptt "Check for nvm and install node with it..."
-which nvm
-if test ! $?; then
-    running
-    ptt "> $(bggreen 'nvm'), $(bggreen 'node')"
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-    nvm install --lts
-    $DOTFILES/bin/gset node-lib
-    $DOTFILES/bin/gset node-bin
-    echo "Node Version: $(node -v)"
-fi
-
-ppt "Check for port and install with it..."
-which port
-if test ! $?; then
-    sudo port install recoll
-fi
-
-ptt "Check for npm and install tools with it..."
-if test ! $(which npm); then
-    running
-    ptt "$(bggreen 'npm'), $(bggreen 'cnpm')"
-    curl -qL https://www.npmjs.com/install.sh | sh
-    npm install -g cnpm
-    cnpm -g install yarn opencc js-beautify indium \
-        editorconfig jest vmd tsun indium ba64 http-server \
-        expo-cli browser-sync pnpm stylelint @volar/vue-language-server mermaid.cli atomic-algolia magic-string estree-walker \
-        acorn rollup
-fi
-
-ptt "Check for python env & tools..."
-if test ! $(which pipenv); then
-    running
-    pipx pipenv ensurepath
-    ln -s $HOME/.local/pipx/venvs/pipenv $BIN/pipenv
-    pip3 install -U pytest sshx buku grip black pyflakes isort
-    sudo easy_install nose
-    ln -s "$(which grip)" $BIN/grip
-    $DOTDIR/bin/gset pip-alias
-    GOBIN=$GOPATH/bin
-    ln -s $GOPATH/bin/gocode $BIN/gocode
-    ln -s $GOPATH/bin/gomodifytags $BIN/gomodifytags
-    ln -s $GOPATH/bin/gotests $BIN/gotests
-    ln -s $GOPATH/bin/gore $BIN/gore
-    ln -s $GOPATH/bin/guru $BIN/guru
-
-    pip3 install sphinx-autobuild sphinx_rtd_theme recommonmark sphinx_markdown_tables \
-        beautifulsoup4 html5lib Pygments
-fi
-
-ptt "Check for golang env & tools..."
-if test ! $(which go); then
-    running
-    brew install go
-    export PATH=$PATH:$(go env GOPATH)/bin
-    export GOPATH=$(go env GOPATH)
-    export GOPROXY=https://goproxy.cn
-    go get -u github.com/nsf/gocode
-    ln -s $GOPATH/bin/gocode /usr/local/bin/gocode
-    go env -w GO111MODULE=on
-    go env -w GOPROXY=https://goproxy.io,direct
-    go get -u github.com/fatih/gomodifytags \
-        github.com/nsf/gocode \
-        github.com/cweill/gotests/... \
-        github.com/motemen/gore/cmd/gore
-fi
-
-ptt "Check for getent command on MacOS..."
-GETENT="/usr/local/bin/getent"
-if [ ! -f "$GETENT" ]; then
-    running
-    cp $DOTDIR/bin/getent $GETENT
-    chmod +x $GETENT
-fi
-
-ptt "Check for hugo(a blog tool) and install it..."
-if test ! $(which hugo); then
-    running
-    git clone --depth=1 https://github.com/gohugoio/hugo.git $HOME/hugo
-    cd $HOME/hugo
-    go install --tags extended
-fi
-
-ptt "Check from Rime input method and install it..."
-DYLIB="/Library/Input Methods/Squirrel.app/Contents/Frameworks/librime.1.dylib"
-LIBRARY=$HOME/Library
-PLUM=$LIBRARY/plum
-RIME=$LIBRARY/Rime
-if test ! -f "$DYLIB"; then
-    running
-    brew install --cask squirrel
-    sudo cp $DYLIB /usr/local/lib/
-    rmfd $PLUM
-    cd $LIBRARY
-    git clone --depth 1 https://github.com/rime/plum.git
-    cd $PLUM
-    bash rime-install
-    bash rime-install wubi pinyin-simp
-    rmfd $RIME
-    cd $LIBRARY
-    git clone git@code.aliyun.com:gccll/my-rime-config.git $RIME
-fi
-
-ptt "Check for Emacs@29 and install it..."
-EMACS="/usr/local/Cellar/emacs-plus@29"
-if [ ! -d $EMACS ]; then
-    running
-    brew tap d12frosted/emacs-plus
-    brew install emacs-plus@29 \
-        --with-mailutils \
-        --with-xwidgets \
-        --with-imagemagick \
-        --with-native-comp
-fi
-
-ptt "Check for Doom Emacs and install it..."
-DOOM=$HOME/.doom.d
-DOTEMACS=$HOME/.emacs.d
-if [ ! -d $DOOM ]; then
-    running
-    rmfd $DOTEMACS
-    git clone --depth 1 https://github.com/hlissner/doom-emacs $DOTEMACS
-    git clone git@github.com:gcclll/.doom.d.git $DOOM --recurse-submodules
-    cd $DOOM
-    $DOTEMACS/bin/doom -y install
-    ln -s $DOTEMACS/bin/doom /usr/local/bin/doom
-    $DOTEMACS/bin/doom -y sync
-    $DOTEMACS/bin/doom env -o $DOOM/env
-fi
-
-# ptt "Installing PHP extensions with PECL..."
-# pecl install imagick redis swoole
-
-# ptt "Installing global Composer packages..."
-# /usr/local/bin/composer global require laravel/installer laravel/valet beyondcode/expose
-
-# ptt "Installing Laravel Valet..."
-# $HOME/.composer/vendor/bin/valet install
-
 clonerepos() {
+    ptt "Cloning repositories if someone has not cloned..."
     REPOS="$DOTDIR/.repositories"
     grep '^[^#]' $REPOS >/tmp/test__1
     REPOS=/tmp/test__1
@@ -368,8 +174,324 @@ clonerepos() {
     done
 }
 
-ptt "Cloning repositories if someone has not cloned..."
+install_zsh() {
+    ptt "Check for Oh My Zsh and install if we don't have it."
+    which omz
+    if test ! $?; then
+        running
+        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/HEAD/tools/install.sh)"
+    fi
+}
+
+install_brew() {
+    ptt "Check for Homebrew and install if we don't have it."
+    if test ! $(which brew); then
+        running
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>$HOME/.zprofile
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+}
+
+install_macli() {
+    if test ! $(which mac); then
+        running
+        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/guarinogabriel/mac-cli/master/mac-cli/tools/install)"
+    fi
+
+}
+
+install_dotfiles() {
+    ptt "Check for my dotfiles cloned or not, if not clone it into $DOTDIR"
+    if test ! -d "$DOTDIR"; then
+        running
+        ptt "Installing private dotfiles to $HOME/.gclrc(this is my dotfile directory.)"
+        git clone "git@code.aliyun.com:wyu/dotdat.git" "$DOTDIR"
+    fi
+
+}
+
+install_brew_list() {
+    ptt "Check for all our dependencies with bundle installed or not..."
+    STATUS="$HOME/.installed-tools-list"
+    if [ -z "$(cat $STATUS | grep "brewlist")" ]; then
+        running
+        brew update
+        brew tap homebrew/bundle
+        brew bundle --file $DOTDIR/Brewfile
+
+        mysql -u root -e "ALTER USER root@localhost IDENTIFIED WITH mysql_native_password BY 'password'; FLUSH PRIVILEGES;"
+
+        ptt "Installing tools with HomeBrew..."
+        brew install \
+            wget fd fzf ripgrep rg m-cli autojump sdcv jq pngpaste \
+            gnuplot pipx rust-analyzer pandoc glslang graphviz bcal \
+            pkg-config poppler automake clang-format texmacs texlab \
+            aspell xdotool mpd mpc httpie aria2 pass w3m msmtp isync \
+            offlineimap mu openssl deno gdb delve qrencode shfmt shellcheck \
+            krita pyqt5
+
+        brew link openssl --force
+        brew link fd
+        $(brew --prefix)/opt/fzf/install
+        echo "brewlist" >>$STATUS
+    fi
+}
+
+install_nvm() {
+    ptt "Check for nvm and install node with it..."
+    which nvm
+    if test ! $?; then
+        running
+        ptt "> $(bggreen 'nvm'), $(bggreen 'node')"
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+        nvm install --lts
+        $DOTFILES/bin/gset node-lib
+        $DOTFILES/bin/gset node-bin
+        echo "Node Version: $(node -v)"
+    fi
+}
+
+install_port_list() {
+    ptt "Check for port and install with it..."
+    which port
+    if test ! $?; then
+        sudo port install recoll
+    fi
+}
+
+install_npm_list() {
+    ptt "Check for npm and install tools with it..."
+    if test ! $(which npm); then
+        running
+        ptt "$(bggreen 'npm'), $(bggreen 'cnpm')"
+        curl -qL https://www.npmjs.com/install.sh | sh
+        npm install -g cnpm
+        cnpm -g install yarn opencc js-beautify indium \
+            editorconfig jest vmd tsun indium ba64 http-server \
+            expo-cli browser-sync pnpm stylelint @volar/vue-language-server mermaid.cli atomic-algolia magic-string estree-walker \
+            acorn rollup
+    fi
+}
+
+install_pipenv() {
+    ptt "Check for python env & tools..."
+    if test ! $(which pipenv); then
+        running
+        pipx pipenv ensurepath
+        ln -s $HOME/.local/pipx/venvs/pipenv $BIN/pipenv
+        pip3 install -U pytest sshx buku grip black pyflakes isort
+        sudo easy_install nose
+        ln -s "$(which grip)" $BIN/grip
+        $DOTDIR/bin/gset pip-alias
+        GOBIN=$GOPATH/bin
+        ln -s $GOPATH/bin/gocode $BIN/gocode
+        ln -s $GOPATH/bin/gomodifytags $BIN/gomodifytags
+        ln -s $GOPATH/bin/gotests $BIN/gotests
+        ln -s $GOPATH/bin/gore $BIN/gore
+        ln -s $GOPATH/bin/guru $BIN/guru
+
+        pip3 install sphinx-autobuild sphinx_rtd_theme recommonmark sphinx_markdown_tables \
+            beautifulsoup4 html5lib Pygments
+    fi
+}
+
+install_golang() {
+    ptt "Check for golang env & tools..."
+    if test ! $(which go); then
+        running
+        brew install go
+        export PATH=$PATH:$(go env GOPATH)/bin
+        export GOPATH=$(go env GOPATH)
+        export GOPROXY=https://goproxy.cn
+        go get -u github.com/nsf/gocode
+        ln -s $GOPATH/bin/gocode /usr/local/bin/gocode
+        go env -w GO111MODULE=on
+        go env -w GOPROXY=https://goproxy.io,direct
+        go get -u github.com/fatih/gomodifytags \
+            github.com/nsf/gocode \
+            github.com/cweill/gotests/... \
+            github.com/motemen/gore/cmd/gore
+    fi
+}
+
+install_getent() {
+    ptt "Check for getent command on MacOS..."
+    GETENT="/usr/local/bin/getent"
+    if [ ! -f "$GETENT" ]; then
+        running
+        cp $DOTDIR/bin/getent $GETENT
+        chmod +x $GETENT
+    fi
+}
+
+install_hugo() {
+    ptt "Check for hugo(a blog tool) and install it..."
+    if test ! $(which hugo); then
+        running
+        git clone --depth=1 https://github.com/gohugoio/hugo.git $HOME/hugo
+        cd $HOME/hugo
+        go install --tags extended
+    fi
+
+}
+
+install_rime() {
+    ptt "Check from Rime input method and install it..."
+    DYLIB="/Library/Input Methods/Squirrel.app/Contents/Frameworks/librime.1.dylib"
+    LIBRARY=$HOME/Library
+    PLUM=$LIBRARY/plum
+    RIME=$LIBRARY/Rime
+    if test ! -f "$DYLIB"; then
+        running
+        brew install --cask squirrel
+        sudo cp $DYLIB /usr/local/lib/
+        rmfd $PLUM
+        cd $LIBRARY
+        git clone --depth 1 https://github.com/rime/plum.git
+        cd $PLUM
+        bash rime-install
+        bash rime-install wubi pinyin-simp
+        rmfd $RIME
+        cd $LIBRARY
+        git clone git@code.aliyun.com:gccll/my-rime-config.git $RIME
+    fi
+}
+
+install_emacs() {
+    ptt "Check for Emacs@29 and install it..."
+    EMACS="/usr/local/Cellar/emacs-plus@29"
+    if [ ! -d $EMACS ]; then
+        running
+        brew tap d12frosted/emacs-plus
+        brew install emacs-plus@29 \
+            --with-mailutils \
+            --with-xwidgets \
+            --with-imagemagick \
+            --with-native-comp
+    fi
+
+}
+
+install_doomemacs() {
+    ptt "Check for Doom Emacs and install it..."
+    DOOM=$HOME/.doom.d
+    DOTEMACS=$HOME/.emacs.d
+    if [ ! -d $DOOM ]; then
+        running
+        rmfd $DOTEMACS
+        git clone --depth 1 https://github.com/hlissner/doom-emacs $DOTEMACS
+        git clone git@github.com:gcclll/.doom.d.git $DOOM --recurse-submodules
+        cd $DOOM
+        $DOTEMACS/bin/doom -y install
+        ln -s $DOTEMACS/bin/doom /usr/local/bin/doom
+        $DOTEMACS/bin/doom -y sync
+        $DOTEMACS/bin/doom env -o $DOOM/env
+    fi
+
+}
+
+case "$1" in
+    repo)
+        ptt "Clone repos only and exit !!!"
+        clonerepos
+        exit 0
+        ;;
+    zsh)
+        install_zsh
+        exit 0
+        ;;
+    brew)
+        install_brew
+        exit 0
+        ;;
+    macli)
+        install_macli
+        exit 0
+        ;;
+    dotfiles)
+        install_dotfiles
+        exit 0
+        ;;
+    brewlist)
+        install_brew_list
+        exit 0
+        ;;
+    nvm)
+        install_nvm
+        exit 0
+        ;;
+    portlist)
+        install_port_list
+        exit 0
+        ;;
+    npmlist)
+        install_npm_list
+        exit 0
+        ;;
+    pipenv)
+        install_pipenv
+        exit 0
+        ;;
+    golang)
+        install_golang
+        exit 0
+        ;;
+    getent)
+        install_getent
+        exit 0
+        ;;
+    hugo)
+        install_hugo
+        exit 0
+        ;;
+    rime)
+        install_rime
+        exit 0
+        ;;
+    emacs)
+        install_emacs
+        exit 0
+        ;;
+    doom)
+        install_doomemacs
+        exit 0
+        ;;
+    *)
+        ptt "Installing everything..."
+        ;;
+esac
+
+# app links
+# open https://github.com/macports/macports-base/releases/download/v2.7.1/MacPorts-2.7.1-12-Monterey.pkg
+
+install_zsh
+install_brew
+install_macli
+install_dotfiles
+install_brew_list
+install_nvm
+install_port_list
+install_npm_list
+install_pipenv
+install_golang
+install_getent
+install_hugo
+install_rime
+install_emacs
+install_doomemacs
 clonerepos
+
+# ptt "Installing PHP extensions with PECL..."
+# pecl install imagick redis swoole
+
+# ptt "Installing global Composer packages..."
+# /usr/local/bin/composer global require laravel/installer laravel/valet beyondcode/expose
+
+# ptt "Installing Laravel Valet..."
+# $HOME/.composer/vendor/bin/valet install
+
 echo
 
 $DOTFILES/bin/gset links 2>$LOGFILE

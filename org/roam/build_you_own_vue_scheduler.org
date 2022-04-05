@@ -1,0 +1,14 @@
+:PROPERTIES:
+:ID:       4a858df2-f6f8-4d2f-9cda-78c12cbf42b3
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: build_you_own_vue_scheduler
+#+TITLE: build you own vue scheduler
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+* TODO Scheduler
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:
