@@ -1,0 +1,30 @@
+#!/usr/local/bin/node
+
+const request = require('request')
+const cheerio = require('cheerio')
+const { execSync } = require('child_process')
+
+const url = "http://download.huzheng.org/dict.org"
+request(url, (err, res, body) => {
+  if (err) {
+    console.error(err)
+    return
+  }
+
+  const $ = cheerio.load(body)
+  const hrefs = $('td.bodybold>a').toArray().map(a => a.attribs.href)
+  const targetDir = "~/.emacs.d/sdcv-dict"
+  let total = hrefs.length
+  execSync(`echo "Total: ${total}\n"`)
+  
+  hrefs.forEach(href => {
+    const targetFile = `${targetDir}/${href}`
+    execSync(`[ ! -f "${targetFile}" ] && wget -P ${targetDir} ${url}/${href}`, (err, stdout) => {
+      if (err) {
+        console.log(err.message)
+        return
+      }
+    })
+  }) 
+})
+

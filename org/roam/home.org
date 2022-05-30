@@ -2,6 +2,7 @@
 :ID:       a4647863-71e6-4764-88db-b80bfb963f69
 :END:
 #+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HTML_HEAD: <meta name="createdAt" content="2022-02-22 09:11:03"/>
 #+HTML_HEAD: <link rel="stylesheet" href="/assets/css/home.css"/>
 #+HUGO_SLUG: home
 #+TITLE: Homepage
@@ -15,21 +16,24 @@
 [[color:#409eff][蓝色标签，如： setup]] 表示文章标签(blue:关键词)，可通过点击它新建一个包含该blue:关键词 的所
 有文章的 doc:tab 页。
 
-原博客地址： https://www.cheng92.com
+原博客地址： https://www.cheng92.com (会逐步迁移到本站)
 #+end_box
 #+HTML: <div id="start"/><br><br>
 
 * [[id:aa445529-4f0e-48d8-833f-12c149603ca6][Documentations]]
 * Emacs
 ** TODO [[id:82acaa2e-9913-4c5b-83d9-57ac24698449][org-special-block-extras]]
-** [[id:58f6b283-015f-476f-a515-de5e6083dd1d][readthedocs]] :org:emacs:
 ** [[id:193fb17e-b4ea-4b4b-bc78-056815359664][org-roam]]
 ** [[id:e2bc5e53-a5f7-4aed-b0b1-644183b2932e][org-mode]]
 * Vue
 ** SOMEDAY [[id:83dc97dc-8e1c-44b0-9254-dfecbb5a4629][Vue ChangeLog]]
 ** TODO [[id:1037e29e-a2c1-4a29-a346-1575d2ea6369][vue script setup]]
-** TODO [[id:f4fd05f7-cec7-46fd-8b58-c4c736b1a58c][build your own vue reactivity]]
-** TODO [[id:4a858df2-f6f8-4d2f-9cda-78c12cbf42b3][build you own vue scheduler]]
+** DONE [[id:f4fd05f7-cec7-46fd-8b58-c4c736b1a58c][build your own vue reactivity]]
+CLOSED: [2022-04-14 Thu 14:28]
+** DONE [[id:4a858df2-f6f8-4d2f-9cda-78c12cbf42b3][build your own vue scheduler]]
+CLOSED: [2022-04-18 Mon 14:49]
+** TODO [[id:d0fc0f76-8429-429c-99a0-206792da22ad][build your own vue runtime-core]]
+** TODO [[id:5eff117f-92ba-490a-ba9c-e5f59e0cbe47][build your own vue compiler-core]]
 * React
 ** TODO [[id:293eb7ed-0b86-4a5c-acc2-ea5b26e92326][Build your own react]]
 * JavaScript
@@ -39,7 +43,7 @@
 ** TODO [[id:a10d6fd1-893b-4ed4-967d-d57388ba6525][shell basis]]
 * 怪谈杂物间
 ** [[id:95666e03-38b5-4ad4-b50f-ef40f6cc36d8][collections]]
-
+** [[id:acb1ce02-6444-4b0e-a61d-7091dbe05d92][Let's talking here]]
 
 * COMMENT Local Variables :ARCHIVE:
 # Local Variables:

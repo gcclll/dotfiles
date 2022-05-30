@@ -6,6 +6,7 @@
 #+HUGO_SLUG: vue_changelog
 #+HTML_HEAD: <meta name="category" content="vue"/>
 #+HTML_HEAD: <meta name="tags" content="CHANGELOG"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-03-02 09:37:20"/>
 #+LaTeX_HEADER: \usemintedstyle{monokai}
 #+TITLE: Vue ChangeLog
 

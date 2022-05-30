@@ -1,0 +1,19 @@
+:PROPERTIES:
+:ID:       d0fc0f76-8429-429c-99a0-206792da22ad
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: build_your_own_runtime_core
+#+HTML_HEAD: <meta name="category" content="vue"/>
+#+HTML_HEAD: <meta name="tags" content="runtime-core"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-04-16 09:40:04"/>
+#+PROPERTY: header-args:js :exports both
+#+PROPERTY: header-args :noweb no-export
+#+TITLE: build your own vue runtime-core
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+TODO runtime core
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

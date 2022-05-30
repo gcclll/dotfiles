@@ -6,6 +6,7 @@
 #+HUGO_SLUG: emacs_org_special_src_blocks
 #+HTML_HEAD: <meta name="category" content="emacs"/>
 #+HTML_HEAD: <meta name="tags" content="org"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-02-01 09:35:56"/>
 #+TITLE: Emacs org-special-block-extras
 
 <badge: GCCLL | Homepage | green | / | tinder>

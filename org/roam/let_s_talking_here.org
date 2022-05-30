@@ -1,0 +1,17 @@
+:PROPERTIES:
+:ID:       acb1ce02-6444-4b0e-a61d-7091dbe05d92
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: let_s_talking_here
+#+PROPERTY: header-args:js :exports both
+#+PROPERTY: header-args :noweb no-export
+#+HTML_HEAD: <meta name="createdAt" content="2099-09-09 09:09:09"/>
+#+TITLE: Let's talking here
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+green:Talking red:everything cyan:you blue:want <orange:???>
+
+* COMMENT Local Variables       :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

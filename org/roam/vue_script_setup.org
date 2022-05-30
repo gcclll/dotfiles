@@ -5,6 +5,7 @@
 #+HUGO_SLUG: vue_script_setup
 #+HTML_HEAD: <meta name="category" content="vue"/>
 #+HTML_HEAD: <meta name="tags" content="setup"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-03-04 09:38:36"/>
 #+TITLE: vue script setup
 <badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
 

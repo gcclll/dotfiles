@@ -6,6 +6,7 @@
 #+HUGO_SLUG: build_your_own_vue_reactivity
 #+HTML_HEAD: <meta name="category" content="vue"/>
 #+HTML_HEAD: <meta name="tags" content="reactivity"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-04-12 09:38:54"/>
 # #+PROPERTY: header-args:js :exports both
 #+PROPERTY: header-args :noweb no-export
 #+TITLE: build your own vue reactivity
@@ -14,9 +15,11 @@
 #+begin_box Vue3 Reactivity :background-color green
 从零开始实现 doc:vue3 的 reactivity 模块，基于 Proxy + Reflect api 实现响应式。大致
 实现路径 reactive -> proxy 开启代理 -> reflect 映射到原子操作，监听 get/set 执行
-track & trigger 收集信赖。
+track & trigger 收集依赖。
 
 /<blue:注意：这里会省略部分不影响理解的代码，和一些非法参数等等的检查，目的是为了减少代码量，但不影响学习和理解源代码>/
+
+[[https://www.cheng92.com/vue/vue-mind-map-reactivity/][Vue3 源码头脑风暴之 1 ☞reactivity - 若叶知秋]]
 #+end_box
 #+html: <br>
 
@@ -38,13 +41,49 @@ doc:Reflect 的使用。
 
 更多与 doc:proxy 和 doc:reflect 相关的内容请点击 [[id:cc2b98c6-21d9-488c-9a05-8485a36c1e01][JavaScript Proxy And Reflect]]。
 
+#+begin_export html
+<a href="../assets/img/vue3plus/reactive.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3plus/reactive.svg"/></a>
+#+end_export
+
+#+html: <br>
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+>------------- reactivity.svg ---------------</a>
+#+end_export
+
+#+html: <br>
+#+begin_export html
+<a href="../assets/img/vue3plus/r/reactivity-fns-call-flow.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+>------------- 函数调用流程图 ---------------</a>
+#+end_export
+
+
 * Global variables
 
 这里把用到的所有全局变量集中到下面。
 
+#+begin_details 全局变量 :title-color green
+
 #+name: globalVars
-#+begin_src js -n -r
-const __DEV__ = true
+#+begin_src js -n -r :noweb yes
+const NOOP = () => {}
+
+function makeMap(str, expectsLowerCase) {
+  const map = Object.create(null)
+  const list = str.split(',')
+  for (let i = 0; i < list.length; i++) {
+    map[list[i]] = true
+  }
+  return expectsLowerCase ? val => !!map[val.toLowerCase()] : val => !!map[val]
+}
+
 // 用来缓存 target => Proxy<target> 之间的关系
 const reactiveMap = new WeakMap() (ref:reactiveMap)
 const shallowReactiveMap = new WeakMap() (ref:shallowReactiveMap)
@@ -56,14 +95,24 @@ const toTypeString = value => objectToString.call(value)
 const extend = Object.assign
 
 const getRawType = val => Object.prototype.toString.call(val).slice(8, -1)
+const isSymbol = val => typeof val === 'symbol'
 const isCollection = val => ['Map', 'Set', 'WeakMap', 'WeakSet'].includes(getRawType(val))
 const isObject = val => ['Object', 'Array'].includes(getRawType(val))
 const isString = val => typeof val === 'string'
+const isArray = Array.isArray
 const isIntegerKey = (key) => isString(key) && key !== 'NaN' && key[0] !== '-' && '' + parseInt(key, 10) === key
+const isFunction = fn => typeof fn === 'function'
 const isMap = val => toTypeString(val) === '[object Map]'
 const hasOwnProperty = Object.prototype.hasOwnProperty
 const hasOwn = (val, key) => hasOwnProperty.call(val, key)
 const hasChanged = (value, oldValue) => !Object.is(value, oldValue)
+
+const isNonTrackableKeys = /*#__PURE__*/ makeMap(`__proto__,__v_isRef,__isVue`)
+const builtInSymbols = new Set(
+  Object.getOwnPropertyNames(Symbol)
+    .map(key => Symbol[key])
+    .filter(isSymbol)
+)
 
 const toRaw = observed => {
   const raw = observed && observed.__v_raw
@@ -75,20 +124,52 @@ const toReactive = value => typeof value === 'object' ? reactive(value) : value
 // track & trigger related
 // 用来存储订阅者，对应关系： {target -> key -> dep}
 const targetMap = new WeakMap()
+// efffects 递归层级数
+let effectTrackDepth = 0 (ref:effectTrackDepth)
+let trackOpBit = 1 (ref:trackOpBit)
+// 最大的允许的 effects 递归层级，当超过这个数时执行全量清理，重新开始
+const maxMarkerBits = 30 (ref:maxMarkerBits)
 // 当前激活状态的 effect
 let activeEffect // ReactiveEffect
 // 对象迭代过程中收集订阅的一个 key
-const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
-const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
-// 是不是应该收集信赖，比如正在执行的 effect 就不该重复收集
+const ITERATE_KEY = Symbol('')
+const MAP_KEY_ITERATE_KEY = Symbol()
+// 是不是应该收集依赖，比如正在执行的 effect 就不该重复收集
 let shouldTrack = true
+
+<<wasTracked>>
+<<newTracked>>
+<<initDepMarkers>>
+<<finalizeDepMarkers>>
+
+// effect scope
+let activeEffectScope
+<<recordEffectScope>>
 
 <<effect-tools>>
 <<ReactiveEffect>>
 
-const log = (fn, message) => console.log(`[${fn}] ${message}`)
-const logEnd = () => console.log("--------- END ---------")
+// ref
+function isRef(r) { (ref:isRef)
+  return !!(r && r.__v_isRef === true)
+}
+<<triggerRefValue>>
+<<trackRefValue>>
+
+
+let debugOn = true
+const log = (fn, message) => {
+  if (debugOn) {
+    if (message === undefined) {
+      console.log(fn)
+    } else {
+      console.log(`[${fn}] ${message}`)
+    }
+  }
+}
+const logEnd = (hint = "END") => console.log(`--------- ${hint} ---------`)
 #+end_src
+#+end_details
 
 effect.s 中相关的函数：
 
@@ -105,26 +186,29 @@ function cleanupEffect(effect) {
 }
 #+end_src
 
-每个订阅函数最终都会被封装成一个 ~ReactiveEffect~ 被收集到 ~targetMap -> depsMap~ 中
+每个订阅函数最终都会被封装成一个 ~ReactiveEffect~ 被收集到 ~targetMap -> depsMap
+->~ [[createDep][Dep]] 中
 
+#+html: <br>
+#+begin_details ReactiveEffect :title-color green
 #+name: ReactiveEffect
 #+begin_src js -n -r
 class ReactiveEffect {
   active = true
-  // 信赖列表
+  // 依赖列表
   deps = []
   parent = undefined
 
-  constructor(fn, scheduler, scope) {
+  constructor(fn, scheduler, scope) { (ref:ReactiveEffect-constructor)
     this.fn = fn
     this.scheduler = scheduler || null
 
-    // ...
+    recordEffectScope(this, scope)
   }
 
   run() {    (ref:effect-run)
 
-    console.log(`effect|run| active=${this.active}, shouldTrack=${shouldTrack}`)
+    log(`effect|run| active=${this.active}, shouldTrack=${shouldTrack}`)
     if (!this.active) {
       return this.fn()
     }
@@ -145,11 +229,23 @@ class ReactiveEffect {
       activeEffect = this
       shouldTrack = true
 
-      // 执行之前清理当前订阅
-      cleanupEffect(this)
+      trackOpBit = 1 << +effectTrackDepth
+
+      if (effectTrackDepth <= maxMarkerBits) {
+        initDepMarkers(this)
+      } else {
+        // 执行之前清理当前订阅
+        cleanupEffect(this)
+      }
       // 执行真正的订阅函数
       return this.fn()
     } finally {
+      if (effectTrackDepth <= maxMarkerBits) {
+        finalizeDepMarkers(this)
+      }
+
+      trackOpBit = 1 << --effectTrackDepth
+
       activeEffect = this.parent
       // 恢复上一次的 track flag
       shouldTrack = lastShouldTrack
@@ -170,7 +266,86 @@ class ReactiveEffect {
   }
 }
 #+end_src
+#+end_details
 
+#+html: <br>
+#+begin_details 增加 effects 嵌套层级控制
+#+name: ReactiveEffect-TrackBit-diff
+#+begin_src diff
+class ReactiveEffect {
+  active = true
+  // 依赖列表
+  deps = []
+  parent = undefined
+
+  constructor(fn, scheduler, scope) {
+    this.fn = fn
+    this.scheduler = scheduler || null
+
+    recordEffectScope(this, scope)
+  }
+
+  run() {
+
+    log(`effect|run| active=${this.active}, shouldTrack=${shouldTrack}`)
+    if (!this.active) {
+      return this.fn()
+    }
+
+    let parent = activeEffect
+    let lastShouldTrack = shouldTrack
+    while (parent) {
+      // 是自身，等于没有嵌套，或递归结束
+      if (parent === this) {
+        return
+      }
+      parent = parent.parent
+    }
+
+    // reactive 中执行订阅者函数核心代码
+    try {
+      this.parent = activeEffect
+      activeEffect = this
+      shouldTrack = true
+
++      trackOpBit = 1 << +effectTrackDepth
++
++      if (effectTrackDepth <= maxMarkerBits) {
++        initDepMarkers(this)
++      } else {
+        // 执行之前清理当前订阅
+        cleanupEffect(this)
++      }
+      // 执行真正的订阅函数
+      return this.fn()
+    } finally {
++      if (effectTrackDepth <= maxMarkerBits) {
++        finalizeDepMarkers(this)
++      }
++
++      trackOpBit = 1 << --effectTrackDepth
+
+      activeEffect = this.parent
+      // 恢复上一次的 track flag
+      shouldTrack = lastShouldTrack
+      // 已经执行完了，递归链已经被释放了
+      this.parent = undefined
+    }
+
+  }
+
+  stop() {
+    if (this.active) {
+      cleanupEffect(this)
+      if (this.onStop) {
+        this.onStop()
+      }
+      this.active(false)
+    }
+  }
+}
+#+end_src
+#+end_details
 * reactive(target: object)
 
 相关代码：[[globalVars][globalVars]], [[createReactiveObject][createReactiveObject]]
@@ -205,6 +380,22 @@ function reactive(target) {
 5. [[(reactiveMap)][reactiveMap]] 这里是一个应用级别的全局变量，用来存储 target=>proxy 的对应关系，
    可以用来避免对一个已经是 doc:Proxy 的对象进行重复代理。
 
+
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-create-reactive-object.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-create-reactive-object.svg"/></a>
+#+end_export
+
+递归 reactive
+
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-basehd-get-03-track-recursively.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-basehd-get-03-track-recursively.svg"/></a>
+#+end_export
 
 ** reactive with track&trigger
 
@@ -242,6 +433,13 @@ function reactive(target) {
 围绕着这里面创建的代理。
 
 kbd:createReactiveObject()
+
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-reactive.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-reactive.svg"/></a>
+#+end_export
 
 声明：
 #+begin_src typescript
@@ -355,6 +553,13 @@ const mutableHandlers = (function () {    (ref:mutableHandlersP2)
 :CUSTOM_ID: base-handler-createGetter
 :END:
 
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-basehd-get-01.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-basehd-get-01.svg"/></a>
+#+end_export
+
 #+name: createGetter
 #+begin_src js
 function createGetter(isReadonly = false, shallow = false) {
@@ -363,7 +568,7 @@ function createGetter(isReadonly = false, shallow = false) {
 
     // 通过原子操作得到真实的值
     const res = Reflect.get(target, key, receiver)
-    console.log(`createGetter| get, key=${key}, value=${res}`)
+    log(`createGetter| get, key=${key}, value=${res}`)
 
     return res
   }
@@ -373,7 +578,7 @@ function createGetter(isReadonly = false, shallow = false) {
 *** createGetter with track
 
 #+name: createGetterP2
-#+begin_src js
+#+begin_src js -n -r
 function createGetter(isReadonly = false, shallow = false) {
 
   return function get(target, key, receiver) {
@@ -394,16 +599,28 @@ function createGetter(isReadonly = false, shallow = false) {
       return target
     }
 
+    const targetIsArray = isArray(target)
+
     // 通过原子操作得到真实的值
     const res = Reflect.get(target, key, receiver)
+
+    if (isSymbol(key) ? builtInSymbols.has(key) : isNonTrackableKeys(key)) {
+      return res
+    }
 
     // 只读的是不能设置值的因此也没必要去做多余的监听
     if (!isReadonly) {
       track(target, 'get', key)
     }
 
-    console.log(`createGetter| get, key=${key}, value=${res}`)
+    log(`createGetter|isRef get, key=${key}, value=${res}, isRef=${isRef(res)}`)
 
+    if (isRef(res)) {
+      const shouldUnwrap = !targetIsArray || !isIntegerKey(key)
+      return shouldUnwrap ? res.value : res
+    }
+
+    log(`createGetter|isObject get, key=${key}, value=${res}, isRef=${isRef(res)}`)
     if (isObject(res)) {
       // TODO readonly(res)
       return isReadonly ? res : reactive(res)
@@ -430,7 +647,7 @@ function createGetter(isReadonly = false, shallow = false) {
 +      track(target, 'get', key)
 +    }
 +
-    console.log(`createGetter| ${res}, get proxy - reflect`)
+    log(`createGetter| ${res}, get proxy - reflect`)
 
     return res
   }
@@ -438,6 +655,61 @@ function createGetter(isReadonly = false, shallow = false) {
 #+end_src
 #+end_details
 
+#+html: <br>
+#+begin_details with-computed-diff :title-color
+#+name: createGetterP2-diff-with-computed
+#+begin_src diff
+function createGetter(isReadonly = false, shallow = false) {
+
+  return function get(target, key, receiver) {
+    if (key === '__v_isReactive') {
+      // 检测是不是一个 reactive 对象时
+      return !isReadonly
+    } else if (key === '__v_isReadonly') {
+      // 检测是不是一个只读对象时，如： 取target.__v_isReadonly 的值
+      return isReadonly
+    } else if (key === '__v_isShallow') {
+      return shallow
+    } else if (key === '__v_raw' && receiver === (
+      isReadonly
+        ? shallow ? shallowReadonlyMap : readonlyMap
+      : shallow ? shallowReactiveMap : reactiveMap
+    ).get(target)) {
+      // 读原始对象，代理之前的
+      return target
+    }
+
++    const targetIsArray = isArray(target)
+
+    // 通过原子操作得到真实的值
+    const res = Reflect.get(target, key, receiver)
+
++    if (isSymbol(key) ? builtInSymbols.has(key) : isNonTrackableKeys(key)) {
++      return res
++    }
+
+    // 只读的是不能设置值的因此也没必要去做多余的监听
+    if (!isReadonly) {
+      track(target, 'get', key)
+    }
+
+    log(`createGetter| get, key=${key}, value=${res}`)
+
++    if (isRef(res)) {
++      const shouldUnwrap = !targetIsArray || !isIntegerKey(key)
++      return shouldUnwrap ? res.value : res
++    }
+
+    if (isObject(res)) {
+      // TODO readonly(res)
+      return isReadonly ? res : reactive(res)
+    }
+
+    return res
+  }
+}
+#+end_src
+#+end_details
 ** createSetter
 :PROPERTIES:
 :COLUMNS:  %CUSTOM_ID[(Custom Id)]
@@ -458,7 +730,7 @@ function createSetter(shallow = false) {
 
     // 赋值的原子操作
     const result = Reflect.set(target, key, value, receiver)
-    console.log(`createSetter| set value=${value}, key=${key}, result=${result}`)
+    log(`createSetter| set value=${value}, key=${key}, result=${result}`)
 
     return result // 返回赋值结果
   }
@@ -481,7 +753,7 @@ function createSetter(shallow = false) {
 
     // 赋值的原子操作
     const result = Reflect.set(target, key, value, receiver)
-    console.log(`createSetter| set value=${value}, key=${key}, result=${result}`)
+    log(`createSetter| set value=${value}, key=${key}, result=${result}`)
 
     if (target === toRaw(receiver)) {
       if (!hadKey) { // add prop
@@ -512,7 +784,7 @@ function createSetter(shallow = false) {
 
     // 赋值的原子操作
     const result = Reflect.set(target, key, value, receiver)
-    console.log(`createSetter| set value=${value}, key=${key}, result=${result}`)
+    log(`createSetter| set value=${value}, key=${key}, result=${result}`)
 +
 +   if (target === toRaw(receiver)) {
 +      if (!hadKey) { // add prop
@@ -531,10 +803,10 @@ function createSetter(shallow = false) {
 #+name: deleteProperty
 #+begin_src js
 function deleteProperty(target, key) {
-  const hasKey = hasOwn(target, key)
+  const hadKey = hasOwn(target, key)
   const oldValue = target[key]
   const result = Reflect.deleteProperty(target, key)
-  console.log(`deleteProperty| key=${key} deleted, result=${result}`)
+  log(`deleteProperty| key=${key} deleted, result=${result}`)
   return result
 }
 #+end_src
@@ -544,13 +816,13 @@ function deleteProperty(target, key) {
 #+name: deletePropertyP2
 #+begin_src js -n -r
 function deleteProperty(target, key) {
-  const hasKey = hasOwn(target, key)
+  const hadKey = hasOwn(target, key)
   const oldValue = target[key]
   const result = Reflect.deleteProperty(target, key)
   if (result && hadKey) {
     trigger(target, 'delete', key, undefined, oldValue)
   }
-  console.log(`deleteProperty| key=${key} deleted, result=${result}`)
+  log(`deleteProperty| key=${key} deleted, result=${result}`)
   return result
 }
 #+end_src
@@ -560,13 +832,13 @@ function deleteProperty(target, key) {
 #+name: deletePropertyP2-diff
 #+begin_src diff
 function deleteProperty(target, key) {
-  const hasKey = hasOwn(target, key)
+  const hadKey = hasOwn(target, key)
   const oldValue = target[key]
   const result = Reflect.deleteProperty(target, key)
 +  if (result && hadKey) {
 +    trigger(target, 'delete', key, undefined, oldValue)
 +  }
-  console.log(`deleteProperty| key=${key} deleted, result=${result}`)
+  log(`deleteProperty| key=${key} deleted, result=${result}`)
   return result
 }
 #+end_src
@@ -581,7 +853,7 @@ function deleteProperty(target, key) {
 #+begin_src js
 function has(target, key) {
   const result = Reflect.has(target, key)
-  console.log(`has| key=${key}, result=${result}`);
+  log(`has| key=${key}, result=${result}`);
   return result
 }
 #+end_src
@@ -593,7 +865,7 @@ function has(target, key) {
 function has(target, key) {
   track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
   const result = Reflect.has(target, key)
-  console.log(`has| key=${key}, result=${result}`);
+  log(`has| key=${key}, result=${result}`);
   return result
 }
 #+end_src
@@ -605,7 +877,7 @@ function has(target, key) {
 function has(target, key) {
 + track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
   const result = Reflect.has(target, key)
-  console.log(`has| key=${key}, result=${result}`);
+  log(`has| key=${key}, result=${result}`);
   return result
 }
 #+end_src
@@ -615,7 +887,7 @@ function has(target, key) {
 #+name: ownKeys
 #+begin_src js
 function ownKeys(target) {
-  console.log(`ownKeys| - ${JSON.stringify(target)}`);
+  log(`ownKeys| - ${JSON.stringify(target)}`);
   return Reflect.ownKeys(target)
 }
 #+end_src
@@ -626,7 +898,7 @@ function ownKeys(target) {
 #+begin_src js -n -r
 function ownKeys(target) {
   track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
-  console.log(`ownKeys| - ${JSON.stringify(target)}`);
+  log(`ownKeys| - ${JSON.stringify(target)}`);
   return Reflect.ownKeys(target)
 }
 #+end_src
@@ -637,7 +909,7 @@ function ownKeys(target) {
 #+begin_src diff
 function ownKeys(target) {
 +  track(target, 'iterate', isArray(target) ? 'length' : ITERATE_KEY)
-  console.log(`ownKeys| - ${JSON.stringify(target)}`);
+  log(`ownKeys| - ${JSON.stringify(target)}`);
   return Reflect.ownKeys(target)
 }
 #+end_src
@@ -684,7 +956,7 @@ const mutableHandlers = (function() {
 
 const observed = reactive({ count: 0 })
 observed.count++ // write val, should log some below
-console.log('count = ' + observed.count)
+log('count = ' + observed.count)
 logEnd()
 #+end_src
 
@@ -705,7 +977,7 @@ const mutableHandlers = (function() {
 
 const observed = reactive({ count: 0, count2: 0 })
 delete observed.count2 // delete property, should log some below
-console.log('count2 = ' + observed.count2)
+log('count2 = ' + observed.count2)
 logEnd()
 #+end_src
 #+end_details
@@ -760,6 +1032,13 @@ getter/setter 方法与对应 ~Reflect.get~ 结合对集合类型变相实现响
 
 因为任何方法的调用实际上都是 get[fn:1] 操作。
 
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-collection-proxy.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-collection-proxy.svg"/></a>
+#+end_export
+
 集合类型包含的方法有： ~get, has, size, add, set, delete, clear, forEach~ 对它们实
 现 doc:Proxy 方式其实就是一个 proxy get - Reflect.get 方法，所以
 mutableCollectionHandlers 就很简单只有一个 ~get~ 方法。
@@ -811,7 +1090,7 @@ function createInstrumentationGetter(isReadonly, shallow) {
   // 此时的访问的 key 其实是 `has` 这个方法名
   return (target, key, receiver) => {
 
-    console.log(`createInstrumentationGetter| key=${key}`) // 这里应该输出集合方法名，如：has,set,get
+    log(`createInstrumentationGetter| key=`, key) // 这里应该输出集合方法名，如：has,set,get
 
     // 取被代理之前的原始对象
     if (key === '__v_raw') {
@@ -905,7 +1184,7 @@ function get(target, key, isReadonly, isShallow) {
 
   // 取出原始对象的原生的 has 方法，即： Map.prototype.has
   const { has } = getProto(rawTarget)
-  console.log(`collection get| key=${rawKey}, target=${rawTarget}`)
+  log(`collection get| key=${rawKey}, target=${rawTarget}`)
   const wrap = toReactive // readonly ? shallow ?
   if (has.call(rawTarget, key)) { // 先检测正常的 key
     return wrap(target.get(key))
@@ -940,7 +1219,7 @@ function get(target, key, isReadonly, isShallow) {
   !isReadonly && track(rawTarget, 'get', rawKey)
   // 取出原始对象的原生的 has 方法，即： Map.prototype.has
   const { has } = getProto(rawTarget)
-  console.log(`collection get| key=${rawKey}, target=${rawTarget}`)
+  log(`collection get| key=${rawKey}, target=${rawTarget}`)
   const wrap = toReactive // readonly ? shallow ?
   if (has.call(rawTarget, key)) { // 先检测正常的 key
     return wrap(target.get(key))
@@ -966,7 +1245,7 @@ function get(target, key, isReadonly, isShallow) {
 +  !isReadonly && track(rawTarget, 'get', rawKey)
   // 取出原始对象的原生的 has 方法，即： Map.prototype.has
   const { has } = getProto(rawTarget)
-  console.log(`collection get| key=${rawKey}, target=${rawTarget}`)
+  log(`collection get| key=${rawKey}, target=${rawTarget}`)
   const wrap = toReactive // readonly ? shallow ?
   if (has.call(rawTarget, key)) { // 先检测正常的 key
     return wrap(target.get(key))
@@ -992,7 +1271,7 @@ function has(key, isReadonly) {
   const rawTarget = toRaw(target)
   const rawKey = toRaw(key)
 
-  console.log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
+  log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
   // key 本身也可能是一个 reactive 对象
   return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey)
 }
@@ -1013,9 +1292,11 @@ function has(key, isReadonly) {
   }
   !isReadonly && track(rawTarget, 'has', rawKey)
 
-  console.log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
   // key 本身也可能是一个 reactive 对象
-  return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey)
+  const result = key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey)
+  log(`has| key=${key}, rawKey=${rawKey}, result=${result}, target=${target}`)
+
+  return result
 }
 #+end_src
 
@@ -1034,7 +1315,7 @@ function has(key, isReadonly) {
 +  }
 +  !isReadonly && track(rawTarget, 'has', rawKey)
 
-  console.log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
+  log(`has| key=${key}, rawKey=${rawKey}, target=${target}`)
   // key 本身也可能是一个 reactive 对象
   return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey)
 }
@@ -1051,7 +1332,7 @@ function has(key, isReadonly) {
 function size(target, isReadonly) {
   target = target.__v_raw
 
-  console.log(`size| target=${target}`)
+  log(`size| target=${target}`)
   return Reflect.get(target, 'size', target)
 }
 #+end_src
@@ -1063,7 +1344,7 @@ function size(target, isReadonly) {
 function size(target, isReadonly) {
   target = target.__v_raw
   !isReadonly && track(toRaw(target), 'iterate', ITERATE_KEY)
-  console.log(`size| target=${target}`)
+  log(`size| target=${target}`)
   return Reflect.get(target, 'size', target)
 }
 #+end_src
@@ -1075,7 +1356,7 @@ function size(target, isReadonly) {
 function size(target, isReadonly) {
   target = target.__v_raw
 +  !isReadonly && track(toRaw(target), 'iterate', ITERATE_KEY)
-  console.log(`size| target=${target}`)
+  log(`size| target=${target}`)
   return Reflect.get(target, 'size', target)
 }
 #+end_src
@@ -1099,7 +1380,7 @@ function add(value) {
   if (!hadKey) {
     target.add(value)
   }
-  console.log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
+  log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
   return this
 }
 #+end_src
@@ -1118,7 +1399,7 @@ function add(value) {
     target.add(value)
     trigger(target, 'add', value, value)
   }
-  console.log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
+  log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
   return this
 }
 #+end_src
@@ -1137,7 +1418,7 @@ function add(value) {
     target.add(value)
 +    trigger(target, 'add', value, value)
   }
-  console.log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
+  log(`add| value=${value}, hadKey=${hadKey}, target=${target}`)
   return this
 }
 #+end_src
@@ -1164,7 +1445,7 @@ function set(key, value) {
 
   const oldValue = get.call(target, key)
   target.set(key, value)
-  console.log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
+  log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
   return this
 }
 #+end_src
@@ -1191,7 +1472,7 @@ function set(key, value) {
   } else if (hasChanged(value, oldValue)) {
     trigger(target, 'set', key, value, oldValue)
   }
-  console.log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
+  log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
   return this
 }
 #+end_src
@@ -1218,7 +1499,7 @@ function set(key, value) {
 +  } else if (hasChanged(value, oldValue)) {
 +    trigger(target, 'set', key, value, oldValue)
 +  }
-  console.log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
+  log(`set| key=${key}, value=${value}, oldValue=${oldValue}, target=${target}`)
   return this
 }
 #+end_src
@@ -1242,7 +1523,7 @@ function deleteEntry(key) {
 
   const oldValue = get ? get.call(target, key) : undefined
   const result = target.delete(key)
-  console.log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
+  log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
   return result
 }
 #+end_src
@@ -1265,7 +1546,7 @@ function deleteEntry(key) {
   if (hadKey) {
     trigger(target, 'delete', key, undefined, oldValue)
   }
-  console.log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
+  log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
   return result
 }
 #+end_src
@@ -1288,7 +1569,7 @@ function deleteEntry(key) {
 +  if (hadKey) {
 +    trigger(target, 'delete', key, undefined, oldValue)
 +  }
-  console.log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
+  log(`delete| key=${key}, oldValue=${oldValue}, result=${result}, target=${target}`)
   return result
 }
 #+end_src
@@ -1305,15 +1586,13 @@ function deleteEntry(key) {
 function clear() {
   const target = toRaw(this)
   const hadItems = target.size !== 0
-  const oldTarget = __DEV__
-        ? isMap(target) ? new Map(target) : new Set(target)
-        : undefined
+  const oldTarget = undefined
 
   const result = target.clear()
   if (hadItems) {
     // ...trigger
   }
-  console.log(`clear| result=${result}, target=${target}`)
+  log(`clear| result=${result}, target=${target}`)
   return result
 }
 #+end_src
@@ -1325,15 +1604,13 @@ function clear() {
 function clear() {
   const target = toRaw(this)
   const hadItems = target.size !== 0
-  const oldTarget = __DEV__
-        ? isMap(target) ? new Map(target) : new Set(target)
-        : undefined
+  const oldTarget = undefined
 
   const result = target.clear()
   if (hadItems) {
     trigger(target, 'clear', undefined, undefined, oldTarget)
   }
-  console.log(`clear| result=${result}, target=${target}`)
+  log(`clear| result=${result}, target=${target}`)
   return result
 }
 #+end_src
@@ -1345,15 +1622,13 @@ function clear() {
 function clear() {
   const target = toRaw(this)
   const hadItems = target.size !== 0
-  const oldTarget = __DEV__
-        ? isMap(target) ? new Map(target) : new Set(target)
-        : undefined
+  const oldTarget = undefined
 
   const result = target.clear()
 +  if (hadItems) {
 +    trigger(target, 'clear', undefined, undefined, oldTarget)
 +  }
-  console.log(`clear| result=${result}, target=${target}`)
+  log(`clear| result=${result}, target=${target}`)
   return result
 }
 #+end_src
@@ -1373,9 +1648,9 @@ function createForEach(isReadonly, isShallow) {
     const target = observed.__v_raw
     const rawTarget = toRaw(target)
     const wrap = toReactive // shallow ? readonly ?
-    console.log(`forEach| target=${target}, rawTarget=${rawTarget}`)
+    log(`forEach| target=${target}, rawTarget=${rawTarget}`)
     return target.forEach((value, key) => {
-      console.log(`forEach - forEach| value=${value}, key=${key}`)
+      log(`forEach - forEach| value=${value}, key=${key}`)
       return callback.call(thisArg, wrap(value), wrap(key), observed)
     })
   }
@@ -1393,9 +1668,9 @@ function createForEach(isReadonly, isShallow) {
     const rawTarget = toRaw(target)
     const wrap = toReactive // shallow ? readonly ?
     !isReadonly && track(rawTarget, 'iterate', ITERATE_KEY)
-    console.log(`forEach| target=${target}, rawTarget=${rawTarget}`)
+    log(`forEach| target=${target}, rawTarget=${rawTarget}`)
     return target.forEach((value, key) => {
-      console.log(`forEach - forEach| value=${value}, key=${key}`)
+      log(`forEach - forEach| value=${value}, key=${key}`)
       return callback.call(thisArg, wrap(value), wrap(key), observed)
     })
   }
@@ -1412,9 +1687,9 @@ function createForEach(isReadonly, isShallow) {
     const rawTarget = toRaw(target)
     const wrap = toReactive // shallow ? readonly ?
  +   !isReadonly && track(rawTarget, 'iterate', ITERATE_KEY)
-    console.log(`forEach| target=${target}, rawTarget=${rawTarget}`)
+    log(`forEach| target=${target}, rawTarget=${rawTarget}`)
     return target.forEach((value, key) => {
-      console.log(`forEach - forEach| value=${value}, key=${key}`)
+      log(`forEach - forEach| value=${value}, key=${key}`)
       return callback.call(thisArg, wrap(value), wrap(key), observed)
     })
   }
@@ -1441,7 +1716,7 @@ function createIterableMethod(method, isReadonly, isShallow) {
     return {
       next() {
         const { value, done } = innerIterator.next()
-        console.log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
+        log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
         return done ? { value, done } : {
           value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
           done
@@ -1492,7 +1767,7 @@ function createIterableMethod(method, isReadonly, isShallow) {
     return {
       next() {
         const { value, done } = innerIterator.next()
-        console.log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
+        log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
         return done ? { value, done } : {
           value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
           done
@@ -1541,7 +1816,7 @@ function createIterableMethod(method, isReadonly, isShallow) {
     return {
       next() {
         const { value, done } = innerIterator.next()
-        console.log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
+        log(`iterator| value=${value}, done=${done}, isPair=${isPair}, isKeyOnly=${isKeyOnly}, target=${target}`)
         return done ? { value, done } : {
           value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
           done
@@ -1634,7 +1909,7 @@ const mutableCollectionHandlers = {
 
 const observed = reactive(new Map([['count', 0]]))
 const result = observed.has('count')
-console.log('has count prop ? ', result)
+log('has count prop ? ', result)
 logEnd()
 #+end_src
 #+end_details
@@ -1671,7 +1946,7 @@ const mutableCollectionHandlers = {
 <<reactive>>
 
 const observed = reactive(new Map([['count', 0]]))
-console.log(`size = ${observed.size}`)
+log(`size = ${observed.size}`)
 logEnd()
 #+end_src
 
@@ -1776,13 +2051,13 @@ const observed = reactive(new Map())
 observed.set('count', 1)
 observed.set('foo', 2)
 observed.delete('foo')
-console.log(observed)
+log(observed)
 logEnd()
 const observed1 = reactive(new Set())
 observed1.add(1)
 observed1.add(2)
 observed1.delete(1)
-console.log(observed1)
+log(observed1)
 logEnd()
 #+end_src
 #+end_details
@@ -1824,9 +2099,9 @@ const mutableCollectionHandlers = {
 const observed1 = reactive(new Set())
 observed1.add(1)
 observed1.add(2)
-console.log('before clear', observed1)
+log('before clear', observed1)
 observed1.clear()
-console.log('after clear', observed1)
+log('after clear', observed1)
 logEnd()
 #+end_src
 #+end_details
@@ -1868,11 +2143,11 @@ const mutableCollectionHandlers = {
 
 const observed = reactive(new Map([["foo", 1], ['bar', 2]]))
 observed.forEach((val, key) => {
-  console.log(`[Map] === ${key}=${val} ===`)
+  log(`[Map] === ${key}=${val} ===`)
 })
 const observed1 = reactive(new Set([1,2,1,3,4,2,5]))
 observed1.forEach((val, key) => {
-  console.log(`[Set] === ${key}=${val} ===`)
+  log(`[Set] === ${key}=${val} ===`)
 })
 logEnd()
 #+end_src
@@ -1927,10 +2202,10 @@ function logIterator(iterator, hint, type) {
     const it = iterator.next()
     value = it.value
     done = it.done
-    console.log(`[${type}] - ${hint} - value=${value}, done=${done}`)
+    log(`[${type}] - ${hint} - value=${value}, done=${done}`)
 
   }
-  console.log(`[${type}] - ${hint} - value=${value}, done=${done}`)
+  log(`[${type}] - ${hint} - value=${value}, done=${done}`)
 }
 const observed = reactive(new Map([["foo", 1], ['bar', 2]]))
 logIterator(observed.keys(), 'Map', 'keys')
@@ -1965,41 +2240,57 @@ const observed1 = reactive(new Map())
 observed1.set('foo', 1)
 observed1.set('bar', 2)
 val = observed1.get('bar')
-console.log(`[Map] bar=${val}, size=${observed1.size}`)
+log(`[Map] bar=${val}, size=${observed1.size}`)
 observed1.delete('foo')
-console.log(`[Map] foo=${observed1.get('foo')}, has foo?${observed1.has('foo')}, size=${observed1.size}`)
+log(`[Map] foo=${observed1.get('foo')}, has foo?${observed1.has('foo')}, size=${observed1.size}`)
 iterator = observed1.keys()
 let item = iterator.next()
-console.log(`[iterator 1] val=${item.value}, done=${item.done}`, )
+log(`[iterator 1] val=${item.value}, done=${item.done}`, )
 item = iterator.next()
-console.log(`[iterator 2] val=${item.value}, done=${item.done}`, )
+log(`[iterator 2] val=${item.value}, done=${item.done}`, )
 item = iterator.next()
-console.log(`[iterator 3] val=${item.value}, done=${item.done}`, )
+log(`[iterator 3] val=${item.value}, done=${item.done}`, )
 logEnd()
 const observed2 = reactive(new Set())
 observed2.add(1)
 observed2.add(2)
 observed2.delete(1)
-console.log(`size=${observed2.size}`)
+log(`size=${observed2.size}`)
 #+end_src
 #+end_details
 
-接下来是如何结合 track 各 trigger 实现信赖收集和当值发生变化时去触发某种行为(DOM
+接下来是如何结合 track 各 trigger 实现依赖收集和当值发生变化时去触发某种行为(DOM
 更新)。
 * track&trigger&effect
 
 [[https://github.com/vuejs/core/blob/main/packages/reactivity/src/effect.ts][core/effect.ts at main · vuejs/core]]
+
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-basehd-get-02-track.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-basehd-get-02-track.svg"/></a>
+#+end_export
 
 reactive 中订阅发布逻辑相关的三大函数：
 
 [[track][track]]: get 取值操作时去收集当前的函数(也就是这个变量的监听者其实就是一个函数，只
 不过被封装成了一个 ReactiveEffect 类。)
 
-[[trigger][trigger]]: set 设值操作时会去触发 track 收集到的信赖并执行它们，这个执行的动作实际
+[[trigger][trigger]]: set 设值操作时会去触发 track 收集到的依赖并执行它们，这个执行的动作实际
 是由 [[id:4a858df2-f6f8-4d2f-9cda-78c12cbf42b3][Scheduler]] 这个模块去管理的，这里就不深入探讨这个了有兴趣
 的同学可以参考 [[https://www.cheng92.com/vue/vue-teardown-2-sheduler/][Vue3 功能拆解② Scheduler 渲染机制 - 若叶知秋]] [fn:2] 或 [[id:4a858df2-f6f8-4d2f-9cda-78c12cbf42b3][TODO:build you own vue scheduler]]。
 
-[[effect][effect]]: 将一个函数封装成 [[ReactiveEffect][ReactiveEffect]] 类，调用的时候会立即执行一个 fn 收集信赖。
+[[effect][effect]]: 将一个函数封装成 [[ReactiveEffect][ReactiveEffect]] 类，调用的时候会立即执行一个 fn 收集依赖。
+
+三者关系图：
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-effect-track-trigger.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-effect-track-trigger.svg"/></a>
+#+end_export
+
 
 要搞清楚是怎么回事，还需要从头开始，也就是 ~reactive~ -> ~createReactiveObject~ 会发
 生这两个函数里面并没有与这两相关的代码，那么只能到
@@ -2027,7 +2318,7 @@ reactive 中订阅发布逻辑相关的三大函数：
 
 按照如下步骤添加相关代码(先实现 [[track][track]] 和 [[trigger][trigger]])，请看
 
-** track(target, type, key)
+** track()
 
 #+name: track
 #+begin_src js -n -r
@@ -2046,11 +2337,10 @@ function track(target, type, key) {
       depsMap.set(key, (dep = createDep()))
     }
 
-    const eventInfo = __DEV__
-      ? { effect: activeEffect, target, type, key }
-      : undefined
+    const eventInfo = undefined
 
-    console.log(`track| type=${type}, key=${key}, targetMap=${targetMap}, dep=${dep}`)
+    const _key = typeof key === 'symbol' ? 'key symbol' : key
+    log(`track| type=${type}, key=${_key}, targetMap=${targetMap}, dep=${dep}`)
     trackEffects(dep, eventInfo)
   }
 }
@@ -2074,12 +2364,78 @@ type TrackedMarkers = {
 #+name: createDep
 #+begin_src js -n -r
 const createDep = (effects) => {
-  const dep = new Set()
+  const dep = new Set(effects) (ref:createDep-effects-to-dep)
   dep.w = 0
   dep.n = 0
   return dep
 }
 #+end_src
+
+#+html: <br>
+#+begin_details FIXBUG
+#+name: createDep-diff-fix
+#+begin_src diff
+const createDep = (effects) => {
+-  const dep = new Set()
++  const dep = new Set(effects)
+  dep.w = 0
+  dep.n = 0
+  return dep
+}
+#+end_src
+
+#+end_details
+*** wasTracked(dep)
+
+#+name: wasTracked
+#+begin_src js -n -r
+const wasTracked = dep => (dep.w & trackOpBit) > 0
+#+end_src
+
+*** newTracked(dep)
+
+#+name: newTracked
+#+begin_src js -n -r
+const newTracked = dep => (dep.n & trackOpBit) > 0
+#+end_src
+*** initDepMarkers()
+
+#+name: initDepMarkers
+#+begin_src js -n -r
+const initDepMarkers = ({ deps }) => {
+  if (deps.length) {
+    for (let i = 0; i < deps.length; i++) {
+      deps[i].w |= trackOpBit // set was tracked
+    }
+  }
+}
+
+#+end_src
+*** finalizeDepMarkers()
+
+#+name: finalizeDepMarkers
+#+begin_src js -n -r
+const finalizeDepMarkers = (effect) => {
+  const { deps } = effect
+  if (deps.length) {
+    let ptr = 0
+    for (let i = 0; i < deps.length; i++) {
+      const dep = deps[i]
+      if (wasTracked(dep) && !newTracked(dep)) {
+        dep.delete(effect)
+      } else {
+        deps[ptr++] = dep
+      }
+
+      // clear bits
+      dep.w &= ~trackOpBit
+      dep.n &= ~trackOpBit
+    }
+    deps.length = ptr
+  }
+}
+#+end_src
+
 *** trackEffects(dep, debuggerEventExtraInfo)
 
 [[https://github.com/vuejs/core/blob/main/packages/reactivity/src/effect.ts#60][core/effect.ts at main · vuejs/core]]
@@ -2088,16 +2444,52 @@ const createDep = (effects) => {
 #+begin_src js -n -r
 function trackEffects(dep, debuggerEventExtraInfo) {
   // TODO maxMarkerBits 检查，这里省略直接检查是不是已经存在了
-  let shouldTrack = !dep.has(activeEffect)
+  let shouldTrack = false
+
+  if (effectTrackDepth <= maxMarkerBits) {
+    if (!newTracked(dep)) {
+      dep.n |= trackOpBit // 设置新的 tracked
+      shouldTrack = !wasTracked(dep)
+    }
+  } else {
+    shouldTrack = !dep.has(activeEffect)
+  }
 
   if (shouldTrack) {
     dep.add(activeEffect)
     activeEffect.deps.push(dep)
   }
 
-  console.log(`trackEffects| activeEffect=${activeEffect}, dep=${dep.size}, activeEffect.deps=${activeEffect.deps.length}`)
+  log(`trackEffects| shouldTrack=${shouldTrack}, activeEffect=${activeEffect}, dep=${dep.size}, activeEffect.deps=${activeEffect.deps.length}`)
 }
 #+end_src
+
+#+html: <br>
+#+begin_details trackEffects-with-depth :title-color
+#+name: trackEffects-with-depth
+#+begin_src diff
+function trackEffects(dep, debuggerEventExtraInfo) {
+  // TODO maxMarkerBits 检查，这里省略直接检查是不是已经存在了
+-  let shouldTrack = false
+
++  if (effectTrackDepth <= maxMarkerBits) {
++    if (!newTracked(dep)) {
++      dep.n |= trackOpBit // 设置新的 tracked
++      shouldTrack = !wasTracked(dep)
++    }
++  } else {
++    shouldTrack = !dep.has(activeEffect)
++  }
+
+  if (shouldTrack) {
+    dep.add(activeEffect)
+    activeEffect.deps.push(dep)
+  }
+
+  log(`trackEffects| activeEffect=${activeEffect}, dep=${dep.size}, activeEffect.deps=${activeEffect.deps.length}`)
+}
+#+end_src
+#+end_details
 ** trigger()
 
 trigger 就是当值发生变更时将 [[track][track]] 中收集到的 ~targetMap -> depsMap~ 中的 effects
@@ -2112,11 +2504,11 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
   const depsMap = targetMap.get(target)
 
   if (!depsMap) {
-    // 如果是空的表明这个对象从没有被取过值也就没有收集到任何信赖
+    // 如果是空的表明这个对象从没有被取过值也就没有收集到任何依赖
     return
   }
 
-  console.log(`trigger| type=${type}, key=${key}, newValue=${newValue}, oldValue=${oldValue}`)
+  log(`trigger| type=${type}, key=${key}, newValue=${newValue}, oldValue=${oldValue}`)
   // 从 depsMap{key => Set()} 中取出所有 key 有关的订阅
   let deps = []
   if (type === 'clear') {
@@ -2153,7 +2545,7 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
         if (!isArray(target)) {
           deps.push(depsMap.get(ITERATE_KEY))
           if (isMap(target)) {
-            deps.push(depsMap.get(MAP_KEY_TERATE_KEY))
+            deps.push(depsMap.get(MAP_KEY_ITERATE_KEY))
           }
         }
         break
@@ -2165,7 +2557,7 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
     }
   }
 
-  console.log(`trigger|deps| deps=${deps}`)
+  log(`trigger|deps| deps=${deps}, deps.length=${deps.length}`)
   if (deps.length === 1) {
     if (deps[0]) {
       triggerEffects(deps[0])
@@ -2178,7 +2570,8 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
       }
     }
 
-    triggerEffects(createDep(effects))
+    log(`trigger|deps| >1, deps.length=${deps.length}, effects.length=${effects.length}`)
+    triggerEffects(createDep(effects)) (ref:trigger-deps-length-gt-1)
   }
 }
 #+end_src
@@ -2188,11 +2581,11 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
 #+name: triggerEffects
 #+begin_src js -n -r
 function triggerEffects(dep, debuggerEventExtraInfo) { (ref:triggerEffects)
-  for (const effect of Array.isArray(dep) ? dep : [...dep]) {
+  for (const effect of isArray(dep) ? dep : [...dep]) {
     if (effect !== activeEffect || effect.allowRecurse) { (ref:triggerEffects-allowRecurse)
-      console.log(`triggerEffects| allowRecurse=${effect.allowRecurse}, dep=${dep}, effect=${effect}`)
+      log(`triggerEffects| dep=${dep}, size=${dep.size}, effect=${effect}`)
       // 允许调用者决定如何执行 effect.run
-      if (effect.scheduler) {
+      if (effect.scheduler) { (ref:triggerEffects-scheduler)
         effect.scheduler()
       } else {
         effect.run()
@@ -2207,6 +2600,13 @@ run 方法，在这个方法里面会去真正的执行订阅者函数，且执�
 try...finally 去保证这个函数的清理工作正常运行，具体请看
 [[(effect-run)][effect.run]] 函数。
 ** effect()
+
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-effect.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-effect.svg"/></a>
+#+end_export
 
 #+begin_src typescript
 export interface ReactiveEffectRunner<T = any> {
@@ -2230,7 +2630,7 @@ function effect(fn, options) {
   if (options) {
     extend(_effect, options)
     if (options.scope) {
-      // record effect scope
+      recordEffectScope(_effect, options.scope)
     }
   }
 
@@ -2248,16 +2648,16 @@ function effect(fn, options) {
 这个 effect 其实很简单，其作用就是
 
 1. 将一个函数 ~fn~ 封装成 [[ReactiveEffect][ReactiveEffect]] 类实例
-2. 立即执行它收集信赖
+2. 立即执行它收集依赖
 3. 返回 ~effect.run~ 这个方法，可以让调用者后续可以手动触发 ~fn~
 
 
-其实最重要的就是执行 fn 收集信赖，比如：
+其实最重要的就是执行 fn 收集依赖，比如：
 
 #+begin_src js -n -r
 let count = reactive(0)
 function fn() {
-  console.log("count=" + count)
+  log("count=" + count)
 }
 // 1. 执行 effect, 将 fn 收集进 count 的订阅表(targetMap->depsMap->key:count->Set())
 const runner=effect(fn)
@@ -2279,15 +2679,15 @@ count++
 
 | code                | testing     |
 |---------------------+-------------|
-| [[collection-getP2][collection get]]      | [[test-collection-getP2][go test 🛬]] |
-| [[collection-hasP2][collection has]]      | [[test-collection-hasP2][go test 🛬]] |
-| [[collection-sizeP2][collection size]]     | [[test-collection-sizeP2][go test 🛬]] |
-| [[collection-addP2][collection add]]      | [[test-collection-addP2][go test 🛬]] |
-| [[collection-setP2][collection set]]      | [[test-collection-setP2][go test 🛬]] |
-| [[collection-deleteP2][collection delete]]   | [[test-collection-deleteP2][go test 🛬]] |
-| [[collection-clearP2][collection clear]]    | [[test-collection-clearP2][go test 🛬]] |
-| [[collection-forEachP2][collection forEach]]  | [[test-collection-forEachP2][go test 🛬]] |
-| [[collection-iteratorP2][collection iterator]] | [[test-collection-iteratorP2][go test 🛬]] |
+| [[collection-getP2][collection get]]      | [[test-collection-p2][go test 🛬]] |
+| [[collection-hasP2][collection has]]      | [[test-collection-p2][go test 🛬]] |
+| [[collection-sizeP2][collection size]]     | [[test-collection-p2][go test 🛬]] |
+| [[collection-addP2][collection add]]      | [[test-collection-p2][go test 🛬]] |
+| [[collection-setP2][collection set]]      | [[test-collection-p2][go test 🛬]] |
+| [[collection-deleteP2][collection delete]]   | [[test-collection-p2][go test 🛬]] |
+| [[collection-clearP2][collection clear]]    | [[test-collection-p2][go test 🛬]] |
+| [[collection-forEachP2][collection forEach]]  | [[test-collection-p2][go test 🛬]] |
+| [[collection-iteratorP2][collection iterator]] | [[test-collection-p2][go test 🛬]] |
 
 #+begin_comment
 [[track][track]] 和 [[trigger][trigger]] 相关代码都在 [[https://github.com/vuejs/core/blob/main/packages/reactivity/src/effect.ts][core/effect.ts at main · vuejs/core]], [[https://github.com/vuejs/core/blob/main/packages/reactivity/src/dep.ts][core/dep.ts
@@ -2336,13 +2736,22 @@ at main · vuejs/core]], [[https://github.com/vuejs/core/blob/main/packages/reac
 <<collection-iteratorP2-diff>>
 #+end_src
 #+end_details
+*** whole phase code
+
+#+begin_details CodeP2
+#+name: effect-with-reactiveP2
+#+begin_src js -n -r
+<<reactiveP2>>
+<<effect>>
+#+end_src
+#+end_details
 ** Testing
 
 普通类型：
 
 #+html: <br>
 #+begin_details createGetter
-[[createGetterP2][get with track]]
+[[createGetterP2][get with track]], [[reactiveP2][reactive]], [[effect][effect]]
 
 #+name: test-createGetterP2
 #+begin_src js -n -r :exports both
@@ -2352,7 +2761,7 @@ at main · vuejs/core]], [[https://github.com/vuejs/core/blob/main/packages/reac
 const observed = reactive({ count: 0 })
 let times = 0
 effect(() => {
-  console.log(`run times ${++times} ...`)
+  log(`run times ${++times} ...`)
   observed.count++
 })
 
@@ -2377,7 +2786,7 @@ triggerEffects| allowRecurse=undefined, dep=[object Set], effect=[object Object]
 effect|run| active=true, shouldTrack=true
 run times 2 ...
 track| type=get, key=count, targetMap=[object WeakMap], dep=[object Set]
-trackEffects| activeEffect=[object Object], dep=1, activeEffect.deps=1
+trackEffects| activeEffect=[object Object], dep=1, activeEffect.deps=2
 createGetter| get, key=count, value=3
 createSetter| set value=4, key=count, result=true
 trigger| type=set, key=count, newValue=4, oldValue=3
@@ -2398,8 +2807,8 @@ undefined
 
    这里就涉及到的一个经典问题：就是能不能在 ~effect->fn~ 中再次调用 ~effect(fn)~ ，在
    不加控制情况下就会死循环，虽然每次执行 effect.run->fn 在 try 中都会清理一次
-   effects 信赖，但是在 fn 中调用 effect(fn) 的话会导致重新收集了 fn 进 reactive
-   变量的信赖表。所以在 ~trigger->triggerEffects~ 中增加了一个选项来控制是不是要放
+   effects 依赖，但是在 fn 中调用 effect(fn) 的话会导致重新收集了 fn 进 reactive
+   变量的依赖表。所以在 ~trigger->triggerEffects~ 中增加了一个选项来控制是不是要放
    开这个限制(即可以在 fn 中改变 reactive 变量同时调用 ~effect(fn)~ ，<red:前提是你
    知道自己在干什么，并做好防控避免死循环>)，这个选项就是
    [[(triggerEffects-allowRecurse)][triggerEffects-allowRecurse]] 它默认是关闭的如果要开启需要 ~effect(fn, {
@@ -2416,10 +2825,10 @@ undefined
 
     const fn = () => {
 
-      console.log(`run times ${++times}, count=${observed.count} ...`)
+      log(`run times ${++times}, count=${observed.count} ...`)
 
       if (++observed.count < 3) {
-        console.log(`allowRecurse option opened...`)
+        log(`allowRecurse option opened...`)
         // 允许
         effect(fn)
         return
@@ -2434,98 +2843,923 @@ undefined
 #+end_details
 
 #+begin_details has
+[[object-hasP2][has]], [[reactiveP2][reactive]], [[effect][effect]]
+
+~key in object~ 属性检测会触发 [[object-hasP2][has proxy]] -> ~Reflect.has()~
+
 #+name: test-object-hasP2
-#+begin_src js -n -r
-console.log('xx')
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+
+const observed = reactive({ count: 0 })
+let times = 0
+effect(() => {
+  log(`run times ${++times}, count=${observed.count} ...`)
+})
+
+// 触发 has proxy -> track into ITERATE_KEY
+'count' in observed;
+logEnd()
 #+end_src
 #+end_details
 
 #+begin_details ownKeys
+[[ownKeysP2][ownKeys]], [[reactiveP2][reactive]], [[effect][effect]]
+
+当对一个对象使用 ~for...in~ 进行遍历的时候会触发 [[ownKeysP2][ownKeys proxy]] -> ~Reflect.ownKeys()~
+
 #+name: test-ownKeysP2
-#+begin_src js -n -r
-console.log('xx')
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+
+const observed = reactive({ count: 0 })
+let times = 0
+effect(() => {
+  log(`run times ${++times}, count=${observed.count} ...`)
+})
+
+// 触发 has proxy -> track into ITERATE_KEY
+for (let prop in observed) {
+  // do sth
+}
+logEnd()
 #+end_src
 #+end_details
 
 #+begin_details createSetter
+[[createSetterP2][set]], [[reactiveP2][reactive]], [[effect][effect]]
+
 #+name: test-createSetterP2
-#+begin_src js -n -r
-console.log('xx')
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+
+const observed = reactive({ count: 0 })
+let times = 0
+effect(() => {
+  log(`run times ${++times}, count=${observed.count} ...`)
+})
+
+// set
+observed.count = 100
+logEnd()
 #+end_src
 #+end_details
 
 #+begin_details deleteProperty
+[[deletePropertyP2][delete]], [[reactiveP2][reactive]], [[effect][effect]]
+
 #+name: test-deletePropertyP2
-#+begin_src js -n -r
-console.log('xx')
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+
+const observed = reactive({ count: 0 })
+let times = 0
+effect(() => {
+  log(`run times ${++times}, count=${observed.count} ...`)
+})
+
+logEnd('effect run')
+// set
+observed.count = 100
+logEnd('set count')
+delete observed.count;
+logEnd('delete count')
 #+end_src
 #+end_details
 
 集合类型：
 
-#+begin_details get
-#+name: test-collection-getP2
-#+begin_src js -n -r
-console.log('xx')
+#+begin_details get-has-size-...
+[[collection-getP2][get]], [[collection-setP2][set]], [[collection-hasP2][has]], [[collection-sizeP2][size]], [[collection-getP2][get]], [[collection-addP2][add]], [[collection-forEachP2][forEach]], [[collection-iteratorP2][iterator]], [[reactiveP2][reactive]], [[effect][effect]]
+#+name: test-collection-p2
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+
+const observed = reactive(new Map())
+let times = 0
+logEnd('[Map] effect run')
+effect(() => {
+  log(`[Map] run times ${++times}, size=${observed.size} ...`)
+})
+
+logEnd('set entry')
+observed.set('foo', 1)
+observed.set('bar', 2)
+logEnd('iterator')
+for (let [key, val] of observed) {
+  log(`for...of, key=${key}, val=${val}`)
+}
+logEnd('forEach')
+observed.forEach(() => {})
+logEnd('has foo ?')
+observed.has('foo')
+logEnd('delete foo')
+observed.delete('foo')
+
+const observed2 = reactive(new Set())
+let times2 = 0
+logEnd('[Set] effect run')
+effect(() => {
+  log(`[Set] run times ${++times2}, size=${observed2.size} ...`)
+})
+logEnd('add element')
+observed2.add(1)
+observed2.add(2)
+logEnd('has element 2 ?')
+observed2.has(2)
+logEnd('iterator')
+for (let val of observed2) {
+  log(`for...of, key=${val}, val=${val}`)
+}
+logEnd('iterator keys')
+observed2.keys()
+logEnd('iterator values')
+observed2.values()
+logEnd('iterator entries')
+observed2.entries()
+logEnd('forEach')
+observed2.forEach((key, val) => log(`forEach| key=${key}, val=${val}`))
+logEnd('delete element')
+observed2.delete(2)
+logEnd('has element 2 ?')
+observed2.has(2)
+logEnd('clear element')
+observed2.has(1)
+observed2.has(2)
 #+end_src
 #+end_details
 
-#+begin_details has
-#+name: test-collection-hasP2
+* effect scope
+
+这个顾名思义其实就是一个 effect 影响的控制范围。
+
+比如：官方的一个测试用例
+
+#+begin_src typescript
+it('should collect nested scope', () => {
+    let dummy, doubled
+    const counter = reactive({ num: 0 })
+
+    const scope = new EffectScope() (ref:effect-scope-instance)
+    scope.run(() => {
+      effect(() => (dummy = counter.num)) (ref:effect-in-scope-run)
+      // nested scope
+      new EffectScope().run(() => { (ref:nested-effect-scope-instance)
+        effect(() => (doubled = counter.num * 2)) (ref:nested-effect-in-scope-run)
+      })
+    })
+
+    expect(scope.effects.length).toBe(1)
+    expect(scope.scopes!.length).toBe(1)
+    expect(scope.scopes![0]).toBeInstanceOf(EffectScope)
+
+    expect(dummy).toBe(0)
+    counter.num = 7 (ref:effect-scope-set-value)
+    expect(dummy).toBe(7)
+    expect(doubled).toBe(14)
+
+    // stop the nested scope as well
+    scope.stop() (ref:effect-scope-stop)
+
+    counter.num = 6 (ref:effect-scope-set-value-2)
+    expect(dummy).toBe(7)
+    expect(doubled).toBe(14)
+})
+#+end_src
+
+简单分析下上面的用例：
+
+[[(effect-scope-instance)]] 新建了一个 effect scope 实例，用来控制 effect 范围。
+
+执行 ~scope.run~ 的时候也会立即执行传给它的那个函数，即 [[(effect-in-scope-run)]] 和
+[[(nested-effect-scope-instance)]] 会立即执行，前者执行的时候会将当前的 effect 加入
+到 scope.effects 中去，后者新建了个嵌套的 effect scope 实例，这个会被 push 到当
+前外层的 scope.scopes 中去，做为父子级关系，它也会立即执行和上面一样收集了
+[[(nested-effect-in-scope-run)]] 进入它自己的 scope.effects 中去。
+
+这个时候一个 effect scope -> nested effect scope 范围就形成了，后面就可以通过对
+应的一些 api 来精准控制这些 effect 影响的范围。
+
+[[(effect-scope-set-value)]] 这里执行 ~counter.num=7~ 赋值操作会触发
+[[(effect-in-scope-run)]] 和 [[(nested-effect-in-scope-run)]] 收集到的信赖执行，其实也就是传
+给 ~EffectScope.run(fn)~ 的参数函数，因此 ~dummy=7,doubled=14~ 结果。
+
+[[(effect-scope-stop)]] 这里调用了外层 effect scope 的 =stop()= 函数，此时它这个链条上
+的所以 effect scope 都被强制停止(其实就是调用了
+[[ReactiveEffect][ReactiveEffect]] 与 effect 相关的一系列清理函数，比如： cleanup, stop)，等于是所以
+的信赖被清理了，因此当后面执行 [[(effect-scope-set-value-2)]] 之后 ~dummy,doubled~ 值
+并没有发生变化。
+
+实现： [[ReactiveEffect][ReactiveEffect]] 构造函数中，当每次调用 [[effect][effect]] 函数时都会新建一个
+[[ReactiveEffect][ReactiveEffect]] 实例，此时会去调用 [[recordEffectScope][recordEffectScope]] 记录一次 effect scope(前提是
+此时的 [[(activeEffectScope)][activeEffectScope]] 是有值的)
+
+** EffectScope
+
+#+name: EffectScope
 #+begin_src js -n -r
-console.log('xx')
+class EffectScope {
+  active = true
+  effects = []
+  cleanups = []
+
+  parent
+  scopes
+
+  index
+
+  constructor(detached = false) {
+    if (!detached && activeEffectScope) {
+      this.parent = activeEffectScope
+      this.index = (activeEffectScope.scopes || (activeEffectScope.scopes = [])).push(this) - 1
+    }
+  }
+
+  run(fn) {
+    if (this.active) {
+      try {
+        activeEffectScope = this
+        return fn()
+      } finally {
+        // 执行完之后释放当前的 effect scope
+        activeEffectScope = this.parent
+      }
+    }
+  }
+
+  on() {
+    activeEffectScope = this
+  }
+
+  off() {
+    activeEffectScope = this.parent
+  }
+
+  stop(formParent) {
+    if (this.active) {
+      let i, l
+      for (i = 0, l = this.effects.length; i < l; i++) {
+        this.effects[i].stop()
+      }
+      for (i = 0, l = this.cleanups.length; i < l;i ++) {
+        this.cleanups[i]()
+      }
+      if (this.scopes) {
+        for (i = 0, l = this.scopes.length; i < l; i++) {
+          this.scopes[i].stop(true)
+        }
+      }
+
+      // 嵌套的 scope，从 parent 中去掉引用避免内存泄漏
+      if (this.parent && !formParent) {
+        // 优化删除 O(1)
+        const last = this.parent.scopes.pop()
+        if (last && last !== this) {
+          this.parent.scopes[this.index] = last
+          last.index = this.index
+        }
+      }
+
+      this.active = false
+    }
+  }
+}
+#+end_src
+** recordEffectScope(effect, scope)
+
+#+name: recordEffectScope
+#+begin_src js -n -r
+function recordEffectScope(effect, scope = activeEffectScope) {
+  if (scope && scope.active) {
+    scope.effects.push(effect)
+  }
+}
+#+end_src
+** onScopeDispose(fn)
+
+在调用 ~scope.stop()~ 的时候触发 ~cleanups~ 清理，这个函数是用来监听清理动作的，当发
+生清理时执行 ~fn~ 回调做些什么事。
+
+#+name: onScopeDispose
+#+begin_src js -n -r
+function onScopeDispose(fn) {
+  if (activeEffectScope) {
+    activeEffectScope.cleanups.push(fn)
+  }
+}
+#+end_src
+** track dep
+
+effect scope [[ReactiveEffect-TrackBit-diff][递归层级控制]], 嵌套深度最大是 30[[(maxMarkerBits)]]。
+* computed
+
+在此之前实现了 [[reactive][reactive]], [[effect][effect]], [[track][track]], [[trigger][trigger]]， 这一节将来讲讲计算属性如何实现
+的？
+
+kbd:计算属性特点：脏位检查，不立即更新(下次取值触发更新)
+
+计算属性模板，当你使用 ~computed(() => {...})~ 的时候实际它返回的是一个
+[[ComputedRefImpl][ComputedRefImpl]] 实例，读取操作都被进一步封装了。
+
+#+name: ComputedRefImpl
+#+begin_src js -n -r
+class ComputedRefImpl {
+  dep = undefined
+
+  _value
+  effect
+
+  __v_isRef = true
+  __v_isReadonly
+
+  _dirty = true (ref:computed-_dirty)
+  _cacheable
+
+  constructor(getter, _setter, isReadonly, isSSR) {
+    this._setter = _setter
+
+    log(`ComputedRefImpl|constructor| _dirty=${this._dirty}, _value=${this._value}, isRef=${this.__v_isRef}`)
+    this.effect = new ReactiveEffect(getter, () => { (ref:computed-new-effect)
+      if (!this._dirty) {
+        log(`ComputedRefImpl|constructor|scheduler, _value=${this._value}`)
+        this._dirty = true
+        triggerRefValue(this)
+      }
+    })
+    this.effect.computed = this
+    this.effect.active = this._cacheable = !isSSR
+    this.__v_isReadonly = isReadonly
+  }
+
+  get value() { (ref:computed-get)
+    // 原始值本身可能是个 proxy object
+    const self = toRaw(this)
+    log(`ComputedRefImpl|get|before, _dirty=${self._dirty}, _cacheable=${self._cacheable}, _value=${self._value}`)
+    trackRefValue(self)
+    // 脏了？或不用缓存？
+    if (self._dirty || !self._cacheable) {
+      self._dirty = false (ref:is-_dirty-to-run)
+      self._value = self.effect.run()
+    }
+    log(`ComputedRefImpl|get|after, _dirty=${self._dirty}, _cacheable=${self._cacheable}, _value=${self._value}`)
+    return self._value
+  }
+
+  set value(newValue) {
+    this._setter(newValue)
+  }
+}
+#+end_src
+
+在 [[(computed-new-effect)]] 行有个需要注意的点就是计算属性创建一个
+[[ReactiveEffect][ReactiveEffect]] 的时候有传入第二个参数[[(ReactiveEffect-constructor)]](即： ~scheduler~)
+
+而 ~scheduler~ 这个函数是在 [[trigger][trigger]] -> [[triggerEffects][triggerEffects]] 中被调用，且注意看它是替代了
+~effect.run~ 的，换句话说这里[[(computed-new-effect)]]的 ~getter~ 是不会被立即调用的，因
+为 scheduler 代码如下(computed 属性创建之初默认 ~_dirty=true~ [[(computed-_dirty)]])：
+
+#+begin_src js
+if (!this._dirty) {
+  this._dirty = true
+  triggerRefValue(this)
+}
+#+end_src
+
+然后在 [[(computed-get)][get value]] 中的 [[(is-_dirty-to-run)]] 取值时候会触发脏位检测才去调用
+~self.effect.run()~ 计算出真正的结果值。
+
+#+begin_warning
+red:BUG1: [[createGetter][createGetter]] 中需要增加 ref 类型检测，不然取不到实际的值，因为 ref 类型的值
+是在 ~value~ 上，修复新增代码([[createGetterP2-diff-with-computed][FIX]]) 。
+
+red:BUG2: [[trigger][trigger]] -> ~length > 1~ 时 -> [[(trigger-deps-length-gt-1)][triggerEffects(createDep(effects))]] ->
+[[createDep][createDep()]] 中没有使用 effects 问题，导致无法新增属性时无法触发 effects 执行([[createDep-diff-fix][FIX]])。
+#+end_warning
+
+~computed()~
+
+#+name: computed
+#+begin_src js -n -r
+<<ComputedRefImpl>>
+function computed(getterOrOptions, debugOptions, isSSR) {
+  let getter, setter
+
+  // 如果是个函数则默认只有 get 操作
+  const onlyGetter = isFunction(getterOrOptions)
+  if (onlyGetter) {
+    getter = getterOrOptions
+    setter = NOOP
+  } else {
+    getter = getterOrOptions.get
+    setter = gettterOrOptions.set
+  }
+
+  const cRef = new ComputedRefImpl(getter, setter, onlyGetter || !setter, isSSR)
+  log(`computed| onlyGetter=${onlyGetter}, isRef=${cRef.__v_isRef}, _value=${cRef._value}, _dirty=${cRef._dirty}`)
+
+  // onTrack, onTrigger in dev mode
+
+  return cRef
+}
+#+end_src
+
+#+html: <br>
+#+begin_details Testing
+#+begin_src js -n -r :exports both
+<<effect-with-reactiveP2>>
+<<computed>>
+
+const value = reactive({  })
+const cValue = computed(() => {
+  log(">>>>>> computed fn...")
+  return value.foo
+})
+log(`first get cValue, cValue=${cValue.value}`)
+value.foo = 1
+log(`second get cValue, cValue=${cValue.value}`)
+#+end_src
+
+#+end_details
+* defferedComputed
+
+延迟计算属性(~defferedComputed~)和 [[computed][computed]] 的唯一区别在于，当依赖的变量发生变化的
+时候不会立即触发视图更新(即 [[triggerRefValue][triggerRefValue(this)]]) 而是将这人更新动作 push 到一
+个队列中去，在 ~tick=Promise.resolve()~ 之后去启动执行，这么做的好处是，当有多次会
+造成计算属性发生变更的动作发生时，能将这些行为合并到一个队列在某个时刻一次行去执
+行，保证只有最后一次更新才生效。
+
+#+name: deferredComputed
+#+begin_src js -n -r
+const tick = Promise.resolve()
+const queue = []
+let queued = false
+
+<<scheduler>>
+<<flush>>
+<<DeferredComputedRefImpl>>
+function deferredComputed(getter) {
+  return new DeferredComputedRefImpl(getter)
+}
+#+end_src
+
+#+html: <br>
+#+begin_details Testing
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+<<ref>>
+<<deferredComputed>>
+
+const tick1 = Promise.resolve()
+;(async function () {
+
+  const src = ref(0)
+  const c = deferredComputed(() => src.value)
+  let times = 0
+  effect(() => {
+    log(`>>>called times=${++times}, c.value=${c.value}`)
+  })
+  src.value = 1
+  src.value = 2
+  src.value = 3
+  await tick1
+  log(`after, c.value=${c.value}, times=${times}`)
+
+}())
+#+end_src
+
+#+RESULTS:
+#+begin_example
+effect|run| active=true, shouldTrack=true
+trackRefValue| shouldTrack=true, activeEffect=[object Object]
+trackEffects| shouldTrack=true, activeEffect=[object Object], dep=1, activeEffect.deps=1
+DeferredComputedRefImpl|_get, _dirty=true,_value=undefined
+effect|run| active=true, shouldTrack=true
+trackRefValue| shouldTrack=true, activeEffect=[object Object]
+trackEffects| shouldTrack=true, activeEffect=[object Object], dep=1, activeEffect.deps=1
+>>>called times=1, c.value=0
+triggerEffects| dep=[object Set], size=1, effect=[object Object]
+DeferredComputedRefImpl|constructor|1 _dirty=false,scheduled=false,hasCompareTarget=false,dep=[object Set]
+scheduler| queue.length=1
+triggerRefValue| newVal=1, ref.dep=[object Set]
+triggerEffects| dep=[object Set], size=1, effect=[object Object]
+DeferredComputedRefImpl|constructor|1 _dirty=true,scheduled=true,hasCompareTarget=false,dep=[object Set]
+triggerRefValue| newVal=2, ref.dep=[object Set]
+triggerEffects| dep=[object Set], size=1, effect=[object Object]
+DeferredComputedRefImpl|constructor|1 _dirty=true,scheduled=true,hasCompareTarget=false,dep=[object Set]
+triggerRefValue| newVal=3, ref.dep=[object Set]
+undefinedflush| queue.length=1
+DeferredComputedRefImpl|_get, _dirty=true,_value=0
+effect|run| active=true, shouldTrack=true
+trackRefValue| shouldTrack=true, activeEffect=[object Object]
+trackEffects| shouldTrack=false, activeEffect=[object Object], dep=1, activeEffect.deps=1
+triggerEffects| dep=[object Set], size=1, effect=[object Object]
+effect|run| active=true, shouldTrack=true
+trackRefValue| shouldTrack=true, activeEffect=[object Object]
+trackEffects| shouldTrack=false, activeEffect=[object Object], dep=1, activeEffect.deps=1
+DeferredComputedRefImpl|_get, _dirty=false,_value=3
+>>>called times=2, c.value=3
+triggerRefValue| newVal=undefined, ref.dep=[object Set]
+DeferredComputedRefImpl|constructor|scheduler _dirty=false,active=true,scheduled=true
+trackRefValue| shouldTrack=true, activeEffect=undefined
+DeferredComputedRefImpl|_get, _dirty=false,_value=3
+after, c.value=3, times=2
+#+end_example
+
+#+end_details
+** DeferredComputedRefImpl
+
+#+name: DeferredComputedRefImpl
+#+begin_src js -n -r
+class DeferredComputedRefImpl {
+  dep = undefined
+
+  _value
+  _dirty=true
+  effect
+
+  __v_isRef = true
+  __v_isReadonly = true
+
+  constructor(getter) {
+    let compareTarget
+    let hasCompareTarget = false
+    let scheduled = false
+    this.effect = new ReactiveEffect(getter, (computedTrigger) => {
+      log(`DeferredComputedRefImpl|constructor|1 _dirty=${this._dirty},scheduled=${scheduled},hasCompareTarget=${hasCompareTarget},dep=${this.dep}`)
+      if (this.dep) {
+        if (computedTrigger) {
+          compareTarget = this._value
+          hasCompareTarget = true
+        } else if (!scheduled) {
+          const valueToCompare = hasCompareTarget ? compareTarget : this._value
+          scheduled = true
+          hasCompareTarget = false
+          scheduler(() => {
+            if (this.effect.active && this._get() !== valueToCompare) {
+              triggerRefValue(this)
+            }
+            log(`DeferredComputedRefImpl|constructor|scheduler _dirty=${this._dirty},active=${this.effect.active},scheduled=${scheduled}`)
+            scheduled = false
+          })
+        }
+
+        for (const e of this.dep) {
+          // 可能是普通类型的 computed 属性
+          if (e.computed instanceof DeferredComputedRefImpl) {
+            e.scheduler(true)
+          }
+        }
+      }
+
+      this._dirty = true
+    })
+  }
+
+  _get() {
+    log(`DeferredComputedRefImpl|_get, _dirty=${this._dirty},_value=${this._value}`)
+    if (this._dirty) {
+      this._dirty = false
+      return (this._value = this.effect.run())
+    }
+    return this._value
+  }
+
+  get value() {
+    trackRefValue(this)
+    return toRaw(this)._get()
+  }
+}
+#+end_src
+
+** scheduler(fn)
+
+#+name: scheduler
+#+begin_src js -n -r
+const scheduler = (fn) => {
+  queue.push(fn)
+  log(`scheduler| queue.length=${queue.length}`)
+  if (!queued) {
+    queued = true
+    tick.then(flush)
+  }
+}
+#+end_src
+** flush()
+
+#+name: flush
+#+begin_src js -n -r
+const flush = () => {
+  log(`flush| queue.length=${queue.length}`)
+  for (let i = 0;i < queue.length; i++) {
+    queue[i]()
+  }
+  queue.length = 0
+  queued = false
+}
+#+end_src
+
+* ref
+
+ref 是在 [[computed][computed]] 基础之上衍生而来的一种新的类型，初忠是为了让普通类型的值也能具
+备响应式特性。
+
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-ref.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-ref.svg"/></a>
+#+end_export
+
+#+name: ref
+#+begin_src js -n -r
+<<createRef>>
+<<RefImpl>>
+<<ObjectRefImpl>>
+<<triggerRef>>
+<<unref>>
+<<proxyRefs>>
+<<toRefs>>
+<<toRef>>
+function ref(value) {
+  return createRef(value, false)
+}
+#+end_src
+
+#+html: <br>
+#+begin_details Testing
+#+begin_src js -n -r :exports both
+<<reactiveP2>>
+<<effect>>
+<<ref>>
+
+const a = ref(1)
+log(`before set, a=${a.value}`)
+a.value = 2
+log(`after set, a=${a.value}`)
+#+end_src
+
+#+RESULTS:
+: trackRefValue| shouldTrack=true, activeEffect=undefined
+: before set, a=1
+: triggerRefValue| newVal=2, ref.dep=undefined
+: trackRefValue| shouldTrack=true, activeEffect=undefined
+: after set, a=2
+: undefined
+
+#+end_details
+** createRef()
+
+#+name: createRef
+#+begin_src js -n -r
+function createRef(rawValue, shallow) {
+  if (isRef(rawValue)) {
+    return rawValue
+  }
+
+  return new RefImpl(rawValue, shallow)
+}
+#+end_src
+
+** RefImpl
+
+#+name: RefImpl
+#+begin_src js -n -r
+class RefImpl {
+  _value
+  _rawValue
+
+  dep = undefined
+  __v_isRef = true
+
+  constructor(value, __v_isShallow) {
+    this.__v_isShallow = __v_isShallow
+    this._rawValue = __v_isShallow ? value : toRaw(value)
+    this._value = __v_isShallow ? value : toReactive(value)
+  }
+
+  get value() {
+    trackRefValue(this)
+    return this._value
+  }
+
+  set value(newVal) {
+    newVal = this.__v_isShallow ? newVal : toRaw(newVal)
+    if (hasChanged(newVal, this._rawValue)) {
+      this._rawValue = newVal
+      this._value = this.__v_isShallow ? newVal : toReactive(newVal)
+      triggerRefValue(this, newVal)
+    }
+  }
+}
+#+end_src
+** ObjectRefImpl
+
+将整对象某个属性进行 ref 化。
+
+#+name: ObjectRefImpl
+#+begin_src js -n -r
+class ObjectRefImpl {
+  __v_isRef = true
+
+  constructor(_object, _key, _defaultValue) {
+    this._object = _object
+    this._key = _key
+    this._defaultValue = _defaultValue
+  }
+
+  get value() {
+    const val = this._object[this._key]
+    return val === undefined ? this._defaultValue : val
+  }
+
+  set value(newVal) {
+    this._object[this._key] = newVal
+  }
+}
+#+end_src
+
+如：
+
+#+begin_src js -n -r
+const { foo, bar } = toRefs({ foo: 1, bar: 2 })
+
+foo.value++ // => { foo: 2, bar: 2 }
+bar.value++ // => { foo: 2, bar: 3 }
+#+end_src
+
+[[toRefs][toRefs(object)]] => [[toRef][toRef(o, key, dv)]] => ~new ObjectRefImpl(o, key, dv)~
+
+** triggerRef(ref)
+
+#+name: triggerRef
+#+begin_src js -n -r
+function triggerRef(ref) {
+  triggerRefValue(ref, void 0)
+}
+#+end_src
+** unref(ref)
+
+#+name: unref
+#+begin_src js -n -r
+function unref(ref) {
+  return isRef(ref) ? ref.value : ref
+}
+#+end_src
+** proxyRefs()
+
+#+name: proxyRefs
+#+begin_src js -n -r
+function proxyRefs(objectWithRefs) {
+  return isReactive(objectWithRefs)
+    ? objectWithRefs
+    : new Proxy(objectWithRefs, shallowUnwrapHandlers)
+}
+#+end_src
+** toRefs()
+
+#+name: toRefs
+#+begin_src js -n -r
+function toRefs(object) {
+  const ret = isArray(object) ? new Array(object.length) : {}
+  for (const key in object) {
+    ret[key] = toRef(object, key)
+  }
+  return ret
+}
+#+end_src
+** toRef()
+
+#+name: toRef
+#+begin_src js -n -r
+function toRef(object, key, defaultValue) {
+  const val = object[key]
+  return isRef(val)
+    ? val
+    : (new ObjectRefImpl(object, key, defaultValue))
+}
+#+end_src
+
+** trackRefValue(ref)
+
+#+name: trackRefValue
+#+begin_src js -n -r
+function trackRefValue(ref) {
+  log(`trackRefValue| shouldTrack=${shouldTrack}, activeEffect=${activeEffect}`)
+  if (shouldTrack && activeEffect) {
+    ref = toRaw(ref)
+    trackEffects(ref.dep || (ref.dep = createDep()))
+  }
+}
+#+end_src
+** triggerRefValue(ref,newVal)
+
+#+name: triggerRefValue
+#+begin_src js -n -r
+function triggerRefValue(ref, newVal) {
+  ref = toRaw(ref)
+  if (ref.dep) {
+    // development
+    triggerEffects(ref.dep)
+  }
+  log(`triggerRefValue| newVal=${newVal}, ref.dep=${ref.dep}`)
+}
+#+end_src
+* reactivity
+
+#+html: <br>
+#+begin_details 完整代码 :title-color green
+#+name: reactivity
+#+begin_src js -n -r :noweb yes
+<<reactiveP2>>
+
+<<effect>>
+
+<<computed>>
+
+<<deferredComputed>>
+
+<<ref>>
 #+end_src
 #+end_details
 
-#+begin_details size
-#+name: test-collection-sizeP2
-#+begin_src js -n -r
-console.log('xx')
-#+end_src
-#+end_details
+red:Testing
 
-#+begin_details add
-#+name: test-collection-addP2
-#+begin_src js -n -r
-console.log('xx')
-#+end_src
-#+end_details
+#+begin_src js -n -r :exports both
+<<reactivity>>
 
-#+begin_details set
-#+name: test-collection-setP2
-#+begin_src js -n -r
-console.log('xx')
+debugOn = false
+const ob = reactive({ count: 0 })
+let foo
+effect(() => (foo = ob.count))
+console.log(`before, foo=${foo}`)
+ob.count++
+console.log(`after, foo=${foo}`)
+debugOn = true
 #+end_src
-#+end_details
 
-#+begin_details delete
-#+name: test-collection-deleteP2
-#+begin_src js -n -r
-console.log('xx')
+#+RESULTS:
+: before, foo=0
+: after, foo=1
+: undefined
+
+red:Testing
+
+#+begin_src js -n -r :exports both
+<<reactivity>>
+
+const value = reactive({})
+const cValue = computed(() => value.foo)
+console.log(`#1 before set value.foo, cValue.value = ${cValue.value}`)
+value.foo = 1
+console.log(`#2 after set value.foo, cValue.value = ${cValue.value}`)
 #+end_src
-#+end_details
 
-#+begin_details clear
-#+name: test-collection-clearP2
-#+begin_src js -n -r
-console.log('xx')
-#+end_src
-#+end_details
+#+RESULTS:
+#+begin_example
+ComputedRefImpl|constructor| _dirty=true, _value=undefined, isRef=true
+computed| onlyGetter=true, isRef=true, _value=undefined, _dirty=true
+ComputedRefImpl|get|before, _dirty=true, _cacheable=true, _value=undefined
+trackRefValue| shouldTrack=true, activeEffect=undefined
+effect|run| active=true, shouldTrack=true
+track| type=get, key=foo, targetMap=[object WeakMap], dep=[object Set]
+trackEffects| shouldTrack=true, activeEffect=[object Object], dep=1, activeEffect.deps=1
+createGetter|isRef get, key=foo, value=undefined, isRef=false
+createGetter|isObject get, key=foo, value=undefined, isRef=false
+ComputedRefImpl|get|after, _dirty=false, _cacheable=true, _value=undefined
+#1 before set value.foo, cValue.value = undefined
+createSetter| set value=1, key=foo, result=true
+trigger| type=add, key=foo, newValue=1, oldValue=undefined
+trigger|deps| deps=[object Set],, deps.length=2
+trigger|deps| >1, deps.length=2, effects.length=1
+triggerEffects| dep=[object Set], size=1, effect=[object Object]
+ComputedRefImpl|constructor|scheduler, _value=undefined
+triggerRefValue| newVal=undefined, ref.dep=undefined
+ComputedRefImpl|get|before, _dirty=true, _cacheable=true, _value=undefined
+trackRefValue| shouldTrack=true, activeEffect=undefined
+effect|run| active=true, shouldTrack=true
+track| type=get, key=foo, targetMap=[object WeakMap], dep=[object Set]
+trackEffects| shouldTrack=true, activeEffect=[object Object], dep=1, activeEffect.deps=2
+createGetter|isRef get, key=foo, value=1, isRef=false
+createGetter|isObject get, key=foo, value=1, isRef=false
+ComputedRefImpl|get|after, _dirty=false, _cacheable=true, _value=1
+#2 after set value.foo, cValue.value = 1
+undefined
+#+end_example
 
-#+begin_details forEach
-#+name: test-collection-forEachP2
-#+begin_src js -n -r
-console.log('xx')
-#+end_src
-#+end_details
+结果分析图：
 
-#+begin_details iterator
-#+name: test-collection-iteratorP2
-#+begin_src js -n -r
-console.log('xx')
-#+end_src
-#+end_details
-
+#+begin_export html
+<a href="../assets/img/vue3/reactivity/reactivity-computed-test-01.svg"
+data-fancybox="gallery"
+data-caption="Preview"
+><img src="../assets/img/vue3/reactivity/reactivity-computed-test-01.svg"/></a>
+#+end_export
 
 * FootNotes
 

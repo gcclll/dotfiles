@@ -1,0 +1,17 @@
+#!/bin/bash
+
+parse_emacs_keys() {
+    file="$GCLRC_HOME/csv/emacs.csv"
+
+    while read -r line;
+    do
+        # echo $line | sed -e "s/ ;/-/g"
+        echo ${line/( ;;;)/-}
+    done < $file
+}
+
+case ${1-} in
+    ek|emacskeys) parse_emacs_keys ;;
+    *) echo "Tip:
+ek - emacs keys";;
+esac

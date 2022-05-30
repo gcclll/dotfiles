@@ -5,6 +5,7 @@
 #+HUGO_SLUG: org_roam
 #+HTML_HEAD: <meta name="category" content="emacs"/>
 #+HTML_HEAD: <meta name="tags" content="org,roam"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-02-02 09:36:30"/>
 #+TITLE: org-roam
 <badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
 

@@ -1,78 +1,167 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source $GCLRC_SHELL/utils
-
 bin=${0##*/}
 
-usage() {
-    color_info 'Usage: gcli <COMMAND> [OPTIONS] ...
-COMMAND:
+DOT=$GCLRC_HOME
+DBIN=$DOT/bin
+HELP=$DOT/.help
 
-d)  aria2c, Download everything...
+install_lsp_servers() {
+	echo "Installing LSP languages servers..."
 
-    https://aria2.github.io/manual/en/html/aria2c.html
+	cnpm install -g typescript-language-server \
+		emmet-ls \
+		eslint \s
+	javascript-typescript-langserver \
+		@volar/vue-language-server \
+		bash-language-server \
+		vscode-langservers-extracted \
+		typescript prettier
 
-    Options:
-
-        -p,     Use proxy, http://127.0.0.1:7890
-'
+	echo "DONE."
 }
 
-_aria2c() {
-    option=""
-    proxy=""
-    n=$#
-
-    while getopts "pi:" o; do
-        case "$o" in
-            p)
-                option=$option" --http-proxy=http://127.0.0.1:7890"
-                n=$((n + 1))
-                ;;
-            ?) echo '' ;;
-        esac
-    done
-
-    # if [ "$1" == "p" ]; then
-    # option=option" --http-proxy=http://127.0.0.1:7891"
-    # fi
-
-    if [ $n -gt 1 ]; then
-        n=$((n - 1))
-    fi
-    aria2c -d ~/Downloads $option ${@:n}
+install() {
+	case $1 in
+	lsp) install_lsp_servers ;;
+	# dict) install_sdcv_dicts ;;
+	*) echo "Tip:
+lsp - lsp servers" ;;
+	esac
 }
 
-_sync() {
-    cmd="$1"
-    case $cmd in
-        mb)
-            if [ $# -gt 1 ]; then
-                mbsync "$2" | mu index
-            else
-                mbsync -a | mu index
-            fi
-            ;;
-    esac
+my_adb() {
+	case "${1-}" in
+	d | disconnect) adb disconnect ;;
+	c | connect) adb connect ;;
+	l | log) adb logcat -v time ;;
+	D | devices) adb devices ;;
+	*) echo "Tip:
+d - disconnect      c - connect     l - log
+D - Devices" ;;
+	esac
 }
 
-if [ $# -lt 1 ]; then
-    usage
-    exit 1
-fi
-cmd="$1"
+my_brew() {
+	case "${1-}" in
+	c) brew cleanup ;;
+	d) brew doctor ;;
+	cd) brew cleanup && brew doctor ;;
+	i) brew install ${@:2} ;;
+	I) brew install --cask ${@:2} ;;
+	rs) brew services restart nginx ;;
+	rm) brew services restart mariadb ;;
+	rp) brew services restart php ;;
+	u) brew upgrade ;;
+	*) echo "Tip:
+c - cleanup           d - doctor,           cd- cleanup&doctor
+i - install,          I - cask install      u - upgrade
+rs- restart nginx     rm- mariadb           rp- restart php
+" ;;
+	esac
+}
 
-case $cmd in
-    d) _aria2c "${@:2}" ;; # d -> download
-    s) _sync "${@:2}" ;;   # s -> sync
-    pub) emacs --script publish.el ;;
-    deno-zsh)
-        test_dir ~/.zsh
-        deno completions zsh >~/.zsh/_deno
-        echo "fpath=(~/.zsh $fpath)" >>$GCLRC_HOME/.zshrc
-        echo "autoload -Uz compinit" >>$GCLRC_HOME/.zshrc
-        echo "compinit -u" >>$GCLRC_HOME/.zshrc
-        ;;
-    ?) usage ;;
+my_help() {
+	case "${1-}" in
+	e | emacs) sh $HELP/emacs "${@:2}" ;;
+	*) echo "Tip:
+e - emacs" ;;
+	esac
+}
+
+my_git() {
+	case ${1-} in
+	ue | update-emacs)            # 更新我的emacs配置
+		git submodule update --init --recursive
+		git submodule foreach git reset --hard
+		if [ -z $(git submodule foreach git checkout main) ]; then
+			echo "on master."
+		else
+			git submodule foreach git checkout main
+			echo "on main."
+		fi
+		;;
+	up | pull-emacs)              # 更新所有扩展到最新版本
+		git submodule foreach git pull --rebase ;;
+	rs | rm-submodule)            # 删除 submodule
+		if [ -d "$2" ]; then
+			rm -rf "$2"               # 先删除目录
+			rm -rf .git/modules/$2    # 再删除 git 下的目录
+			git rm --cached "$2"      # 再清理缓存
+		fi
+		;;
+	*) echo "Tip:
+ue - update-emacs   up - pull-emacs   rs - rm-su" ;;
+	esac
+}
+
+my_delete() {
+	case ${1-} in
+	s | simulator) xcrun simctl delete unavailable ;;
+	*) echo "
+s - simulator" ;;
+	esac
+
+}
+
+my_emacs() {
+	case ${1-} in
+	w | everywhere) emacsclient --eval "(emacs-everywhere)" ;;
+	t | tangle)
+		src="${2-}"
+		[ ! -f "$src" ] && echo "invalid org file." && exit 0
+		emacs --batch --eval "(progn (require 'org) (setq org-confirm-babel-evaluate nil) (org-babel-tangle-file \"${src}\"))"
+		echo "Tangle DONEN."
+		;;
+	*) echo "Tip:
+w - everywhere" ;;
+	esac
+}
+
+my_fd() {
+	case ${1-} in
+	d | dir) fd --type directory ${@:2} ;;
+	f | file) fd --type file ${@:2} ;;
+	e | empty) fd --type empty ${@:2} ;;
+	p | pipe) fd --type pipe ${@:2} ;;
+	x | exe) fd --type executable ${@:2} ;;
+	h | help) fd -h ;;
+	H | hidden) fd -H ${@:2} ;;
+	i | case) fd --ignore-case ${@:2} ;;
+	I | ignore) fd -I ${@:2} ;;
+	*) echo "Tip:
+d - dir        f - file   e - empty   E - extensioin
+p - pipe       x - exec   h - help    H - hidden files
+i - 忽略大小写  I - 忽略.gitignore等文件中指定的
+" ;;
+	esac
+}
+
+my_ssh() {
+	case ${1-} in
+	g | gen) ssh-keygen -t rsa -b 4096 -C ${@:2};;
+	*) echo "Tip:
+g - gen" ;;
+	esac
+}
+
+case ${1-} in
+a | adb) my_adb "${@:2}" ;;
+b | brew) my_brew "${@:2}" ;;
+d | del) my_delete "${@:2}" ;;
+e | emacs) my_emacs "${@:2}" ;;
+f | fd) my_fd "${@:2}" ;;
+g | git) my_git "${@:2}" ;;
+h | help) my_help "${@:2}" ;;
+i | install) install "${@:2}" ;;
+s | ssh) my_ssh "${@:2}" ;;
+ediff) git mergetool -t ediff;;
+dns) dscacheutil -flushcache && killall -HUP mDNSResponder ;;
+? | *) echo "Tip
+a - adb       b - brew      d - delete      e - emacs
+g - git       h - help      i - install     s - ssh 
+? - help
+
+dns - flush dns" ;;
 esac

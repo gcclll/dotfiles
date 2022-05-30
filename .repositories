@@ -5,17 +5,22 @@
 # private
 git@code.aliyun.com:wyu/documents.git|documents|mine|0
 git@code.aliyun.com:gccll/get-more-money.git|get-more-money|mine|0
-git@github.com:gcclll/awesome-demos.git|awesome-demos|mine|0
-git@github.com:gcclll/cheng92.com.git|cheng92.com|mine|0
-git@github.com:gcclll/blog.cheng92.com.git|blog.cheng92.com|mine|0
-git@github.com:gcclll/cheng92-comments.git|cheng92-comments|mine|0
-git@github.com:gcclll/dotfiles.git|dotfiles|mine|0
-git@github.com:gcclll/make-leetcode.git|make-leetcode|mine|0
-git@github.com:gcclll/test.git|test|mine|0
-git@github.com:gcclll/org-html-themes.git|org-html-themes|mine|0
-git@github.com:gcclll/waka-box.git|waka-box|mine|0
-git@github.com:gcclll/org-special-block-extras.git|org-special-block-extras|mine|0
+https://github.com/gcclll/awesome-demos.git|awesome-demos|mine|0
+https://github.com/gcclll/cheng92.com.git|cheng92.com|mine|0
+https://github.com/gcclll/blog.cheng92.com.git|blog.cheng92.com|mine|0
+https://github.com/gcclll/cheng92-comments.git|cheng92-comments|mine|0
+https://github.com/gcclll/dotfiles.git|dotfiles|mine|0
+https://github.com/gcclll/make-leetcode.git|make-leetcode|mine|0
+https://github.com/gcclll/test.git|test|mine|0
+https://github.com/gcclll/org-html-themes.git|org-html-themes|mine|0
+https://github.com/gcclll/waka-box.git|waka-box|mine|0
+https://github.com/gcclll/org-special-block-extras.git|org-special-block-extras|mine|0
 git@code.aliyun.com:gccll/bak-sl-projects.git|bak-sl-projects|mine|0
+https://github.com/gcclll/qiankun-demo.git|qiankun-demo|mine|0
+https://github.com/gcclll/my-web-components.git|web-components|mine|0
+
+# emacs
+https://github.com/gcclll/lsp-bridge.git|lsp-bridge|emacs|0
 
 # tools
 https://github.com/hgoebl/mobile-detect.js.git|mobile-detect|tools
@@ -81,6 +86,7 @@ https://github.com/webpro/awesome-dotfiles.git|awesome-dotfiles|shell
 https://github.com/Awesome-HarmonyOS/HarmonyOS.git|HarmonyOS|harmony
 
 # Normally, common
+https://github.com/umijs/qiankun.git|qiankun|common
 https://github.com/mbasso/awesome-wasm.git|awesome-wasm|common
 https://github.com/qazbnm456/awesome-web-security.git|awesome-web-security|common
 https://github.com/sindresorhus/awesome.git|awesome|common

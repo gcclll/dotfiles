@@ -5,6 +5,7 @@
 #+HUGO_SLUG: documentations
 #+HTML_HEAD: <meta name="category" content="emacs"/>
 #+HTML_HEAD: <meta name="tags" content="org-mode"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-02-20 09:35:24"/>
 #+TITLE: Documentations
 
 <badge: GCCLL | Homepage | green | / | gnu-emacs>

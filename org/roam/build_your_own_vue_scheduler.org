@@ -1,0 +1,1425 @@
+:PROPERTIES:
+:ID:       4a858df2-f6f8-4d2f-9cda-78c12cbf42b3
+:END:
+#+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HUGO_SLUG: build_you_own_vue_scheduler
+#+HTML_HEAD: <meta name="category" content="vue"/>
+#+HTML_HEAD: <meta name="tags" content="scheduler"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-04-16 09:39:36"/>
+#+PROPERTY: header-args :session
+#+PROPERTY: header-args :noweb no-export
+#+TITLE: build your own vue scheduler
+
+<badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
+
+#+begin_box Vue3 Scheduler :background-color green
+
+vue3 中任务调度机制源码分析实现 -> [[https://github.com/vuejs/core/blob/main/packages/runtime-core/src/scheduler.ts][core/scheduler.ts at main · vuejs/core]]
+
+旧博客中的相关两篇文章：
+
+[[https://www.cheng92.com/vue/vue-mind-map-runtime-core-1/#scheduler][Vue3 源码头脑风暴之 7 ☞ runtime-core(1) - 若叶知秋]]
+
+[[https://www.cheng92.com/vue/vue-teardown-2-sheduler/][Vue3 功能拆解② Scheduler 渲染机制 - 若叶知秋]]
+
+这里会用 js 重新实现一遍。
+#+end_box
+
+
+* 简介
+
+该功能是用来管理 vue-next 中渲染相关的异步任务的(包括节点更新， props 更新等等都
+是由这个 scheduler 来管理的。)
+
+这块包含的 api 不多，但却是 vue-next 中 DOM 渲染任务的关键功能。
+
+scheduler 所管理的任务主要分为三种：
+
+1. job 普通类型
+2. post 类型
+3. pre 类型
+
+
+[[scheduler-mindmap][scheduler 代码流程图 ->]]
+
+pre, job, post 关系网：
+
+[[../assets/img/vue3plus/s/pre-job-post.svg]]
+
+* Global Variables
+
+global variables used.
+
+#+name: GlobalVars
+#+begin_src js -n -r :noweb yes
+let isFlushing = false (ref:isFlushing)
+let isFlushPending = false (ref:isFlushPending)
+
+const queue = [] (ref:queue)
+let flushIndex = 0 (ref:flushIndex)
+
+const pendingPreFlushCbs = [] (ref:pendingPreFlushCbs)
+let activePreFlushCbs = null (ref:activePreFlushCbs)
+let preFlushIndex = 0 (ref:preFlushIndex)
+
+const pendingPostFlushCbs = [] (ref:pendingPostFlushCbs)
+let activePostFlushCbs = null (ref:activePostFlushCbs)
+let postFlushIndex = 0 (ref:postFlushIndex)
+
+const resolvedPromise = Promise.resolve() (ref:resolvedPromise)
+let currentFlushPromise = null (ref:currentFlushPromise)
+
+let currentPreFlushParentJob = null (ref:currentPreFlushParentJob)
+
+// limit of update recursively
+const RECURSION_LIMIT = 100
+
+const getId = job => job.id == null ? Infinity : job.id
+
+function findInsertionIndex(id) { (ref:findInsertionIndex)
+  let start = flushIndex + 1
+  let end = queue.length
+
+  // 二分法找到插入位置
+  while (start < end) {
+    const middle = (start + end) >>> 1
+    const middleJobId = getId(queue[middle])
+    middleJobId < id ? (start = middle + 1) : (end = middle)
+  }
+
+  return start
+}
+
+const isArray = Array.isArray
+const isObject = val => val !== null && typeof val === 'object'
+const isFunction = val => typeof val === 'function'
+const isPromise = val => {
+  return isObject(val) && isFunction(val.then) && isFunction(val.catch)
+}
+function callWithErrorHandling(fn, instance, type, args) {
+  let res
+  try {
+    res = args ? fn(...args) : fn()
+  } catch (err) {
+    handleError(err, instance, type)
+  }
+}
+
+function callWithAsyncErrorHandling(fn, instance, type, args) {
+  if (typeof fn === 'function') {
+    const res = callWithErrorHandling(fn, instance, type, args)
+    if (res && isPromise(res)) {
+      res.catch(err => {
+        handleError(err, instance, type)
+      })
+    }
+    return res
+  }
+
+  const values = []
+  for (let i = 0; i < fn.length; i++) {
+    values.push(callWithAsyncErrorHandling(fn[i], instance, type, args))
+  }
+  return values
+}
+
+function handleError(err) {
+  console.log(err)
+}
+
+let debugOn = true
+const log = (fn, message) => {
+  if (debugOn) {
+    if (message === undefined) {
+      console.log(fn)
+    } else {
+      console.log(`[${fn}] ${message}`)
+    }
+  }
+}
+const logEnd = (hint = "END") => console.log(`--------- ${hint} ---------`)
+#+end_src
+
+* APIs
+
+| api                     | description                      |
+|-------------------------+----------------------------------|
+| [[nextTick][nextTick()]]              | trigger render next tick         |
+| [[queueJob][queueJob()]]              | -                                |
+| [[queueFlush][queueFlush()]]            | flush all tasks in job queue     |
+| [[queueCb][queueCb()]]               | task enqueue                     |
+| [[queuePreFlushCb][queuePreFlushCb()]]       | enqueue pre tasks in pre queue   |
+| [[queuePostFlushCb][queuePostFlushCb()]]      | enqueue post tasks in post queue |
+| [[flushPreFlushCbs][flushPreFlushCbs()]]      | flush pre task queue             |
+| [[flushPostFlushCbs][flushPostFlushCbs()]]     | flush post task queue            |
+| [[flushJobs][flushJobs()]]             | flush all tasks in queue         |
+| [[checkRecursiveUpdates][checkRecursiveUpdates()]] | check updates recursively or not |
+
+表中 api 也可看出，主要是围绕一种类型的任务(job,pre,post)相关的任务入列和 flush
+操作的函数，下面会循序渐进地去实现它们。
+
+三种类型 api 关系：
+
+1. red:job -> [[(flushIndex)][flushIndex]] -> [[(queue)][queue]] -> [[queueJob][queueJob()]] -> [[queueFlush][queueFlush()]] -> [[flushJobs][flushJobs()]]
+2. red:pre -> [[(preFlushIndex)][preFlushIndex]] -> [[(pendingPreFlushCbs)][pendingPreFlushCbs]] -> [[(activePreFlushCbs)][activePreFlushCbs]] ->
+   [[queuePreFlushCb][queuePreFlushCb()]] -> [[flushPreFlushCbs][flushPreFlushCbs()]] -> [[flushJobs][flushJobs()]]
+3. red:post -> [[(postFlushIndex)][postFlushIndex]] -> [[(pendingPostFlushCbs)][pendingPostFlushCbs]] -> [[(activePostFlushCbs)][activePostFlushCbs]] ->
+   [[queuePPostFlushCb][queuePostFlushCb()]] -> [[flushPostFlushCbs][flushPostFlushCbs()]] -> [[flushJobs][flushJobs()]]
+
+#+html: <br>
+#+begin_details queueJob
+#+name: scheduler-job
+#+begin_src js -n -r
+<<GlobalVars>>
+
+<<nextTick>>
+
+<<queueJob>>
+
+<<queueFlush>>
+
+<<flushJobs>>
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details pre
+
+#+name: scheduler-pre
+#+begin_src js -n -r
+<<GlobalVars>>
+
+<<nextTick>>
+
+<<queueJob>>
+
+<<queueFlush>>
+
+<<flushJobs>>
+
+<<queueCb>>
+
+<<queuePreFlushCb>>
+
+<<flushPreFlushCbs>>
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details post
+
+#+name: scheduler-post
+#+begin_src js -n -r
+<<GlobalVars>>
+
+<<nextTick>>
+
+<<queueJob>>
+
+<<queueFlush>>
+
+<<flushJobs>>
+
+<<queueCb>>
+
+<<queuePreFlushCb>>
+
+<<flushPreFlushCbs>>
+
+<<queuePostFlushCb>>
+
+<<flushPostFlushCbs>>
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details scheduler :title-color green
+#+name: scheduler
+#+begin_src js -n -r :noweb yes
+<<scheduler-post>>
+
+<<invalidateJob>>
+#+end_src
+#+end_details
+
+* nextTick(fn)
+
+当前事件队列循环中同步代码执行完之后再去执行 fn 或后面的代码(使用 ~await
+nextTick()~ 时)
+
+在这里是当 queue 所有队列清空之后执行的一个异步操作，与之有重要关联的两个变量：
+
+1. [[(resolvedPromise)][resolvedPromise]]，一个空的 promise then
+2. [[(currentFlushPromise)][currentFlushPromise]]，当 queue 队列中的所有任务执行完成之后返回的一个 promise
+   实例，因为 [[flushJobs][flushJobs()]] 中 flush 任务时都是同步操作
+
+#+name: nextTick
+#+begin_src js -n -r :noweb yes
+function nextTick(fn) {
+  const p = currentFlushPromise || resolvedPromise
+  log(`nextTick| queue=${queue.length},resolvedPromise=${resolvedPromise},currentFlushPromise=${currentFlushPromise}`)
+  return fn ? p.then(this ? fn.bind(this) : fn) : p
+}
+#+end_src
+
+所以 ~nextTick(fn)~ 的 fn 函数或 ~await nextTick()~ 后面的代码都会在当前
+[[(queue)][queue]] 队列中任务完成之后才会被执行。
+
+<red:Testing...>
+
+#+begin_src js -n -r :exports both
+<<GlobalVars>>
+<<nextTick>>
+
+(async function() {
+  log('run first...')
+  nextTick(() => {
+    log('\nrun second...')
+  })
+  await nextTick()
+  log('\nrun third...')
+}())
+#+end_src
+
+* queueJob()
+
+任务入列, ~queueJob()~ -> [[queueFlush][queueFlush()]] -> [[flushJobs][flushJobs()]] 。
+
+#+name: queueJob
+#+begin_src js -n -r
+function queueJob(job) {
+  log(`queueJob| queue=${queue.length},job existed=${queue.includes(job, flushIndex)}`)
+  if ((
+    !queue.length ||
+      !queue.includes(job, isFlushing && job.allowRecurse ? flushIndex + 1 : flushIndex)
+  ) && job !== currentPreFlushParentJob) {
+    // 没有 id 直接追加到后面
+    if (job.id == null) {
+      queue.push(job)
+    } else {
+      // 有 id 要按照顺序插入
+      queue.splice(findInsertionIndex(job.id), 0, job)
+    }
+
+    // 入列现时启动任务 flush 动作
+    queueFlush()
+  }
+}
+#+end_src
+
+<red:Testing...>
+
+[[GlobalVars][GlobalVars]], [[nextTick][nextTick]], [[queueJob][queueJob]], [[queueFlush][queueFlush]], [[flushJobs][flushJobs]]
+
+#+begin_src js -n -r :exports both
+<<GlobalVars>>
+<<nextTick>>
+<<queueJob>>
+<<queueFlush>>
+<<flushJobs>>
+
+(async function() {
+  queueJob(() => {
+    console.log('job 1') (ref:test-job-1)
+  })
+  queueJob(() => {
+    console.log('job 2') (ref:test-job-2)
+  })
+
+  console.log(`should before flush, queue.length=${queue.length}`) (ref:test-job-before)
+  await nextTick()
+  console.log(`should after flush, queue.length=${queue.length}`) (ref:test-job-after)
+}())
+return 1
+#+end_src
+
+#+RESULTS:
+#+begin_example
+queueJob| queue=0,job existed=false
+queueFlush| isFlushing=false,isFlushPending=false
+queueJob| queue=1,job existed=false
+queueFlush| isFlushing=false,isFlushPending=true
+should before flush, queue.length=2
+nextTick| queue=2,resolvedPromise=[object Promise],currentFlushPromise=[object Promise]
+1flushJobs| seen=undefined, queue=2,flushIndex=0,isFlushing=true
+job 1
+job 2
+flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=0
+should after flush, queue.length=0
+#+end_example
+
+注意看上面[[(test-job-before)]] 和 [[(test-job-after)]] 两行打印的输出，前者在 flush 之
+前就会打印出来因为它同步代码，而后者会在所有 jobs 的 fn 函数执行之后也就是
+[[(test-job-1)]] 和 [[(test-job-2)]] 打印之后打印出来。
+
+这是因为 [[queueFlush][queueFlush()]] 中调用 [[flushJobs][flushJobs()]] 时候是以
+~resolvedPromise.then(flushJobs)~ 方式调用的，也就是说要等 ~resolvedPromise~ 状态完
+成之后才会触发，而这个 promise 其实是一个 ~fullfilled~ 状态的全局 promise 所以它总
+会在前一个 queue flush 动作之后触发(因为 [[flushJobs][flushJobs()]] 函数中代码都是同步代码)。
+
+#+begin_tip
+而 ~currentFlushPromise~ 这个全局变量是用来记录当前正在执行中的 promise 也就是上面
+说的 ~resolvedPromise.then(flushJobs)~ 返回的一个 promise，这也是为什么
+~nextTick()~ 的代码总是会在当前队列刷新完之后被调用的最终原因，也是为什么在
+~nextTick()~ 代码中可以访问真实 DOM 元素的原因，因为当前要执行的 DOM 渲染函数都已经执
+行这完成了。
+#+end_tip
+
+另外， ~queueJob~ 支持嵌套调用，即在 ~queueJob(fn)~ 的 fn 函数中还可以调用
+~queueJob~ 来入列新的任务。
+
+看示例：
+
+#+begin_src js -n -r :exports both
+<<scheduler>>
+
+;(async function() {
+  const calls = []
+  const job1 = () => {
+    calls.push('job1')
+
+    // job2 任务会在 job1 执行到这里的时候加入到了 queue
+    // 但是它的执行需等到 queue 中的任务执行完成之后再执行
+    // 因为任务收集是同步的，任务执行是异步的，而 queue flush 操作又是同步的
+    queueJob(job2)
+  }
+  const job2 = () => calls.push('job2')
+  queueJob(job1)
+  await nextTick()
+
+  log(calls)
+  logEnd()
+}())
+return 0
+#+end_src
+
+#+RESULTS:
+: queueJob| queue=0,job existed=false
+: queueFlush| isFlushing=false,isFlushPending=false
+: nextTick| queue=1,resolvedPromise=[object Promise],currentFlushPromise=[object Promise]
+: 0flushJobs| seen=undefined, queue=1,flushIndex=0,isFlushing=true
+: queueJob| queue=1,job existed=false
+: queueFlush| isFlushing=true,isFlushPending=false
+: flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=0
+: [ 'job1', 'job2' ]
+: --------- END ---------
+
+来看一段代码：
+
+#+begin_src js -n -r
+const nums = [1, 2, 3];
+const add = (i) => nums.push(++i);
+for (let i = 0; i < nums.length; i++) {
+  if (i === 1) add(i);
+  console.log({ i, v: nums[i], l: nums.length });
+}
+#+end_src
+
+#+RESULTS:
+: { i: 0, v: 1, l: 3 }
+: { i: 1, v: 2, l: 4 }
+: { i: 2, v: 3, l: 4 }
+: { i: 3, v: 2, l: 4 }
+: undefined
+
+#+begin_tip
+也就是说当在 for 循环中更新被遍历的数组时，是可以被感知到了，因为当在
+[[flushJobs][flushJobs()]] 中 flush [[(queue)][queue]] 中的 jobs 时，如果有嵌套使用的情况是可以被感知并且会
+在当次的 for 循环体系中被执行到。
+#+end_tip
+
+* queueFlush()
+
+这个函数的作用是：当用任务入列就启动 flush 动作去刷新队列中的任务。
+
+#+name: queueFlush
+#+begin_src js -n -r
+function queueFlush() {
+  log(`queueFlush| isFlushing=${isFlushing},isFlushPending=${isFlushPending}`)
+  if (!isFlushing && !isFlushPending) {
+    isFlushPending = true
+    currentFlushPromise = resolvedPromise.then(flushJobs)
+  }
+}
+#+end_src
+
+* flushJobs()
+
+三种任务执行的顺序： pre cbs -> jobs -> post cbs 。
+
+#+name: flushJobs
+#+begin_src js -n -r
+function flushJobs(seen) {
+  // 这个函数里面都是同步操作
+  isFlushPending = false
+  isFlushing = true
+
+  log(`flushJobs| seen=${seen}, queue=${queue.length},flushIndex=${flushIndex},isFlushing=${isFlushing}`)
+
+  flushPreFlushCbs(seen)
+
+  // pre jobs
+
+  // 在 flush 之前对任务排序，确保：
+  // 1. 组件总从 parent -> child 更新，因为父组件总是会在子组件之前被渲染，因此它的渲染函数应该具备更小优先级
+  // 2. 如果一个组件在父组件更新阶段被卸载了那么它的更新可以直接忽略
+  queue.sort((a, b) => getId(a) - getId(b))
+
+  try {
+    for (flushIndex = 0; flushIndex < queue.length; flushIndex++) {
+      const job = queue[flushIndex]
+      if (job && job.active !== false) {
+        callWithErrorHandling(job, null, Error)
+      }
+    }
+  } finally {
+    // 当前任务队列已经清空了
+    flushIndex = 0
+    queue.length = 0
+
+    // flush post
+    flushPostFlushCbs(seen)
+
+    isFlushing = false
+    // 一次队列对应一个 flush promise
+    currentFlushPromise = null
+    log(`flushJobs| queue=${queue.length},pendingPreFlushCbs=${pendingPreFlushCbs.length},pendingPostFlushCbs=${pendingPostFlushCbs.length}`)
+    // 在 flush 过程中加入的任务
+    if (queue.length || pendingPreFlushCbs.length || pendingPostFlushCbs.length) {
+      flushJobs(seen)
+    }
+  }
+}
+#+end_src
+
+增加 pre cbs flush 代码。
+
+#+name: flushJobs-diff-pre
+#+begin_src diff
+function flushJobs(seen) {
+  // 这个函数里面都是同步操作
+  isFlushPending = false
+  isFlushing = true
+
+  log(`flushJobs| seen=${seen}, queue=${queue.length},flushIndex=${flushIndex},isFlushing=${isFlushing}`)
+
++  flushPreFlushCbs(seen)
+
+  // 在 flush 之前对任务排序，确保：
+  // 1. 组件总从 parent -> child 更新，因为父组件总是会在子组件之前被渲染，因此它的渲染函数应该具备更小优先级
+  // 2. 如果一个组件在父组件更新阶段被卸载了那么它的更新可以直接忽略
+  queue.sort((a, b) => getId(a) - getId(b))
+
+  try {
+    for (flushIndex = 0; flushIndex < queue.length; flushIndex++) {
+      const job = queue[flushIndex]
+      if (job && job.active !== false) {
+        callWithErrorHandling(job, null, Error)
+      }
+    }
+  } finally {
+    // 当前任务队列已经清空了
+    flushIndex = 0
+    queue.length = 0
+
+    // flush post
+
+    isFlushing = false
+    // 一次队列对应一个 flush promise
+    currentFlushPromise = null
+    log(`flushJobs| queue=${queue.length},pendingPreFlushCbs=${pendingPreFlushCbs.length},pendingPostFlushCbs=${pendingPostFlushCbs.length}`)
+    // 在 flush 过程中加入的任务
+    if (queue.length || pendingPreFlushCbs.length || pendingPostFlushCbs.length) {
+      flushJobs(seen)
+    }
+  }
+}
+#+end_src
+
+增加 post cbs flush 代码。
+
+#+name: flushJobs-diff-post
+#+begin_src diff
+function flushJobs(seen) {
+  // 这个函数里面都是同步操作
+  isFlushPending = false
+  isFlushing = true
+
+  log(`flushJobs| seen=${seen}, queue=${queue.length},flushIndex=${flushIndex},isFlushing=${isFlushing}`)
+
+  flushPreFlushCbs(seen)
+
+  // pre jobs
+
+  // 在 flush 之前对任务排序，确保：
+  // 1. 组件总从 parent -> child 更新，因为父组件总是会在子组件之前被渲染，因此它的渲染函数应该具备更小优先级
+  // 2. 如果一个组件在父组件更新阶段被卸载了那么它的更新可以直接忽略
+  queue.sort((a, b) => getId(a) - getId(b))
+
+  try {
+    for (flushIndex = 0; flushIndex < queue.length; flushIndex++) {
+      const job = queue[flushIndex]
+      if (job && job.active !== false) {
+        callWithErrorHandling(job, null, Error)
+      }
+    }
+  } finally {
+    // 当前任务队列已经清空了
+    flushIndex = 0
+    queue.length = 0
+
+    // flush post
++   flushPostFlushCbs(seen)
+
+    isFlushing = false
+    // 一次队列对应一个 flush promise
+    currentFlushPromise = null
+    log(`flushJobs| queue=${queue.length},pendingPreFlushCbs=${pendingPreFlushCbs.length},pendingPostFlushCbs=${pendingPostFlushCbs.length}`)
+    // 在 flush 过程中加入的任务
+    if (queue.length || pendingPreFlushCbs.length || pendingPostFlushCbs.length) {
+      flushJobs(seen)
+    }
+  }
+}
+#+end_src
+
+* queueCb()
+
+这个函数主要是用来对 pre 和 post 类型的 cb 入列函数。
+
+对比 ~queueCb~ 和 [[queueJob][queueJob]] 会发现两者没多大的差别，先同步收集再异步
+flush([[queueFlush][queueFlush()]] -> [[flushJobs][flushJobs]])，两者判断条件有细微差别，另外 [[queueJob][queueJob]] 支持数组
+形式的 cb：
+
+#+name: queueCb
+#+begin_src js -n -r
+function queueCb(cb, activeQueue, pendingQueue, index) {
+  if (!isArray(cb)) {
+    if (!activeQueue || !activeQueue.includes(cb, cb.allowRecurse ? index + 1 : index)) {
+      pendingQueue.push(cb)
+    }
+  } else {
+    pendingQueue.push(...cb)
+  }
+  queueFlush()
+}
+#+end_src
+
+* queuePreFlushCb()
+
+#+name: queuePreFlushCb
+#+begin_src js -n -r
+function queuePreFlushCb(cb) {
+  queueCb(cb, activePreFlushCbs, pendingPreFlushCbs, preFlushIndex)
+}
+#+end_src
+* flushPreFlushCbs()
+
+#+name: flushPreFlushCbs
+#+begin_src js -n -r
+function flushPreFlushCbs(seen, parentJob) {
+  if (pendingPreFlushCbs.length) {
+    currentPreFlushParentJob = parentJob
+    activePreFlushCbs = [...new Set(pendingPreFlushCbs)]
+    // 重置以接纳新的任务
+    pendingPreFlushCbs.length = 0
+    for (preFlushIndex = 0; preFlushIndex < activePreFlushCbs.length; preFlushIndex++) {
+      activePreFlushCbs[preFlushIndex]()
+    }
+
+    activePreFlushCbs = null
+    preFlushIndex = 0
+    currentPreFlushParentJob = null
+
+    // 递归直到清空所以 pre 任务
+    flushPreFlushCbs(seen, parentJob)
+  }
+}
+#+end_src
+
+与 pre cbs 有关的:
+
+[[(preFlushIndex)][preFlushIndex]] -> [[(pendingPreFlushCbs)][pendingPreFlushCbs]] -> [[(activePreFlushCbs)][activePreFlushCbs]] -> [[queuePreFlushCb][queuePreFlushCb()]] ->
+[[flushPreFlushCbs][flushPreFlushCbs()]] -> [[flushJobs][flushJobs()]]
+
+[[(activePreFlushCbs)][activePreFlushCbs]] 和 [[(pendingPreFlushCbs)][pendingPreFlushCbs]] 的关系： 前者是后者的一个拷贝， 拷贝完会
+立即清空 pending, 目的是为了让 pending 在 active flushing 期间能继续收集新的任务，
+这样如果在执行期间有新的任务入列，那么在函数最后的递归操作会对这些新入列的任务继
+续 flush 掉，直到再也没有新的任务入列为止。
+
+#+begin_tip
+当 [[queuePreFlushCb][queuePreFlushCb]] 在 [[queueJob][queueJob]] 中使用时不会主动触发 cbs 执行，如果 需要立即执行
+这些 cbs 需要手动调用 [[flushPreFlushCbs][flushPreFlushCbs(seen, parentJob)]] 去刷掉 pre cbs 任务，或
+者等到当前 job 执行完了下一个 [[flushJobs][flushJobs()]] 调用中执行，因为 [[queueJob][queueJob()]] 执行期间
+~isFlushing = true~ ，而在 [[queueFlush][queueFlush()]] 中有检测这个值， 如果正在执行 flushing 是
+不会继续执行的。
+#+end_tip
+
+@@html:<span id="queuePreFlushCb-usage"></span>@@
+用途： 通过全局搜索 [[queuePreFlushCb][queuePreFlushCb]] 只有在 [[https://github.com/vuejs/core/blob/main/packages/runtime-core/src/apiWatch.ts][core/apiWatch.ts at main · vuejs/core]]
+green:watch 中被调用，且默认就是 pre 类型。
+
+[[../assets/img/vue3plus/s/queuePreFlushCb.png]]
+
+#+begin_src typescript -n -r
+// default: 'pre'
+function doWatch(
+  source: WatchSource | WatchSource[] | WatchEffect | object,
+  cb: WatchCallback | null,
+  { immediate, deep, flush, onTrack, onTrigger }: WatchOptions = EMPTY_OBJ,
+  instance = currentInstance
+): WatchStopHandle {
+  // ...
+  let scheduler: ReactiveEffectOptions["scheduler"];
+  if (flush === "sync") {
+    // ...
+  } else if (flush === "post") {
+    // ...
+  } else {
+    // default: 'pre'
+    scheduler = () => {
+      if (!instance || instance.isMounted) {
+        queuePreFlushCb(job);
+      } else {
+        // with 'pre' option, the first call must happen before
+        // the component is mounted so it is called synchronously.
+        job();
+      }
+    };
+  }
+  // ...
+}
+#+end_src
+
+red:Testing
+
+#+begin_src js -n -r :exports both
+<<scheduler>>
+
+;(async function() {
+  const calls = [];
+  const job1 = () => { (ref:test-pre-job-1)
+    queuePreFlushCb(cb1); (ref:test-pre-queue-1)
+    queuePreFlushCb(cb2); (ref:test-pre-queue-2)
+    // 手动触发 cb1, cb2
+    flushPreFlushCbs(undefined, job1); (ref:test-pre-flush-1)
+    calls.push("job1"); (ref:test-pre-push-1)
+  };
+  const cb1 = () => calls.push("cb1"); (ref:test-pre-push-cb-1)
+  const cb2 = () => calls.push("cb2"); (ref:test-pre-push-cb-2)
+
+  queueJob(job1); (ref:test-pre-queue-job1)
+  await nextTick(); (ref:test-pre-next-tick)
+  log(calls); (ref:test-pre-log-calls)
+}());
+#+end_src
+
+#+RESULTS:
+: queueJob| queue=0,job existed=false
+: queueFlush| isFlushing=false,isFlushPending=false
+: nextTick| queue=1,resolvedPromise=[object Promise],currentFlushPromise=[object Promise]
+: undefinedflushJobs| seen=undefined, queue=1,flushIndex=0,isFlushing=true
+: queueFlush| isFlushing=true,isFlushPending=false
+: queueFlush| isFlushing=true,isFlushPending=false
+: flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=0
+: [ 'cb1', 'cb2', 'job1' ]
+
+[[../assets/img/vue3/runtime-core/vue-runtime-core-test-preflush-inside-queuejob.jpg]]
+
+文字分析：
+
+[[(test-pre-queue-job1)]] 先执行， [[queueJob][queueJob]] -> push job1 -> queue:[job1] ->
+[[queueFlush][queueFlush()]] 在 [[queueFlush][queueFlush()]] 中调用 ~resolvedPromise.then(flushJobs)~ 异步执行
+[[flushJobs][flushJobs()]] 函数刷掉所有任务(pre/job/post)
+
+并且记录当前 tick 下的 ~promise: currentFlushPromise~
+
+此时的 ~pendingPreFlushCbs[]~ 中是没有任何任务的，所以继续执行 try{…} 开始 flush
+queue[] jobs，这个时候 flushIndex = 0 得到 job1，开始按顺序执行 job1
+
+[[(test-pre-job-1)]] 开始执行
+
+[[(test-pre-queue-1)]] 将 cb1 push -> ~pendingPreFlushCbs=[cb1]~
+
+[[(test-pre-queue-2)]] 将 cb2 push -> ~pendingPreFlushCbs=[cb1, cb2]~
+
+[[(test-pre-flush-1)]] 手动 flush pre cbs
+
+在 ~flushPreFlushCbs(undefined, job1)~ 中会记录 ~currentPreFlushParentJob = job1~ 这
+个变量将会在 ~queueJob(job)~ 中用来检测 job 是不是当前的 job1 如果是就不允许 push，
+因为 job1 下有子任务正在执行，必须等这些子任务(cb1, cb2) 执行完。
+
+[[(test-pre-push-cb-1)]] 开始执行， push 'cb1' -> calls: ['cb1']
+
+[[(test-pre-push-cb-2)]] 开始执行， push 'cb2' -> calls: ['cb1', 'cb2']
+
+[[(test-pre-flush-1)]] 开始执行， push 'job1' -> alls: ['cb1', 'cb2', 'job1']
+
+[[(test-pre-next-tick)]] 开始执行，因为 ~nextTick()~
+
+#+begin_src typescript -n -r
+export function nextTick(
+  this: ComponentPublicInstance | void,
+  fn?: () => void
+): Promise<void> {
+  const p = currentFlushPromise || resolvedPromise;
+  return fn ? p.then(this ? fn.bind(this) : fn) : p;
+}
+#+end_src
+
+这里的 await 会等 job1 ~queueFlush()~ 触发的 ~promise.then(flushJobs)~ 返回的
+promise 完成之后再执行后面的代码。
+
+[[(test-pre-log-calls)]] log 输出 'cb1,cb2,job1'
+
+* queuePostFlushCb()
+
+#+name: queuePostFlushCb
+#+begin_src js -n -r
+function queuePostFlushCb(cb) {
+  queueCb(cb, activePostFlushCbs, pendingPostFlushCbs, postFlushIndex)
+}
+#+end_src
+
+* flushPostFlushCbs()
+
+#+name: flushPostFlushCbs
+#+begin_src js -n -r
+function flushPostFlushCbs(seen) {
+  if (pendingPostFlushCbs.length) {
+    const deduped = [...new Set(pendingPostFlushCbs)]
+    pendingPostFlushCbs.length = 0
+
+    // 已经有了 active queue, flushPostFlushCbs 嵌套使用时
+    if (activePostFlushCbs) {
+      activePostFlushCbs.push(...deduped)
+      return
+    }
+
+    activePostFlushCbs = deduped
+
+    activePostFlushCbs.sort((a, b) => getId(a) - getId(b))
+
+    for (postFlushIndex = 0; postFlushIndex < activePostFlushCbs.length; postFlushIndex++) {
+      activePostFlushCbs[postFlushIndex]()
+    }
+
+    activePostFlushCbs = null
+    postFlushIndex = 0
+  }
+}
+#+end_src
+
+和 pre cb 的处理有两个不同点：
+
+1. 非回调形式处理 flushing 期间接受到的新任务，而是通过改变执行器
+   ~activePostFlushCbs~ 来实现(和 queue job 类似)
+
+2. 没有递归回调形式处理后续的新任务，参考 <red:1>
+
+
+#+begin_src js -n -r :exports both
+// 源文件：/js/vue/lib.js
+<<scheduler>>
+
+// len = activePostFlushCbs.length
+const run = async () => {
+  const calls = [];
+  const cb1 = () => {
+    calls.push("cb1");
+    // 会在同一个 tick 期间执行，因为它在for flushing 期间改变了
+    // activePostFlushCbs，并且紧随 cb1,cb2,cb3 之后执行
+    queuePostFlushCb(cb4);
+  };
+  const cb2 = () => calls.push("cb2");
+  const cb3 = () => calls.push("cb3");
+  // job1 会在 cb4 之后执行，因为 flushJobs 在按顺序执行完
+  // pre -> job -> post 最后的 finally 里面对 queue 进行了检测
+  // 此时 queue = [job1] 随意会递归调用 flushJobs() 继续刷
+  // 但是为什么 cb5 会在 job1 之后呢？？？
+  // 因为 queuePostFlushCb push 的是 pendingPostFlushCbs 而不是
+  // activePostFlushCbs，所以在 queuePostFlushCb 中调用自身增加的新
+  // cbs 会在 finally 后面的检测递归 flushJobs() 调用中执行
+  // 而 post 的优先级又低于 job 所以 job1 会优先输出
+  const cb4 = () => (queuePostFlushCb(cb5), queueJob(job1), calls.push("cb4"));
+  // 会在 job1,cb5 之后执行
+  const job1 = () => (queuePostFlushCb(cb6), calls.push("job1"));
+  const cb5 = () => calls.push("cb5");
+  const cb6 = () => calls.push("cb6");
+
+  queuePostFlushCb([cb1, cb2]);
+  queuePostFlushCb(cb3);
+
+  // 应该去重
+  queuePostFlushCb([cb1, cb3]);
+  queuePostFlushCb(cb2);
+  await nextTick();
+  log(calls);
+};
+run();
+#+end_src
+
+#+RESULTS:
+#+begin_example
+queueFlush| isFlushing=false,isFlushPending=false
+queueFlush| isFlushing=false,isFlushPending=true
+queueFlush| isFlushing=false,isFlushPending=true
+queueFlush| isFlushing=false,isFlushPending=true
+nextTick| queue=0,resolvedPromise=[object Promise],currentFlushPromise=[object Promise]
+undefinedflushJobs| seen=undefined, queue=0,flushIndex=0,isFlushing=true
+queueFlush| isFlushing=true,isFlushPending=false
+flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=1
+flushJobs| seen=undefined, queue=0,flushIndex=0,isFlushing=true
+queueFlush| isFlushing=true,isFlushPending=false
+queueJob| queue=0,job existed=false
+queueFlush| isFlushing=true,isFlushPending=false
+flushJobs| queue=1,pendingPreFlushCbs=0,pendingPostFlushCbs=1
+flushJobs| seen=undefined, queue=1,flushIndex=0,isFlushing=true
+queueFlush| isFlushing=true,isFlushPending=false
+flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=0
+[
+  'cb1',  'cb2',
+  'cb3',  'cb4',
+  'job1', 'cb5',
+  'cb6'
+]
+#+end_example
+
+#+begin_tip
+对于 [[queuePostFlushCb][queuePostFlushCb()]] 和 [[queueJob][queueJob()]] 的混用只要记住一点， [[queuePostFlushCb][queuePostFlushCb()]] 不会触
+发 ~activePostFlushCbs~ 改变，因为 isFlushing = true，所以只会在当前 [[flushJobs][flushJobs()]]
+执行到最后递归检测的时候才会进入下一次的 post+job 调用。
+#+end_tip
+* invalidateJob()
+
+#+name: invalidateJob
+#+begin_src js -n -r
+function invalidateJob(job) {
+  const i = queue.indexOf(job)
+  if (i > flushIndex) {
+    queue.splice(i, 1)
+  }
+}
+#+end_src
+
+red:Testing
+
+#+begin_src js -n -r :exports both
+<<scheduler>>
+
+const run = async () => {
+  const calls = [];
+  const job1 = () => {
+    calls.push("job1");
+    invalidateJob(job2); // 这里将 job2 从 queue[] 中删除了
+  };
+  const job2 = () => {
+    calls.push("job2");
+  };
+  const job3 = () => {
+    calls.push("job3");
+  };
+  const job4 = () => {
+    calls.push("job4");
+  };
+
+  queueJob(job1);
+  queueJob(job2);
+  queueJob(job3);
+  queuePostFlushCb(job4);
+  await nextTick();
+  log(calls);
+};
+run();
+#+end_src
+
+#+RESULTS:
+#+begin_example
+queueJob| queue=0,job existed=false
+queueFlush| isFlushing=false,isFlushPending=false
+queueJob| queue=1,job existed=false
+queueFlush| isFlushing=false,isFlushPending=true
+queueJob| queue=2,job existed=false
+queueFlush| isFlushing=false,isFlushPending=true
+queueFlush| isFlushing=false,isFlushPending=true
+nextTick| queue=3,resolvedPromise=[object Promise],currentFlushPromise=[object Promise]
+undefinedflushJobs| seen=undefined, queue=3,flushIndex=0,isFlushing=true
+flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=0
+[ 'job1', 'job3', 'job4' ]
+#+end_example
+* allowRecurse
+
+这个选项是用来控制是不是可以在 job fn 里面递归调用 ~queueJob(job)~ 。
+
+在源码里这个选项出现在两个地方，一个是 [[queueCb][queueCb()]] 中，另一个是
+[[queueJob][queueJob()]] 作用都是在检查当前入列的 job 是不是已经在队列里了，控制查找的起始索引
+位置。
+
+
+red:queueJob: ~!queue.includes(job, isFlushing && job.allowRecurse ? flushIndex + 1 : flushIndex)~
+
+red:queueCb: ~!activeQueue.includes(cb, cb.allowRecurse ? index + 1 : index)~
+
+[[../assets/img/vue3/runtime-core/vue-runtime-core-job-allowRecurse.jpg]]
+
+在递归调用时， index 索引上的任务是当前正在被遍历到的 job ，也是递归源，如果从这
+里开始找被嵌套的 job 永远进不了队列中。
+
+red:Testing
+
+#+begin_src js -n -r :exports both
+<<scheduler>>
+const run = async () => {
+  let count = 0;
+  const job = () => {
+    if (count < 3) {
+      count++;
+      queueJob(job);
+    }
+  };
+  queueJob(job);
+  queueJob(job);
+  await nextTick();
+  log("before count: " + count);
+  // 设置 allowRecurse = true 允许自我调度
+  count = 0;
+  job.allowRecurse = true;
+  // 重复入列同一个任务会在 push 阶段就检测和自身递归调用不同
+  queueJob(job);
+  queueJob(job);
+  await nextTick();
+  log("after count: " + count);
+};
+run();
+return 0
+#+end_src
+
+#+RESULTS:
+#+begin_example
+queueJob| queue=0,job existed=false
+queueFlush| isFlushing=false,isFlushPending=false
+queueJob| queue=1,job existed=true
+nextTick| queue=1,resolvedPromise=[object Promise],currentFlushPromise=[object Promise]
+0flushJobs| seen=undefined, queue=1,flushIndex=0,isFlushing=true
+queueJob| queue=1,job existed=true
+flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=0
+before count: 1
+queueJob| queue=0,job existed=false
+queueFlush| isFlushing=false,isFlushPending=false
+queueJob| queue=1,job existed=true
+nextTick| queue=1,resolvedPromise=[object Promise],currentFlushPromise=[object Promise]
+flushJobs| seen=undefined, queue=1,flushIndex=0,isFlushing=true
+queueJob| queue=1,job existed=true
+queueFlush| isFlushing=true,isFlushPending=false
+queueJob| queue=2,job existed=true
+queueFlush| isFlushing=true,isFlushPending=false
+queueJob| queue=3,job existed=true
+queueFlush| isFlushing=true,isFlushPending=false
+flushJobs| queue=0,pendingPreFlushCbs=0,pendingPostFlushCbs=0
+after count: 3
+#+end_example
+
+* Testing
+
+#+html: <br>
+#+begin_details nested
+#+begin_src js -n -r :exports both
+// 源文件：/js/vue/lib.js
+<<scheduler>>
+
+const run = async () => {
+  const calls = [];
+  const cb1 = () => {
+    calls.push("cb1");
+  };
+  const cb2 = () => {
+    calls.push("cb2");
+    // queueJob 和 queuePreFlushCb 结合使用
+    queueJob(job1);
+  };
+  const cb3 = () => {
+    calls.push("cb3");
+    // 链式使用，cb4 会在 cb1,2,3 执行完成之后才会执行
+    queuePreFlushCb(cb4);
+  };
+  const cb4 = () => {
+    calls.push("cb4");
+  };
+  const cb5 = () => {
+    calls.push("cb5");
+  };
+  const job1 = () => {
+    calls.push("job1");
+    // queuePreFlushCb 在 queueJob 中调用
+    // pre cbs 在 job 中调用的时候不会被执行，除非在这后面手动 flush
+    // 或者有新的任务进来，发起 flushJobs 调用才会执行
+    queuePreFlushCb(cb5);
+    // 必须手动触发, 这样 cb5 才会输出
+    flushPreFlushCbs(undefined, job1 /* currentPreFlushParentJob */);
+  };
+  const cb6 = () => {
+    calls.push("cb6");
+  };
+
+  queuePreFlushCb(cb1);
+  queuePreFlushCb(cb2);
+  queuePreFlushCb(cb1);
+  queuePreFlushCb(cb2);
+  queuePreFlushCb(cb3);
+
+  await nextTick();
+  log("\n" + calls);
+};
+run();
+#+end_src
+
+结果分析：
+
+1. ~pendingPreFlushCbs~ 虽然是个数组，但是 flush 期间通过 ~[...new
+   Set(pendingPreFlushCbs)]~ 进行了去重操作。
+
+2. 链式操作，因为在执行期间使用的是 ~activePreFlushCbs~ 且此时的
+   ~pendingPreFlushCbs~ 清空了，等待新任务入列
+
+3. 在执行 cb3 期间，调用 [[queuePreFlushCb][queuePreFlushCb(cb4)]] 此时 push cb4 ->
+   ~pendingPreFlushCbs~ ，但实际不会影响本次的 for 循环执行，这点和 [[queueJob][queueJob]] 有点
+   不同，它直接使用的是 queue -> for 所以有新的任务入列会立即改变 for 的执行长度
+   (~queue.length~)
+
+   pre 处理会等到 ~activePreFlushCbs~ for 执行循环结束后，在函数的最后递归调用
+   [[flushPreFlushCbs][flushPreFlushCbs()]] 来刷掉新入列的任务(如： cb4)
+
+4. [[queueJob][queueJob()]] 在 [[queuePreFlushCb][queuePreFlushCb()]] 中调用的时候， queue job 总是在 pre cb 之后被执行，
+   这也 是 [[flushJobs][flushJobs()]] 中处理代码应体现出的结果。
+
+   #+begin_src js -n -r
+   function flushJobs() {
+     /// 1. flush pre -> flushPreFlushCbs()
+     /// 2. for -> queue job -> callWithErrorHandling(job, ...)
+     // 3. flush post -> flushPostFlushCbs()
+   }
+   #+end_src
+
+   并且如上面实例结果 cb4 嵌套在 cb3 ，job1 嵌套在了 cb2 中，但是最后还是 cb4 先
+   得到执行了，job1 再执行。
+
+   #+begin_tip
+   因此，对于 pre cbs 和 queue jobs 两个类型的任务，不管什么时机入列的，都会 是
+   先执行 pre cbs 再执行 queue jobs。
+   #+end_tip
+
+5. [[queuePreFlushCb][queuePreFlushCb()]] 在 [[queueJob][queueJob()]] 中调用的时候，新的 pre job 会在 queue job 后
+   执行
+
+   原因： ~flushPreFlushCbs()~ 先于 queue jobs 执行，因此 queue jobs(red:job1) 执
+   行的时候 ~queuePreFlushCb()~ 加入的任务(red:cb5)此时不会执行，而是等 queue jobs 都
+   执行完之后在 finally 里面会做一次检测
+
+   #+begin_src js -n -r
+   if (queue.length || pendingPreFlushCbs.length) {
+    flushJobs(seen)
+   }
+   #+end_src
+
+   这个时候会去递归 ~flushJobs()~ 此时才发现有新的 ~pendingPreFlushCbs~ (如： red:cb5)，
+   则将执行他们，所以结果是 job1,cb5 。
+#+end_details
+
+#+html: <br>
+#+begin_details sort-by-id
+#+begin_src js -n -r :exports both
+<<scheduler>>
+
+const run = async () => {
+  const calls = [];
+  const job1 = () => calls.push("job1");
+  const job2 = () => calls.push("job2");
+  const job3 = () => calls.push("job3");
+  // job1 no id
+  job2.id = 2;
+  job3.id = 1;
+
+  const cb1 = () => calls.push("cb1");
+  const cb2 = () => calls.push("cb2");
+  const cb3 = () => calls.push("cb3");
+  cb1.id = 2;
+  // cb2 no id
+  cb3.id = 1;
+
+  queueJob(job1);
+  queueJob(job2);
+  queueJob(job3);
+  queuePostFlushCb(cb1);
+  queuePostFlushCb(cb2);
+  queuePostFlushCb(cb3);
+  await nextTick();
+  log(calls);
+};
+run();
+#+end_src
+#+end_details
+
+#+html: <br>
+#+begin_details test-with-vuejs
+#+begin_export html
+<div id="PoeRZzOa"></div>
+<script src="../assets/tests/PoeRZzOa.js"></script>
+#+end_export
+
+测试源码：
+#+name: test-with-vuejs
+#+begin_src js -n -r
+/** jsx?|tsx? file header */
+
+const {
+  reactive,
+  watch,
+  watchEffect,
+  ref,
+  computed,
+  onMounted,
+  createApp,
+  getSchedulerInfo
+} = Vue
+
+createApp({
+  setup() {
+    const logs = reactive([])
+    const foo = ref(1)
+    const bar = ref(100)
+    const baz = computed(() => {
+      log(`computed... foo=${foo.value}, bar=${bar.value}`)
+      return foo.value + bar.value
+    })
+    const log = (msg) => {
+      const jobs = []
+      window.jobs.forEach((job) => {
+        const value = '> ' + job.type
+        if (!jobs.includes(value)) jobs.push(value)
+      })
+      logs.unshift(msg)
+      logs.unshift(...jobs)
+    }
+
+    watch(foo, (newVal) => {
+      log(`watch... foo=${foo.value}`)
+    })
+
+    watchEffect(() => {
+      log(`watchEffect... bar=${bar.value}`)
+    })
+
+    const jobs = computed(() => window.jobs)
+
+    return {
+      logs,
+      foo,
+      bar,
+      baz,
+      jobs
+    }
+  },
+
+  template: `
+<el-card header="日志">
+  <el-button @click="logs.splice(0)">CLEAR</el-button>
+  <el-button @click="foo++">FOO + 1</el-button>
+  <el-button @click="bar--">BAR - 1</el-button>
+  <p style="color:blue">baz={{baz}}, jobs=${jobs.length}</p>
+  <p style="margin:0;padding:2px 0" v-for="(msg,i) in logs">{{ typeof msg === 'object' ? JSON.stringify(msg) : msg }}</p>
+</el-card>`
+})
+  .use(ElementPlus)
+  .mount('#PoeRZzOa')
+console.log(Vue, 111)
+#+end_src
+
+#+begin_comment
+点击 “FOO+1" 按钮输出结果，从下往上看(red:红色为手动加的注释分析)：
+
+#+begin_box
+> queuePostFlushCb <red:组件周期函数入列>
+
+> flushPostFlushCbs <red:in render>
+
+> flushJobs  <red:instance.update flush>
+
+> flushPreFlushCbs <red:watch>
+
+> queuePreFlushCb <red:watch>
+
+> queueJob <red:instance.update>
+
+computed... foo=2, bar=100 <red:因为 foo 的更新触发依赖的计算属性变更，进入下一
+轮>
+
+> queuePostFlushCb => <red:各周期函数入列>
+
+> flushPostFlushCbs  <red:render 函数最后执行的操作，手动触发周期等函数>
+
+> flushJobs        <red:flush 是在 promise 之后执行的异步代码所以后执行>
+
+> flushPreFlushCbs <red:开始 flush 掉 pre cbs，为什么它会早于 flushJobs ? 它是手动触发的且执行都是同步代码所以肯定是先于 flushJobs 的>
+
+> queuePreFlushCb <red:上面讲过 pre 类型只针对 watch api 所以这里 watch(..., fn) 的 fn 会被入列到 pre queue 中>
+
+> queueJob   <red:因为 foo 变更了所以要触发组件更新执行 ~instance.update~ 因此将它 queue 到 job 队列中>
+
+watch... foo=2
+
+#+end_box
+
+因此上面也就是当一个变量更新时所发生函数调用(instance.update -> queueJob ->
+queuePreFlushCb -> flushJobs -> flushPostFlushCbs -> queuePostFlushCb)。
+#+end_comment
+
+#+end_details
+* scheduler flow mindmap
+:PROPERTIES:
+:COLUMNS:  %CUSTOM_ID[(Custom Id)]
+:CUSTOM_ID: scheduler-mindmap
+:END:
+
+
+[[../assets/img/vue3/runtime-core/vue-runtime-core-scheduler.svg]]
+* Q&A
+
+** pre,job,post 三种任务都分别代表什么？
+
+要搞清楚它们分别代表什么，就要先知道它们都是在哪里被调用了。
+
+*** pre cbs
+
+首先对于 [[queuePreFlushCb][queuePreFlushCb]] 这个在上面[[queuePreFlushCb-usage][对应的一节]]中就有讲过只有在 ~doWatch()~ 这个
+api 函数中被调用到，也就是 ~watch~, ~this.$watch~ 时候使用的。
+
+与之对应的 [[flushPreFlushCbs][flushPreFlushCbs()]] 是在 orange:renderer.ts:updateComponentPreRender 这个函数
+里调用的，相关详情请查看该文：[[id:d0fc0f76-8429-429c-99a0-206792da22ad][build your own vue runtime-core]] 。
+
+这里简单回顾下 ~updateComponentPreRender~ 调用路径(往回推)
+
+[[../assets/img/vue3plus/s/flushPreFlushCbs-called-flow.svg]]
+
+#+begin_src typescript -n -r
+const updateComponentPreRender = (
+    instance: ComponentInternalInstance,
+    nextVNode: VNode,
+    optimized: boolean
+  ) => {
+    nextVNode.component = instance
+    const prevProps = instance.vnode.props
+    instance.vnode = nextVNode
+    instance.next = null
+    updateProps(instance, nextVNode.props, prevProps, optimized)
+    updateSlots(instance, nextVNode.children, optimized)
+
+    pauseTracking()
+    // props update may have triggered pre-flush watchers.
+    // flush them before the render update.
+    flushPreFlushCbs(undefined, instance.update)
+    resetTracking()
+  }
+#+end_src
+
+所以， pre cbs 只跟 watch 有关，触发 flush 是在组件 render 之前， props 更新之后。
+*** post cbs
+
+[[queuePostFlushCb][queuePostFlushCb()]] 被调用的地方：
+
+[[../assets/img/vue3plus/s/queuePostFlushCb.png]]
+
+分别有： _hmr.ts_, _Suspense.ts_, _renderer.ts_, red:hmr 是开发时的热更新相关这里就不
+讲了，主要看下 _renderer.ts_ 中是干什么了(什么行为会被当做 post cbs 入列)。
+
+1. mountElement 最后将 ~onVnodeMounted, transition.enter~ 和指令的 ~mounted~ 。
+2. patchElement 最后 ~onVnodeUpdated~ 和指令的 ~updated~
+3. setupRenderEffect->componentUpdateFn 中的 ~mounted~, ~onVnodeMounted~,
+   ~hook:mounted~, KeepAlive 的 ~activated~ , ~updated~, ~onVnodeUpdated~, ~hook:updated~
+4. move 中的 ~transition.enter~
+5. unmount 中的 ~onVnodeUnmounted~ 和指令中的 ~unmounted~
+6. unmountComponent 中的 ~unmounted~, ~hook:destroyed~ 和 ~instance.isUnmounted~ 标识
+   的更新
+
+
+从上面 6 个点看来，也就是说，生命周期函数的回调都会被当做是 post cbs 类型。
+
+而对应的 [[flushPostFlushCbs][flushPostFlushCbs()]] 触发是在 ~render()~ 函数最后：
+
+#+begin_src js -n -r
+const render: RootRenderFunction = (vnode, container, isSVG) => {
+    if (vnode == null) {
+      if (container._vnode) {
+        unmount(container._vnode, null, null, true)
+      }
+    } else {
+      patch(container._vnode || null, vnode, container, null, null, null, isSVG)
+    }
+    flushPostFlushCbs()
+    container._vnode = vnode
+  }
+#+end_src
+
+[[queuePostFlushCbs][queuePostFlushCbs()]] 的调用都是发生在 unmount 或 patch 这个流程下，完了之后再调用
+[[flushPostFlushCbs][flushPostFlushCbs()]] 启动队列刷新。
+*** job
+
+#+begin_box 搜索结果
+packages/runtime-core/src/hmr.ts
+
+10   import { red:queueJob, queuePostFlushCb } from './scheduler'
+138        red:queueJob(instance.parent.update)
+
+packages/runtime-core/src/renderer.ts
+
+41     red:queueJob,
+
+1547       () => red:queueJob(instance.update),
+
+packages/runtime-core/src/componentPublicInstance.ts
+
+7    import { nextTick, red:queueJob } from './scheduler'
+
+241      $forceUpdate: i => () => red:queueJob(i.update),
+
+packages/runtime-core/src/scheduler.ts
+
+84   export function red:queueJob(job: SchedulerJob) {
+
+packages/runtime-core/src/apiAsyncComponent.ts
+
+17   import { red:queueJob } from './scheduler'
+
+189              red:queueJob(instance.parent.update)
+#+end_box
+
+_renderer.ts_ ~instance.update~ 方法触发，即组件的更新:
+
+_componentPublicInstance.ts_ ~$forceUpdate: i => () => queueJob(i.update)~
+
+_apiAsyncComponent.ts_, 异步组件中如果父组件是 KeepAlive 强制父组件更新
+
+#+begin_src typescript -n -r
+load().then(() => {
+    loaded.value = true
+    if (instance.parent && isKeepAlive(instance.parent.vnode)) {
+    // parent is keep-alive, force update so the loaded component's
+    // name is taken into account
+        queueJob(instance.parent.update)
+    }
+})
+#+end_src
+
+不管是哪种情况都是在组件非首次加载更新时触发的 [[queueJob][queueJob()]] 。
+
+*** 小结
+
+根据前面三种类型调用点的分析大概得出结论：
+
+1. pre cbs 只针对 watch api，flush 发生在 props 更新之后，render 之前
+2. post cbs 针对各种周期函数(组件，指令，VNode)
+3. job 针对 instance.update 组件更新函数的调用
+
+* COMMENT Local Variables :ARCHIVE:
+# Local Variables:
+# after-save-hook: gcl/org-html-export-to-html
+# End:

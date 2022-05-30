@@ -3,6 +3,9 @@
 :END:
 #+SETUPFILE:~/.gclrc/org/hugo_setup.org
 #+HUGO_SLUG: javascript_proxy_and_reflect
+#+HTML_HEAD: <meta name="category" content="javascript"/>
+#+HTML_HEAD: <meta name="tags" content="proxy,reflect"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-03-08 09:40:51"/>
 #+TITLE: JavaScript Proxy And Reflect
 <badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
 

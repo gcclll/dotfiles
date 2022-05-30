@@ -8,300 +8,400 @@ LOCBIN="/usr/local/bin"
 OPTBIN="/opt/local/bin"
 
 test_rm() {
-  if [ -e "$1" ]; then
-    rm -rf "$1"
-  fi
+	if [ -e "$1" ]; then
+		rm -rf "$1"
+	fi
 }
 
 test_ln() {
-  if [ ! -e "$1" ]; then
-    echo "no source target..."
-    exit -1
-  fi
+	if [ ! -e "$1" ]; then
+		echo "no source target..."
+		exit -1
+	fi
 
-  if [ -e "$2" ]; then
-    rm -rf "$2"
-  fi
+	if [ -e "$2" ]; then
+		rm -rf "$2"
+	fi
 
-  ln -sv "$1" "$2"
+	ln -sv "$1" "$2"
 }
 
 set_brew_mirror() {
-  repo="$1"
-  core="$2"
-  bottle="$3"
-  cd "$(brew --repo)"
-  echo "set remote origin=$1"
-  git remote set-url origin $repo
-  cd "$(brew --repo)/Library/Taps/homebrew/homebrew-core"
-  echo "set remote core=$2"
-  git remote set-url origin $core
-  echo "export bottle=$3"
-  sed '/export HOMEBREW_BOTTLE_DOMAIN=/d' $HOME/.zshrc >$HOME/.zshrc
-  echo "export HOMEBREW_BOTTLE_DOMAIN=$bottle" >>$HOME/.zshrc
-  echo "updating..."
-  brew update
-  echo "done."
+	repo="$1"
+	core="$2"
+	bottle="$3"
+	cd "$(brew --repo)"
+	echo "set remote origin=$1"
+	git remote set-url origin $repo
+	cd "$(brew --repo)/Library/Taps/homebrew/homebrew-core"
+	echo "set remote core=$2"
+	git remote set-url origin $core
+	echo "export bottle=$3"
+	sed '/export HOMEBREW_BOTTLE_DOMAIN=/d' $HOME/.zshrc >$HOME/.zshrc
+	echo "export HOMEBREW_BOTTLE_DOMAIN=$bottle" >>$HOME/.zshrc
+	echo "updating..."
+	brew update
+	echo "done."
 }
 
 reset_brew_mirror() {
-  git -C "/usr/local/Homebrew/Library/Taps/homebrew/homebrew-core" remote set-url origin https://github.com/Homebrew/homebrew-core
+	git -C "/usr/local/Homebrew/Library/Taps/homebrew/homebrew-core" remote set-url origin https://github.com/Homebrew/homebrew-core
 }
 
-set_github_proxy() {
-  git config --global http.proxy 'socks5://127.0.0.1:7891'
-  git config --global https.proxy 'socks5://127.0.0.1:7891'
+set_socks_proxy() {
+	git config --global http.proxy 'socks5://127.0.0.1:1080'
+	git config --global https.proxy 'socks5://127.0.0.1:1080'
+}
+
+set_mix_proxy() {
+	git config --global http.proxy 'http://127.0.0.1:1080'
+	git config --global https.proxy 'http://127.0.0.1:1080'
+	git config --global all.proxy 'socks5://127.0.0.1:1080'
 }
 
 unset_github_proxy() {
-  git config --global --unset http.proxy
-  git config --global --unset https.proxy
+	git config --global --unset http.proxy
+	git config --global --unset https.proxy
 }
 
 set_git_user() {
-  git config --global user.name "gcclll"
-  git config --global user.email "gccll.love@gmail.com"
-  git config --list
-  echo "set git user & email done."
-}
-
-set_cnpm_github() {
-  git config --global url.https://github.com.cnpmjs.org/.insteadof https://github.com/
+	git config --global user.name "gcclll"
+	git config --global user.email "gccll.love@gmail.com"
+	git config --list
+	echo "set git user & email done."
 }
 
 set_alfred_workflows() {
-  if [ $# -lt 1 ]; then
-    echo "COMMAND: gset alfred [set|bak]"
-  fi
-  ali_dir=$HOME/github/aliyun/my-softs/alfred
-  loc_dir=$HOME/Library/Application\ Support/Alfred/Alfred.alfredpreferences/workflows
-  if [ "$1" == "set" ]; then
-    echo "Restoring..."
-    cp -R ${ali_dir} "${loc_dir}"
-  elif [ "$1" == "bak" ]; then
-    echo "Baking up..."
-    cp -R "${loc_dir}/" ${ali_dir}
-    cd ${ali_dir}
-    gpush
-  fi
+	if [ $# -lt 1 ]; then
+		echo "COMMAND: gset alfred [set|bak]"
+	fi
+	ali_dir=$HOME/github/aliyun/my-softs/alfred
+	loc_dir=$HOME/Library/Application\ Support/Alfred/Alfred.alfredpreferences/workflows
+	if [ "$1" == "set" ]; then
+		echo "Restoring..."
+		cp -R ${ali_dir} "${loc_dir}"
+	elif [ "$1" == "bak" ]; then
+		echo "Baking up..."
+		cp -R "${loc_dir}/" ${ali_dir}
+		cd ${ali_dir}
+		gpush
+	fi
 }
 
 set_mac_workflows() {
-  wf=$GCLRC_HOME/workflows/
-  cd $wf
-  for dir in *; do
-    target="$HOME/Library/Services/$dir"
-    if [ ! -d "$target" ]; then
-      cp -R "$dir" "$target"
-    fi
-  done
+	wf=$GCLRC_HOME/workflows/
+	cd $wf
+	for dir in *; do
+		target="$HOME/Library/Services/$dir"
+		if [ ! -d "$target" ]; then
+			cp -R "$dir" "$target"
+		fi
+	done
 
 }
 
 rc=~/.gclrc
 set_soft_links() {
-  test_ln $rc/.zshrc ~/.zshrc
-  test_ln $rc/mu4e/mbsyncrc ~/.mbsyncrc
-  test_ln $rc/mu4e/msmtprc ~/.msmtprc
-  test_ln $rc/.hammerspoon ~/.hammerspoon
-  test_ln $rc/.netrc ~/.netrc
-  test_ln $rc/.mpdconf ~/.mpdconf
-  test_ln $rc/config/.npmrc ~/.npmrc
-  test_ln $HOME/github/mine/blog.cheng92.com $HOME/.my-blog
-  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-local.setup $rc/org/hugo_setup.org
-  test_ln $rc/config/.env-blog $HOME/github/mine/blog.cheng92.com/.env
+	test_ln $rc/config/.gitconfig ~/.gitconfig
+	test_ln $rc/.zshrc ~/.zshrc
+  test_ln $rc/.ssh ~/.ssh
+	test_ln $rc/mu4e/mbsyncrc ~/.mbsyncrc
+	test_ln $rc/mu4e/msmtprc ~/.msmtprc
+	test_ln $rc/.hammerspoon ~/.hammerspoon
+	test_ln $rc/.netrc ~/.netrc
+	test_ln $rc/.mpdconf ~/.mpdconf
+	test_ln $rc/config/.npmrc ~/.npmrc
+	test_ln $HOME/github/mine/blog.cheng92.com $HOME/.my-blog
+	test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-local.setup $rc/org/hugo_setup.org
+	test_ln $rc/config/.env-blog $HOME/github/mine/blog.cheng92.com/.env
 
-  ver="$(node -v)"
-  lib="$HOME/.nvm/versions/node/${ver}/lib/node_modules"
+	ver="$(node -v)"
+	lib="$HOME/.nvm/versions/node/${ver}/lib/node_modules"
 
-  test_ln $lib ~/.nlib
+	test_ln $lib ~/.nlib
+	test_ln $lib /usr/lib/node_modules
 
-  # link command
-  if [ -e "$OPTBIN/tidy" ]; then
-    sudo rm -f $OPTBIN/tidy
-  fi
-  sudo ln -sv $rc/bin/gtidy $OPTBIN/tidy
+	# link command
+	if [ -e "$OPTBIN/tidy" ]; then
+		sudo rm -f $OPTBIN/tidy
+	fi
+	sudo ln -sv $rc/bin/gtidy $OPTBIN/tidy
 
-  source ~/.zshrc
+	source $HOME/.zshrc
 }
 
 use_readtheorg() {
-  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg.setup $rc/org/hugo_setup.org
+	test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg.setup $rc/org/hugo_setup.org
 }
 
 use_my_readtheorg() {
-  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-my.setup $rc/org/hugo_setup.org
+	test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-my.setup $rc/org/hugo_setup.org
 }
 
 use_local_readtheorg() {
-  test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-local.setup $rc/org/hugo_setup.org
+	test_ln $HOME/github/mine/org-html-themes/org/theme-readtheorg-local.setup $rc/org/hugo_setup.org
 }
 
 init_mu4e_dir() {
-  test_dir $HOME/Mail/qq
-  test_dir $HOME/Mail/gmail
-  gmu init 604522194@qq.com
-  gmu init gccll.love@gmail.com
+	test_dir $HOME/Mail/qq
+	test_dir $HOME/Mail/gmail
+	gmu init 604522194@qq.com
+	gmu init gccll.love@gmail.com
 }
 
 push_all() {
-  gpdoom
-  gpdot
-  gpblog
-  gpdocs
-  gprime
+	gpdoom
+	gpdot
+	gpblog
+	gpdocs
+	gprime
 }
 
 set_fonts() {
-  if [ $# -lt 1 ]; then
-    echo "COMMAND: gset fonts [set|bak]"
-  fi
+	if [ $# -lt 1 ]; then
+		echo "COMMAND: gset fonts [set|bak]"
+	fi
 
-  to="$ALI/documents/fonts"
-  from="$FONTS"
-  if [ "$1" == "set" ]; then
-    cp_dir_files "$to" "$from"
-  else
-    cp_dir_files "$from" "$to"
-  fi
+	to="$ALI/documents/fonts"
+	from="$FONTS"
+	if [ "$1" == "set" ]; then
+		cp_dir_files "$to" "$from"
+	else
+		cp_dir_files "$from" "$to"
+	fi
 }
 
 set_deno_config() {
-  if [ $# -lt 1 ] && [ ! -d "$1" ]; then
-    echo "No deno projects root"
-    exit -1
-  fi
+	if [ $# -lt 1 ] && [ ! -d "$1" ]; then
+		echo "No deno projects root"
+		exit -1
+	fi
 
-  deno install \
-    --unstable \
-    --allow-read=$1 \
-    --allow-write=$1 \
-    https://deno.land/x/denoconfig@0.1.1/denoconfig.ts
+	deno install \
+		--unstable \
+		--allow-read=$1 \
+		--allow-write=$1 \
+		https://deno.land/x/denoconfig@0.1.1/denoconfig.ts
 }
 
 set_node_lib() {
-  ver="$(node -v)"
-  echo "Node Version: $ver"
-  lib="$HOME/.nvm/versions/node/${ver}/lib/node_modules"
-  old="/usr/local/lib/node_modules"
-  old2="/usr/local/lib/node_modules2"
-  if [ -h "$old" ]; then
-    rm "$old"
-  fi
-  if [ -d "$old" ]; then
-    mv "$old" "$old2"
-  fi
-  ln -s "$lib" "$old"
-  ls -al "$old"
-  echo "Node Version: $(node -v)"
-  echo "Npm Version: $(npm -v)"
+	ver="$(node -v)"
+	echo "Node Version: $ver"
+	lib="$HOME/.nvm/versions/node/${ver}/lib/node_modules"
+	old="/usr/local/lib/node_modules"
+	old2="/usr/local/lib/node_modules2"
+	if [ -h "$old" ]; then
+		rm "$old"
+	fi
+	if [ -d "$old" ]; then
+		mv "$old" "$old2"
+	fi
+	ln -s "$lib" "$old"
+	ls -al "$old"
+	echo "Node Version: $(node -v)"
+	echo "Npm Version: $(npm -v)"
 }
 
 set_node_bin() {
-  ver="$(node -v)"
-  echo "Node Version: $ver"
-  bin="$HOME/.nvm/versions/node/${ver}/bin"
-  if [ -d "$bin" ]; then
-    sudo ln -s "$bin" "/usr/local/nbin"
-    ls -al /usr/local | grep "nbin"
-  fi
+	ver="$(node -v)"
+	echo "Node Version: $ver"
+	bin="$HOME/.nvm/versions/node/${ver}/bin"
+	if [ -d "$bin" ]; then
+		sudo ln -s "$bin" "/usr/local/nbin"
+		ls -al /usr/local | grep "nbin"
+	fi
 }
 
 install_apps() {
-  apps="$GCLRC_HOME/macos/apps/"
-  cd $apps
-  for app in *; do
-    if [ ! -d "/Applications/$app" ]; then
-      cp -R "$app" "/Applications/$app"
-    fi
-  done
+	apps="$GCLRC_HOME/macos/apps/"
+	cd $apps
+	for app in *; do
+		if [ ! -d "/Applications/$app" ]; then
+			cp -R "$app" "/Applications/$app"
+		fi
+	done
 
-  defaults write com.google.Chrome ExternalProtocolDialogShowAlwaysOpenCheckbox -bool true
+	defaults write com.google.Chrome ExternalProtocolDialogShowAlwaysOpenCheckbox -bool true
 }
 
 set_go_proxy() {
-  go env -w GO111MODULE=on
-  go env -w GOPROXY=https://goproxy.io,direct
+	go env -w GO111MODULE=on
+	go env -w GOPROXY=https://goproxy.io,direct
 
 }
 
 set_pip_alias() {
-  echo "set alias pip..."
-  p3="$(which pip3)"
-  echo "$p3, $(which pip)"
-  if [ -f "$p3" ]; then
-    echo "linking..."
-    p0="/usr/local/bin/pip"
-    if [ -f "$p0" ]; then
-      rm "$p0"
-    fi
-    cp "$p3" "$p0"
-    ls -al "$p0"
-  else
-    echo "set failed."
-  fi
+	echo "set alias pip..."
+	p3="$(which pip3)"
+	echo "$p3, $(which pip)"
+	if [ -f "$p3" ]; then
+		echo "linking..."
+		p0="/usr/local/bin/pip"
+		if [ -f "$p0" ]; then
+			rm "$p0"
+		fi
+		cp "$p3" "$p0"
+		ls -al "$p0"
+	else
+		echo "set failed."
+	fi
 }
 
 fix_eaf_doom() {
-  dir="$HOME/emacs-application-framework"
-  build="$HOME/.emacs.d/.local/straight/build-29.0.50/eaf"
-  cd $dir
-  pwd
-  for file in *; do
-    if [ "$file" != "eaf.el" ]; then
-      echo "Linking: $file"
-      ln -s "$dir/$file" "$build/$file"
-    fi
-  done
-  ls "$build"
+	dir="$HOME/emacs-application-framework"
+	build="$HOME/.emacs.d/.local/straight/build-29.0.50/eaf"
+	cd $dir
+	pwd
+	for file in *; do
+		if [ "$file" != "eaf.el" ]; then
+			echo "Linking: $file"
+			ln -s "$dir/$file" "$build/$file"
+		fi
+	done
+	ls "$build"
 }
 
 set_blog_alias() {
-  BLOG="$HOME/github/mine/cheng92.com"
-  if [ ! -d "$BLOG" ]; then
-    echo "$BLOG not existed!"
-    exit -1
-  fi
+	BLOG="$HOME/github/mine/cheng92.com"
+	if [ ! -d "$BLOG" ]; then
+		echo "$BLOG not existed!"
+		exit -1
+	fi
 
-  ln -s "$BLOG" "$HOME/.d"
-  ls -al "$HOME/.d"
+	ln -s "$BLOG" "$HOME/.d"
+	ls -al "$HOME/.d"
 }
 
+install-eaf() {
+	if [ ! -d ~/.eaf ]; then
+		git clone --depth=1 -b master https://github.com/emacs-eaf/emacs-application-framework.git ~/.eaf
+	fi
+
+	cd ~/.eaf
+	chmod +x ./install-eaf.py
+	./install-eaf.py
+	if [ $# -gt 0 ] && [ "$1" == "newapps" ]; then
+		git pull
+		./install-eaf.py --install-new-apps
+	fi
+}
+
+github-proxy() {
+	echo "valid proxy name alias: fastgit|cnpmjs|gitclone"
+
+	if [ $# -lt 1 ]; then
+		name="fastgit"
+	else
+		name="$1"
+	fi
+
+	echo "NAME: $name"
+	case "$name" in
+	fastgit)
+		git config --global url."https://hub.fastgit.xyz/".insteadOf "https://github.com/"
+		git config --global url."https://hub.fastgit.xyz/".insteadOf "http://github.com/"
+		git config protocol.https.allow always
+		git config --global url."git@ssh.fastgit.org".insteadOf "git@github.com"
+		git config --global url."https://raw.fastgit.org/".insteadOf "https://raw.githubusercontent.com/"
+		;;
+	cnpmjs) # 已经失效
+		git config --global url."https://github.com.cnpmjs.com".insteadOf https://github.com
+		git config --global url."https://github.com.cnpmjs.com".insteadOf http://github.com
+		git config --global url."git@github.com.cnpmjs.org".insteadOf git@github.com
+		;;
+	gitclone) 
+		git config --global url."https://gitclone.com/github.com".insteadOf https://github.com 
+		git config --global url."https://gitclone.com/github.com".insteadOf http://github.com 
+		;;
+	unset)
+		git config --global --unset url."https://github.com".insteadOf
+		git config --global --unset url."git@github.com".insteadOf
+		;;
+	esac
+
+	cat $HOME/.gitconfig
+}
+
+git-socks-proxy() {
+	# git config --global https.proxy http://127.0.0.1:1080
+	# git config --global https.proxy https://127.0.0.1:1080
+	# git config --global http.proxy 'socks5://127.0.0.1:7891'
+	# git config --global https.proxy 'socks5://127.0.0.1:7891'
+	git config --global http.https://github.com.proxy socks5://127.0.0.1:7891
+	cat $HOME/.gitconfig
+}
+
+git-socks-proxy-unset() {
+	git config --global --unset http.proxy
+	git config --global --unset https.proxy
+	cat $HOME/.gitconfig
+}
+
+git-socks-proxy-ssh() {
+	echo "
+  Host github.com
+     ProxyCommand nc -X 5 -x 127.0.0.1:1080 %h %p
+" >>$HOME/.ssh/config
+	cat $HOME/.ssh/config
+}
+
+fix-bugs() {
+	case "$1" in
+	nvm)
+		source $HOME/.nvm/nvm.sh
+		nvm install node
+		nvm install iojs
+		nvm ls-remote
+		;;
+	*) echo "no :bug::bug: should to be fixed..." ;;
+	esac
+}
+
+if [ $# -lt 1 ]; then
+	/bin/sh $GCLRC_HOME/.help/gset
+	exit 0
+fi
+
 case "$1" in
-  "useorg") use_readtheorg ;;
-  "usemyorg") use_my_readtheorg ;;
-  "uselocalorg") use_local_readtheorg ;;
-  "blog-alias") set_blog_alias ;;
-  "fix-eaf-doom") fix_eaf_doom ;;
-  "pip-alias") set_pip_alias ;;
-  "go-proxy") set_go_proxy ;;
-  "install-apps") install_apps ;;
-  "mac-workflow") set_mac_workflows ;;
-  "node-lib") set_node_lib ${@:2} ;;
-  "node-bin") set_node_bin ${@:2} ;;
-  "deno-config") set_deno_config ${@:2} ;;
-  "fonts") set_fonts ${@:2} ;;
-  "push") push_all ${@:2} ;;
-  "init-mu4e") init_mu4e_dir ;;
-  "links") set_soft_links ;;
-  "alfred") set_alfred_workflows ${@:2} ;;
-  "cnpm-github") set_cnpm_github ;;
-  "git-user") set_git_user ;;
-  "github-proxy") set_github_proxy ;;
-  "unset-github-proxy") unset_github_proxy ;;
-  "brew-mirror-qh")
-    set_brew_mirror \
-      https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git \
-      https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git \
-      https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles
-    ;;
-  "brew-mirror-kd")
-    set_brew_mirror \
-      https://mirrors.ustc.edu.cn/brew.git \
-      https://mirrors.ustc.edu.cn/homebrew-core.git \
-      https://mirrors.ustc.edu.cn/homebrew-bottles
-    ;;
-  *) /bin/sh $GCLRC_HOME/.help/gset ;;
+"fix") fix ${@:2} ;;
+"socks-proxy") git-socks-proxy ;;
+"socks-unset") git-socks-proxy-unset ;;
+"github-proxy") github-proxy ${@:2} ;;
+"install-eaf") install-eaf ${@:2} ;;
+"useorg") use_readtheorg ;;
+"usemyorg") use_my_readtheorg ;;
+"uselocalorg") use_local_readtheorg ;;
+"blog-alias") set_blog_alias ;;
+"fix-eaf-doom") fix_eaf_doom ;;
+"pip-alias") set_pip_alias ;;
+"go-proxy") set_go_proxy ;;
+"install-apps") install_apps ;;
+"mac-workflow") set_mac_workflows ;;
+"node-lib") set_node_lib ${@:2} ;;
+"node-bin") set_node_bin ${@:2} ;;
+"deno-config") set_deno_config ${@:2} ;;
+"fonts") set_fonts ${@:2} ;;
+"push") push_all ${@:2} ;;
+"init-mu4e") init_mu4e_dir ;;
+"links") set_soft_links ;;
+"alfred") set_alfred_workflows ${@:2} ;;
+"cnpm-github") set_cnpm_github ;;
+"git-user") set_git_user ;;
+"mix-proxy") set_mix_proxy ;;
+"unset-proxy") unset_github_proxy ;;
+"brew-mirror-qh")
+	set_brew_mirror \
+		https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git \
+		https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git \
+		https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles
+	;;
+"brew-mirror-kd")
+	set_brew_mirror \
+		https://mirrors.ustc.edu.cn/brew.git \
+		https://mirrors.ustc.edu.cn/homebrew-core.git \
+		https://mirrors.ustc.edu.cn/homebrew-bottles
+	;;
+*) /bin/sh $GCLRC_HOME/.help/gset ;;
 esac
 
 echo "DONE..."

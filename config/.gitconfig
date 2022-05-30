@@ -1,0 +1,190 @@
+[apply]
+whitespace = nowarn
+[user]
+	name = gcclll
+	email = gccll.love@gmail.com
+[http]
+	proxy = http://127.0.0.1:1080
+[https]
+	proxy = http://127.0.0.1:1080
+[all]
+	proxy = socks5://127.0.0.1:1080
+[pull]
+	rebase = true
+[core]
+# @see http://comments.gmane.org/gmane.comp.version-control.git/166098
+filemode = true
+ignorecase = false
+autocrlf = false
+whitespace = cr-at-eol
+editor = vim
+pager = less -x1,5
+[color]
+diff = auto
+status = auto
+branch = auto
+ui = auto
+[alias]
+h="!sh $HOME/.gclrc/.help/git"
+# hold, @see http://git-blame.blogspot.com.au/2012/08/leftover-bits.html
+hd = "!sh -c 'git update-ref refs/hold/$1 refs/heads/$1 && git branch -D $1' -"
+# show holded branches
+shd ="!sh -c 'git show-ref | grep refs/hold'"
+sr = show-ref
+a = add
+ai = add -i
+ap = add --patch # add hunk by hunk
+au = add -u
+b = branch
+br = branch -r #remote branches
+bm = branch --merged
+bn = branch --no-merged
+c = commit
+ca = commit --amend
+co = checkout
+pick = cherry-pick
+ct= count-objects
+gp= format-patch -n --stdout
+d = diff
+dw = diff --color-words
+dn=diff --name-only --diff-filter=U #conflicts
+da= diff --name-only # get the file list
+dc = diff --cached
+dcs = diff --cached --stat
+df= diff-tree --no-commit-id --name-only
+# Remove branches that have already been merged with master
+rm-merged-branch = "!git branch --merged | grep -v '^ *\\*' | xargs -n 1 git branch -d"
+rm-unused-branch = "!git branch | grep -E -v '^ *(\\*|sit|master|uat|dev)' | xargs -n 1 git branch -D"
+# delete all remote branches except master and HEAD, DANGEROUS!
+rm-remotes-but-master = "!git branch -r | awk -F/ '/\\/[^mH]/{print $2}'| xargs  -I{} git push -f origin :{}"
+# delete tag(s)
+rm-tags = "!f() { git tag -d $1 && git push origin :refs/tags/$1; }; f"
+ds = diff --stat
+# @see http://mislav.uniqpath.com/2014/02/hidden-documentation/
+cat = "!f() { git show $1:./`git ls-tree -r $1 --name-status | python ~/bin/percol.py`; }; f"
+who1m = "!f() { git log --format='%an' --since='1 month ago' $1 | sort | uniq -c | sort -rn | head -n50; }; f"
+who3m = "!f() { git log --format='%an' --since='3 months ago' $1 | sort | uniq -c | sort -rn | head -n50; }; f"
+who6m = "!f() { git log --format='%an' --since='6 months ago' $1 | sort | uniq -c | sort -rn | head -n50; }; f"
+who = shortlog -sn
+fc=fetch -p #fetch and clean local invalid ref
+# Find branches containing commit
+branch-has-commit = "!f() { git branch -a --contains $1; }; f"
+# Find tags containing commit
+tag-has-commit = "!f() { git describe --always --contains $1; }; f"
+# Find commits by source code
+commit-has-snippet = "!f() { git log --pretty=format:'%C(yellow)%h %Cblue%ad %Creset%s%Cgreen [%cn] %Cred%d' --decorate --date=short -S$1; }; f"
+# Find commits by commit message
+commit-has-message = "!f() { git log --pretty=format:'%C(yellow)%h %Cblue%ad %Creset%s%Cgreen [%cn] %Cred%d' --decorate --date=short --grep=$1; }; f"
+fp=format-patch -n --stdout
+# @see https://stackoverflow.com/questions/7124914/how-to-search-a-git-repository-by-commit-message/7124949
+review = "!f() { git log -p --all --grep=\"$1\"; }; f"
+l = log --pretty=format:'%C(yellow)%h%Creset%C(green)%d%Creset %ad %s %Cred(%an)%Creset' --date=short --decorate --graph
+ls= log --pretty=format:'%h %s (%an)' --date=short # simple log for clipboard
+# @see http://magazine.redhat.com/2008/05/02/shipping-quality-code-with-git/
+lg = log --graph
+lt = log --topo-order
+# {{ push one specific commit to remote branch
+push1commit = "!f() { git push origin $1:`git symbolic-ref --short HEAD`; }; f"
+# }}
+# push the submodules automatically (if necessary) before pushing the parent repo
+push-submodule = push --recurse-submodules=on-demand
+# create corresponding remote branch
+pnew = "!f() { git push -u origin `git symbolic-ref --short HEAD`; }; f"
+mt= mergetool
+# merge but not fast-forward
+mn = merge --no-ff
+# All commits in feature branch is squashed into one commit
+# see http://stackoverflow.com/questions/5308816/how-to-use-git-merge-squash
+ms = merge --squash # you need `git commit` after merge
+nb = checkout -b
+pr = pull --rebase
+rh = reset --hard
+touchlastcommit = commit --amend --date=now --no-edit --no-verify
+# reset hunk by hunk
+rp = reset --patch
+# checkout hunk by hunk
+cp= checkout --patch
+# revert the commit but apply change in index only
+rn = revert --no-commit
+rs=reset --soft
+ra = rebase --abort
+r = rebase
+ri = rebase -i
+rc = rebase --continue
+rk = rebase --skip
+rf = rev-parse --show-toplevel # show root folder
+s= show
+sb = show-branch
+st = status -sb #short status output for geeks
+su= status --untracked-files=no
+tt=stash
+ta=stash apply
+up = !git stash && git pull --rebase && git stash pop
+untrack=rm -r --cached # donot track the file(s)
+wc = whatchanged
+# more meaningful alias for infrequent command
+back = reset --soft HEAD^ # undo the previous commit
+back2 = reset --soft HEAD^^
+fetus = !git fetch && git branch -v -a
+clr = clean -d -f
+# for paste into email title, WITH parentheses
+whatis = show -s --pretty='tformat:%h (%s, %ad)' --date=short
+# for paste into email title, NO parentheses
+pwhatis = show -s --pretty='tformat:%h, %s, %ad' --date=short
+# branch contains commit
+has=branch --contains
+[sendemail]
+smtpencryption = tls
+smtpserver = smtp.gmail.com
+smtpuser = gccll.love@gmail.com
+smtpserverport = 587
+[github]
+user = gcclll
+oauth-token = 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
+[push]
+default = tracking
+[merge]
+branchdesc = true
+log = true
+tool = vimdiff
+[diff]
+tool = vimdiff
+submodule = log
+indentHeuristic = true
+# histogram algorithm could slow down git and uses more memory
+# @see https://stackoverflow.com/questions/32365271/whats-the-difference-between-git-diff-patience-and-git-diff-histogram
+algorithm = histogram
+[mergetool]
+# no prompt before merge each file
+prompt = false
+[mergetool.emacs]
+cmd = ediff.sh "$LOCAL" "$REMOTE" "$BASE" "$MERGED"
+[mergetool.emacsclient]
+cmd = MYEMACSCLIENT=emacsclient ediff.sh "$LOCAL" "$REMOTE" "$BASE" "$MERGED"
+[mergetool.p4merge]
+# @see https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration
+cmd = p4merge "$BASE" "$LOCAL" "$REMOTE" "$MERGED"
+trustExitCode = false
+[mergetool.idea]
+cmd = idea merge \"$LOCAL\" \"$REMOTE\" \"$BASE\" \"$MERGED\"
+# [init]
+# templatedir = ~/.git_template
+[credential]
+# Run `mkdir ~/.git-credential-cache && chmod 700 ~/.git-credential-cache`
+# by default, password is stored in memory for certain time
+# You could use below command to reset timeout
+# git config --global credential.helper "cache --timeout=3600"
+helper = cache --timeout=28800 # 8 hours
+[rerere]
+enabled = true
+#[includeIf "gitdir:proj1/"]
+#path = ~/my-git-setup/proj1.inc
+
+[status]
+submodulesummary = 1
+
+[mergetool.ediff]
+# use git mergetool ediff to resolve conflicts
+cmd = emacs -nw -Q --eval \"(setq startup-now t)\" -l \"~/.emacs.d/init.el\" --eval \"(progn (setq ediff-quit-hook 'kill-emacs) (if (file-readable-p \\\"$BASE\\\") (ediff-merge-files-with-ancestor \\\"$LOCAL\\\" \\\"$REMOTE\\\" \\\"$BASE\\\" nil \\\"$MERGED\\\") (ediff-merge-files \\\"$LOCAL\\\" \\\"$REMOTE\\\" nil \\\"$MERGED\\\")))\"
+[init]
+	defaultBranch = main

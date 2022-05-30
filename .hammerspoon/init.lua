@@ -64,7 +64,7 @@ up(↑) down(↓) left(←) right(→) \
 \
 grid(g,234) next screen(/) max(<space>) min(.)\
 \
-capture(t) 进入Model(Ctrl+F12)\
+capture(t)\
 "); end)
 
 org_capture_path = os.getenv("HOME").."/.hammerspoon/files/org-capture.lua"
@@ -106,17 +106,17 @@ end
 local cmodal
 
 -- Ctrl + Alt
-Install:andUse("AppLauncher", {
-  hotkeys = {
-    c = "Calendar",
-    d = "Dash",
-    e = "Emacs",
-    f = "Finder",
-    i = "iTerm",
-    n = "Notes",
-    w = "WeChat"
-  }
-})
+-- Install:andUse("AppLauncher", {
+--  hotkeys = {
+--    c = "Calendar",
+--    d = "Dash",
+--    e = "Emacs",
+--    f = "Finder",
+--    i = "iTerm",
+--    n = "Notes",
+--    w = "WeChat"
+--  }
+-- })
 
 ----------------------------------------------------------------------------------------------------
 -- resizeM modal environment

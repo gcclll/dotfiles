@@ -1,0 +1,51 @@
+#!/bin/bash
+
+TSDIR=$HOME/.emacs.d/site-lisp/extensions/tree-sitter/langs
+if [ ! -d $TSDIR ] ; then
+	echo "请确保已经安装了 tree-sitter"
+	exit 0
+fi
+
+echo "如果失败了，将 #include <tree_sitter/parser.h>的<>改成双引号再重试"
+
+compile-module() {
+    dir="$1"
+    repo="$2"
+    target="$3"
+    src="$4"
+    echo "正在编译 sitter $target..."
+    if [ ! -d $dir ]; then
+        git clone --depth 1 $repo $dir
+    fi
+
+    cd $dir
+    if [ "$5" == "c++" ]; then
+      g++ $src -fPIC -I./ --shared -o $target
+    else
+      gcc $src -fPIC -I./ --shared -o $target
+    fi
+    [ -f "./$target" ] && cp ./$target $TSDIR/bin
+    ls -al $TSDIR/bin | grep $target
+    echo "$target DONE."
+}
+
+compile-module /tmp/tree-sitter-elisp \
+               https://github.com/Wilfred/tree-sitter-elisp.git \
+               elisp.so \
+               "./src/parser.c"
+
+compile-module /tmp/tree-sitter-typescript \
+               https://github.com/tree-sitter/tree-sitter-typescript.git \
+               typescript.so \
+               "./tsx/src/parser.c ./tsx/src/scanner.c"
+               
+
+compile-module /tmp/tree-sitter-vue \
+               https://github.com/ikatyang/tree-sitter-vue.git \
+               vue.so \
+               "./src/parser.c ./src/scanner.cc" \
+               "c++" 
+
+               
+# rm -rf /tmp/tree-sitter-elisp
+# rm -rf /tmp/tree-sitter-typescript

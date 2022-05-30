@@ -232,6 +232,19 @@ install_brew_list() {
             offlineimap mu openssl deno gdb delve qrencode shfmt shellcheck \
             krita pyqt5
 
+        # 安装等宽字体
+        brew tap laishulu/cask-fonts
+        brew install --cask font-sarasa-nerd
+
+        # koa 脚手架 lad.js
+        brew tap mongodb/brew
+        brew install mongodb-community
+        brew services start mongodb-community
+
+        # redis
+        brew install redis
+        brew services start redis
+
         brew link openssl --force
         brew link fd
         $(brew --prefix)/opt/fzf/install
@@ -270,8 +283,10 @@ install_npm_list() {
         npm install -g cnpm
         cnpm -g install yarn opencc js-beautify indium \
             editorconfig jest vmd tsun indium ba64 http-server \
-            expo-cli browser-sync pnpm stylelint @volar/vue-language-server mermaid.cli atomic-algolia magic-string estree-walker \
-            acorn rollup
+            expo-cli browser-sync pnpm stylelint \
+            @volar/vue-language-server mermaid.cli \
+            atomic-algolia magic-string estree-walker \
+            acorn rollup cheerio request
     fi
 }
 
@@ -282,7 +297,7 @@ install_pipenv() {
         pipx pipenv ensurepath
         ln -s $HOME/.local/pipx/venvs/pipenv $BIN/pipenv
         pip3 install -U pytest sshx buku grip black pyflakes isort
-        sudo easy_install nose
+        sudo easy_install nose epc
         ln -s "$(which grip)" $BIN/grip
         $DOTDIR/bin/gset pip-alias
         GOBIN=$GOPATH/bin
@@ -392,6 +407,7 @@ install_doomemacs() {
 
 }
 
+
 case "$1" in
     repo)
         ptt "Clone repos only and exit !!!"
@@ -480,7 +496,7 @@ install_getent
 install_hugo
 install_rime
 install_emacs
-install_doomemacs
+# install_doomemacs               
 clonerepos
 
 # ptt "Installing PHP extensions with PECL..."

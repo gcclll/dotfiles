@@ -2,6 +2,9 @@
 :ID:       95666e03-38b5-4ad4-b50f-ef40f6cc36d8
 :END:
 #+SETUPFILE:~/.gclrc/org/hugo_setup.org
+#+HTML_HEAD: <meta name="category" content="others"/>
+#+HTML_HEAD: <meta name="tags" content="others"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-02-02 09:41:49"/>
 #+HUGO_SLUG: collections
 #+TITLE: collections
 <badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
@@ -17,7 +20,36 @@
 ** how to start a vite project ?
 
 [[https://vitejs.dev/guide/#scaffolding-your-first-vite-project][Getting Started | Vite]]
+* [Mac/Window]OS
 
+** git proxy
+
+set ssh proxy(~gset socks-proxy ssh~)
+
+#+begin_src sh
+$ vim ~/.ssh/config
+echo "
+Host github.com
+     ProxyCommand nc -X 5 -x 127.0.0.1:1080 %h %p
+" >> $HOME/.ssh/config
+#+end_src
+
+set http(s)? proxy(~gset socks-proxy~)
+
+#+begin_src sh
+# git config --global https.proxy http://127.0.0.1:1080
+# git config --global https.proxy https://127.0.0.1:1080
+# git config --global http.proxy 'socks5://127.0.0.1:7891'
+# git config --global https.proxy 'socks5://127.0.0.1:7891'
+git config --global http.https://github.com.proxy socks5://127.0.0.1:7891
+#+end_src
+
+unset(~gset socks-proxy unset~)
+
+#+begin_src sh
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+#+end_src
 * Others
 
 生成网站的 scroll to top 按钮: [[https://www.scrolltotop.com/][Free Scroll to Top Buttons]]。

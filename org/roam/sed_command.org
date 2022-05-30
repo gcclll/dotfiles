@@ -5,6 +5,7 @@
 #+HUGO_SLUG: sed_command
 #+HTML_HEAD: <meta name="category" content="shell"/>
 #+HTML_HEAD: <meta name="tags" content="sed"/>
+#+HTML_HEAD: <meta name="createdAt" content="2022-02-02 09:41:20"/>
 #+TITLE: sed command
 <badge: GCCLL | Homepage | green | / | gnu-emacs | tinder>
 

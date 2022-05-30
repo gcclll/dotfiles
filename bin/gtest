@@ -1,6 +1,5 @@
 #!/bin/bash
 
-content=$(cat /tmp/input.txt)
-echo "line 1" >/tmp/input.txt
-echo "$content" >>/tmp/input.txt
-cat /tmp/input.txt
+source $HOME/.nvm/nvm.sh
+
+nvm list

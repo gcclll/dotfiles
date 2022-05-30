@@ -1,0 +1,6 @@
+// https://stylelint.io/user-guide/configure
+{
+  "rules": {
+    "color-no-invalid-hex": true
+  }
+}

@@ -136,6 +136,7 @@ grid(g,234) next screen(/) max(<space>) min(.)\
 capture(t)\
 "); end)
 #+end_src
+
 * org-capture
 
 #+begin_src lua
