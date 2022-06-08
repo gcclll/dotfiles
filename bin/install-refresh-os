@@ -230,7 +230,7 @@ install_brew_list() {
             pkg-config poppler automake clang-format texmacs texlab \
             aspell xdotool mpd mpc httpie aria2 pass w3m msmtp isync \
             offlineimap mu openssl deno gdb delve qrencode shfmt shellcheck \
-            krita pyqt5
+            krita pyqt5 tcping
 
         # 安装等宽字体
         brew tap laishulu/cask-fonts

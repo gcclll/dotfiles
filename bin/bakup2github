@@ -30,6 +30,7 @@ if [ -d $dot ]; then
         $dot/config \
         $dot/org \
         $dot/roam \
+	$dot/fonts \
         $dot/workflows \
         $dot/xminds \
         $mine/dotfiles
